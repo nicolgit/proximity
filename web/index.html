@@ -1,0 +1,66 @@
+﻿<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Azure Maps Route Range Example</title>
+    <meta charset="utf-8" />
+    <style>
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        #theMap {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link href="https://unpkg.com/maplibre-gl/dist/maplibre-gl.css" rel="stylesheet" />
+
+    <script type="module" src="map-library.js"></script>
+
+
+    <script type="module">
+        import { initMap, showMetroStations, showMetroRange } from './map-library.js';
+
+        let center = [41.8915943, 12.4724982]; // roma
+        let mapZoom = 12;
+
+        function onLoadBody() {
+            initMap(center, mapZoom);
+
+
+            showMetroStations("data/roma/linea-a.json", "red");
+            //showMetroStations("data/roma/linea-a.json","red", "Spagna");
+            showMetroStations("data/roma/linea-b.json", "blue");
+
+            //showMetroRange("data/roma/linea-a.json","red", "data/roma/stations", "Battistini");
+            //showMetroRange("data/roma/linea-a.json","red", "data/roma/stations", "Spagna");
+            showMetroRange("data/roma/linea-a.json", "red", "data/roma/stations");
+            //showMetroRange("data/roma/linea-b.json","blue", "data/roma/stations", "Rebibbia");
+
+        }
+
+        window.onLoadBody = onLoadBody;
+    </script>
+</head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-7J0ZL0BK5J"></script>
+<script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    gtag('js', new Date());
+
+    gtag('config', 'G-7J0ZL0BK5J');
+</script>
+
+<body onload="onLoadBody();">
+    <div id="theMap"></div>
+</body>
+
+</html>
