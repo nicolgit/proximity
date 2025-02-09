@@ -47,7 +47,9 @@ export function showMetroStations(url, color, stationName) {
 }
 
 export async function showMetroRange(url, color, stationFolder, stationName) {
-    var unionPolygon = [[[]]];
+    var fullLine500 = [[[]]];
+    var fullLine1000 = [[[]]];
+    var fullLine1600 = [[[]]];
 
     const metroResult = await fetch(url);
     const metroData = await metroResult.json();
@@ -64,18 +66,26 @@ export async function showMetroRange(url, color, stationFolder, stationName) {
             const data = await response.json();
 
             if (i === 0) {
-                unionPolygon = [data[0]];
+                fullLine500 = [data.distance500];
+                fullLine1000 = [data.distance1000];
+                fullLine1600 = [data.distance1600];
             }
             else {
-                unionPolygon = ND.polygonClipping.union(unionPolygon, [data[0]]);
+                fullLine500 = ND.polygonClipping.union(fullLine500, [data.distance500]);
+                fullLine1000 = ND.polygonClipping.union(fullLine1000, [data.distance1000]);
+                fullLine1600 = ND.polygonClipping.union(fullLine1600, [data.distance1600]);
             }
 
             if (i === stations.length - 1) {
-                unionPolygon.forEach(polygon => {
-                    let stationPolygon = L.polygon(polygon, { color: color, stroke: true, weight: 1 }).addTo(map);
-                    stationPolygon.bindPopup(metroData.name);
-                }
-                );
+                fullLine500.forEach(polygon => {
+                    AddPolygon(polygon, color, metroData.name, false);
+                });
+                fullLine1000.forEach(polygon => {
+                    AddPolygon(polygon, color, metroData.name, false);
+                });
+                fullLine1600.forEach(polygon => {
+                    AddPolygon(polygon, color, metroData.name, true);
+                });
             }
         }
 
@@ -89,45 +99,15 @@ export async function showMetroRange(url, color, stationFolder, stationName) {
             const response = await fetch(polygonUrl);
             const data = await response.json();
 
-            for (let l=0; l<data.length; l++) {
-                let stationPolygon;
-                if (l == data.length - 1) {
-                    stationPolygon = L.polygon(data[l], { color: color, stroke: true, weight: 1 }).addTo(map);
-                }
-                else {
-                stationPolygon = L.polygon(data[l], { color: color, stroke: false }).addTo(map);
-                }
-                stationPolygon.bindPopup(name);
-            }
+            AddPolygon(data.distance500, color, name, false);
+            AddPolygon(data.distance1000, color, name, false);
+            AddPolygon(data.distance1600, color, name, true);
         }
 
     }
 }
 
-
-function addRouteRangeLayer(map, center, range, color, opacity) {
-    let centerString = center[1] + ',' + center[0];
-    let travelMode = 'car';
-
-    let routeRangeUrl = `https://atlas.microsoft.com/route/range/json?api-version=1.0&query=` + centerString + `&distanceBudgetInMeters=` + range + `&TravelMode=` + travelMode + `&subscription-key=${subscriptionkey}`;
-    fetch(routeRangeUrl)
-        .then(response => response.json())
-        .then(data => {
-
-            let convertedArray = convertCoordinates(data.reachableRange.boundary);
-            let rangePolygon = new atlas.data.Polygon(convertedArray);
-            let feature = new atlas.data.Feature(rangePolygon);
-            datasource.add(new atlas.Shape(feature));
-
-            map.layers.add(new atlas.layer.PolygonLayer(datasource, null, {
-                fillColor: color,
-                fillOpacity: opacity
-            }), 'labels')
-
-        })
-        .catch(error => console.error('Error fetching route range:', error));
-}
-
-function convertCoordinates(coordinates) {
-    return coordinates.map(coord => [coord.longitude, coord.latitude]);
+function AddPolygon(polygon, color, name, showStroke) {
+    let stationPolygon = L.polygon(polygon, { color: color, stroke: showStroke, weight: 1 }).addTo(map);
+    stationPolygon.bindPopup(name);
 }

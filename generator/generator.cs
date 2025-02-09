@@ -13,23 +13,16 @@ internal class Program
 
     private static void Main(string[] args)
     {
-        Console.WriteLine("Hello, reading parameters!");
-
-        // read filename from command line
-        //string configfile = args[0];
-
-        // read file and cast to json object
-        //string json = File.ReadAllText(configfile);
-        //JObject config = JObject.Parse(json);
+        Console.WriteLine("Hello!");
 
         if (config["buildStations"]!.Value<bool>() == true)
         {
-            BuildStation();
+            BuildStations();
         }
 
     }
 
-    static bool BuildStation()
+    static bool BuildStations()
     {
         string mapKey = config["subscriptionKey"]!.ToString();
         JArray distances = (JArray)config["distances"]!;
@@ -53,7 +46,7 @@ internal class Program
                 //latitude and longitude ensure that use . for decimal point and not
                 string centerString = $"{latitude.ToString(CultureInfo.InvariantCulture)},{longitude.ToString(CultureInfo.InvariantCulture)}";
 
-                JArray metroStationData = new JArray();
+                JObject metroStationData = new JObject();
                 for (int d = 0; d < distances.Count; d++)
                 {
                     double distance = (double)distances[d]!;
@@ -81,7 +74,7 @@ internal class Program
                         convertedPoints.Add(new JArray(lat, lon));
                     }
 
-                    metroStationData.Add(convertedPoints);
+                    metroStationData.Add($"distance{distance}", convertedPoints); 
                 }
 
                 // save response to file
