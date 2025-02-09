@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "browserify": "^17.0.1",
+    "polygon-clipping": "^0.15.7"
+  }
+}
