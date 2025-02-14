@@ -35,16 +35,19 @@
             initMap(center, mapZoom);
 
 
-            //showMetroStations("data/roma/linea-a.json", "red");
+            showMetroStations("data/roma/linea-a.json", "red");
             //showMetroStations("data/roma/linea-a.json","red", "Spagna");
             //showMetroRange("data/roma/linea-a.json","red", "data/roma/stations", "Battistini");
             //showMetroRange("data/roma/linea-a.json","red", "data/roma/stations", "Spagna");
             showMetroRange("data/roma/linea-a.json", "red", "data/roma/stations");
             
 
-            //showMetroStations("data/roma/linea-b.json", "blue");
+            showMetroStations("data/roma/linea-b.json", "blue");
             showMetroRange("data/roma/linea-b.json","blue", "data/roma/stations");
             //showMetroRange("data/roma/linea-b.json","blue", "data/roma/stations", "Rebibbia");
+
+            showMetroStations("data/roma/linea-c.json", "green");
+            showMetroRange("data/roma/linea-c.json","green", "data/roma/stations");
         }
 
         window.onLoadBody = onLoadBody;
