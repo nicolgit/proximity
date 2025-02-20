@@ -5,15 +5,36 @@ import "https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js";
 import "https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.0.22/leaflet-maplibre-gl.js";
 import "./bundle.js"; // ND.polygonClipping
 
-export function initMap(center, zoom) {
-    map = L.map('theMap').setView(center, zoom)
+var layerControl;
 
+export function initMap(center, zoom) {
     ND.helloWord("ciao roma!");
 
-    L.maplibreGL({
+    let positronBase = L.maplibreGL({
         style: 'https://tiles.openfreemap.org/styles/positron',
         attribution: '&copy; <a href="http://nicolgit.github.io">Nicola Delfino</a>'
-    }).addTo(map);
+    });
+
+    let brightBase = L.maplibreGL({
+        style: 'https://tiles.openfreemap.org/styles/bright',
+        attribution: '&copy; <a href="http://nicolgit.github.io">Nicola Delfino</a>'
+    });
+
+    map = L.map('theMap', {
+        center: center,
+        zoom:zoom,
+        layers: [brightBase, positronBase]
+    });
+
+    let baseMaps = {
+        "Positron": positronBase,
+        "Bright": brightBase
+    };
+
+    let overlayMaps = {
+    };
+
+    layerControl = L.control.layers(baseMaps, overlayMaps).addTo(map);
 }
 
 export function showMetroStations(url, color, stationName) {
@@ -47,6 +68,8 @@ export function showMetroStations(url, color, stationName) {
 }
 
 export async function showMetroRange(url, color, stationFolder, stationName) {
+    var group = L.layerGroup();
+
     var fullLine500 = [[[]]];
     var fullLine1000 = [[[]]];
     var fullLine1600 = [[[]]];
@@ -78,13 +101,13 @@ export async function showMetroRange(url, color, stationFolder, stationName) {
 
             if (i === stations.length - 1) {
                 fullLine500.forEach(polygon => {
-                    AddPolygon(polygon, color, metroData.name, false);
+                    group.addLayer (CreatePolygon(polygon, color, false));
                 });
                 fullLine1000.forEach(polygon => {
-                    AddPolygon(polygon, color, metroData.name, false);
+                    group.addLayer (CreatePolygon(polygon, color, false));
                 });
                 fullLine1600.forEach(polygon => {
-                    AddPolygon(polygon, color, metroData.name, true);
+                    group.addLayer (CreatePolygon(polygon, color, true));
                 });
             }
         }
@@ -99,15 +122,22 @@ export async function showMetroRange(url, color, stationFolder, stationName) {
             const response = await fetch(polygonUrl);
             const data = await response.json();
 
-            AddPolygon(data.distance500, color, name, false);
-            AddPolygon(data.distance1000, color, name, false);
-            AddPolygon(data.distance1600, color, name, true);
+            group.addLayer (CreatePolygon(data.distance500, color, false));
+            group.addLayer (CreatePolygon(data.distance1000, color, false));
+            group.addLayer (CreatePolygon(data.distance1600, color, true));
+            //AddPolygon(data.distance500, color, name, false);
+            //AddPolygon(data.distance1000, color, name, false);
+            //AddPolygon(data.distance1600, color, name, true);
         }
-
     }
+    layerControl.addOverlay(group, metroData.name);
 }
 
 function AddPolygon(polygon, color, name, showStroke) {
     let stationPolygon = L.polygon(polygon, { color: color, stroke: showStroke, weight: 1 }).addTo(map);
     stationPolygon.bindPopup(name);
+}
+
+function CreatePolygon(polygon, color, showStroke) {
+    return L.polygon(polygon, { color: color, stroke: showStroke, weight: 1 });
 }
