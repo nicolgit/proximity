@@ -7,7 +7,7 @@ import "./bundle.js"; // ND.polygonClipping
 
 var layerControl;
 
-export function initMap(center, zoom) {
+export function initMap(center, zoom, defaultOverlays) {
     ND.helloWord("ciao roma!");
 
     let positronBase = L.maplibreGL({
@@ -20,10 +20,12 @@ export function initMap(center, zoom) {
         attribution: '&copy; <a href="http://nicolgit.github.io">Nicola Delfino</a>'
     });
 
+    //defaultOverlays.splice(0, 0, positronBase);
+
     map = L.map('theMap', {
         center: center,
-        zoom:zoom,
-        layers: [brightBase, positronBase]
+        zoom: zoom,
+        layers: defaultOverlays
     });
 
     let baseMaps = {
@@ -31,10 +33,11 @@ export function initMap(center, zoom) {
         "Bright": brightBase
     };
 
-    let overlayMaps = {
-    };
+    layerControl = L.control.layers(baseMaps, defaultOverlays).addTo(map);
+}
 
-    layerControl = L.control.layers(baseMaps, overlayMaps).addTo(map);
+export function addOverlayToMap(layer, name) {
+    layerControl.addOverlay(layer, name);
 }
 
 export function showMetroStations(url, color, stationName) {
@@ -101,13 +104,13 @@ export async function showMetroRange(url, color, stationFolder, stationName) {
 
             if (i === stations.length - 1) {
                 fullLine500.forEach(polygon => {
-                    group.addLayer (CreatePolygon(polygon, color, false));
+                    group.addLayer(CreatePolygon(polygon, color, false));
                 });
                 fullLine1000.forEach(polygon => {
-                    group.addLayer (CreatePolygon(polygon, color, false));
+                    group.addLayer(CreatePolygon(polygon, color, false));
                 });
                 fullLine1600.forEach(polygon => {
-                    group.addLayer (CreatePolygon(polygon, color, true));
+                    group.addLayer(CreatePolygon(polygon, color, true));
                 });
             }
         }
@@ -122,15 +125,15 @@ export async function showMetroRange(url, color, stationFolder, stationName) {
             const response = await fetch(polygonUrl);
             const data = await response.json();
 
-            group.addLayer (CreatePolygon(data.distance500, color, false));
-            group.addLayer (CreatePolygon(data.distance1000, color, false));
-            group.addLayer (CreatePolygon(data.distance1600, color, true));
+            group.addLayer(CreatePolygon(data.distance500, color, false));
+            group.addLayer(CreatePolygon(data.distance1000, color, false));
+            group.addLayer(CreatePolygon(data.distance1600, color, true));
             //AddPolygon(data.distance500, color, name, false);
             //AddPolygon(data.distance1000, color, name, false);
             //AddPolygon(data.distance1600, color, name, true);
         }
     }
-    layerControl.addOverlay(group, metroData.name);
+    return group;
 }
 
 function AddPolygon(polygon, color, name, showStroke) {

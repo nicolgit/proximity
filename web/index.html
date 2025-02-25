@@ -26,30 +26,38 @@
 
 
     <script type="module">
-        import { initMap, showMetroStations, showMetroRange } from './map-library.js';
+        import { initMap, showMetroStations, showMetroRange, addOverlayToMap } from './map-library.js';
 
         let center = [41.8915943, 12.4724982]; // roma
         let mapZoom = 12;
 
-        function onLoadBody() {
-            initMap(center, mapZoom);
-
+        async function onLoadBody() {
 
             //showMetroStations("data/roma/linea-a.json", "red");
             //showMetroStations("data/roma/linea-a.json","red", "Spagna");
             //showMetroRange("data/roma/linea-a.json","red", "data/roma/stations", "Battistini");
             //showMetroRange("data/roma/linea-a.json","red", "data/roma/stations", "Spagna");
+
+
+            var defaultOverlays = [
+                await showMetroRange("data/roma/linea-b.json", "blue", "data/roma/stations"),
+                await showMetroRange("data/roma/linea-a.json", "red", "data/roma/stations")
+            ];
+
+            initMap(center, mapZoom, defaultOverlays);
+
             showMetroRange("data/roma/linea-a.json", "red", "data/roma/stations");
-            
+
 
             //showMetroStations("data/roma/linea-b.json", "blue");
-            showMetroRange("data/roma/linea-b.json","blue", "data/roma/stations");
+
             //showMetroRange("data/roma/linea-b.json","blue", "data/roma/stations", "Rebibbia");
 
             //showMetroStations("data/roma/linea-c.json", "green");
-            showMetroRange("data/roma/linea-c.json","green", "data/roma/stations");
 
-
+            //addOverlayToMap(await showMetroRange("data/roma/linea-b.json", "blue", "data/roma/stations"), "linea b");
+            //addOverlayToMap(await showMetroRange("data/roma/linea-a.json", "red", "data/roma/stations"), "linea a");
+            addOverlayToMap(await showMetroRange("data/roma/linea-c.json", "green", "data/roma/stations"), "linea c");
         }
 
         window.onLoadBody = onLoadBody;
