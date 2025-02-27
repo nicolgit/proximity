@@ -26,38 +26,31 @@
 
 
     <script type="module">
-        import { initMap, showMetroStations, showMetroRange, addOverlayToMap } from './map-library.js';
+        import { initMap, showMetroStations, getMetroRange, addOverlayToMap } from './map-library.js';
 
         let center = [41.8915943, 12.4724982]; // roma
         let mapZoom = 12;
 
         async function onLoadBody() {
 
-            //showMetroStations("data/roma/linea-a.json", "red");
-            //showMetroStations("data/roma/linea-a.json","red", "Spagna");
-            //showMetroRange("data/roma/linea-a.json","red", "data/roma/stations", "Battistini");
-            //showMetroRange("data/roma/linea-a.json","red", "data/roma/stations", "Spagna");
-
-
             var defaultOverlays = [
-                await showMetroRange("data/roma/linea-b.json", "blue", "data/roma/stations"),
-                await showMetroRange("data/roma/linea-a.json", "red", "data/roma/stations")
+                await getMetroRange("data/roma/linea-b.json", "blue", "data/roma/stations"),
+                await getMetroRange("data/roma/linea-a.json", "red", "data/roma/stations")
             ];
 
             initMap(center, mapZoom, defaultOverlays);
 
-            showMetroRange("data/roma/linea-a.json", "red", "data/roma/stations");
+            getMetroRange("data/roma/linea-a.json", "red", "data/roma/stations");
+  
+            showMetroStations("data/roma/linea-a.json", "red");
+            showMetroStations("data/roma/linea-b.json", "blue");
+            showMetroStations("data/roma/linea-c.json", "green");
 
+            addOverlayToMap( defaultOverlays[0], "Line B");
+            addOverlayToMap( defaultOverlays[1], "Line A");
+            addOverlayToMap( await getMetroRange("data/roma/linea-c.json", "green", "data/roma/stations"), "Line C");
 
-            //showMetroStations("data/roma/linea-b.json", "blue");
-
-            //showMetroRange("data/roma/linea-b.json","blue", "data/roma/stations", "Rebibbia");
-
-            //showMetroStations("data/roma/linea-c.json", "green");
-
-            //addOverlayToMap(await showMetroRange("data/roma/linea-b.json", "blue", "data/roma/stations"), "linea b");
-            //addOverlayToMap(await showMetroRange("data/roma/linea-a.json", "red", "data/roma/stations"), "linea a");
-            addOverlayToMap(await showMetroRange("data/roma/linea-c.json", "green", "data/roma/stations"), "linea c");
+            //addOverlayToMap( await getMetroRange("data/roma/linea-b.json","blue", "data/roma/stations", "Rebibbia"), "Rebibbia");
         }
 
         window.onLoadBody = onLoadBody;

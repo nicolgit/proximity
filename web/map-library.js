@@ -19,21 +19,19 @@ export function initMap(center, zoom, defaultOverlays) {
         style: 'https://tiles.openfreemap.org/styles/bright',
         attribution: '&copy; <a href="http://nicolgit.github.io">Nicola Delfino</a>'
     });
-
-    //defaultOverlays.splice(0, 0, positronBase);
-
+    
     map = L.map('theMap', {
         center: center,
         zoom: zoom,
-        layers: defaultOverlays
+        layers: [brightBase].concat(defaultOverlays)
     });
 
     let baseMaps = {
-        "Positron": positronBase,
-        "Bright": brightBase
+        "B&W": positronBase,
+        "colored": brightBase
     };
 
-    layerControl = L.control.layers(baseMaps, defaultOverlays).addTo(map);
+    layerControl = L.control.layers(baseMaps).addTo(map);
 }
 
 export function addOverlayToMap(layer, name) {
@@ -70,7 +68,7 @@ export function showMetroStations(url, color, stationName) {
         .catch(error => console.error('Error fetching metro stations:', error));
 }
 
-export async function showMetroRange(url, color, stationFolder, stationName) {
+export async function getMetroRange(url, color, stationFolder, stationName) {
     var group = L.layerGroup();
 
     var fullLine500 = [[[]]];
@@ -133,6 +131,7 @@ export async function showMetroRange(url, color, stationFolder, stationName) {
             //AddPolygon(data.distance1600, color, name, true);
         }
     }
+    
     return group;
 }
 
