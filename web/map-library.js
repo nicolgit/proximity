@@ -19,7 +19,7 @@ export function initMap(center, zoom, defaultOverlays) {
         style: 'https://tiles.openfreemap.org/styles/bright',
         attribution: '&copy; <a href="http://nicolgit.github.io">Nicola Delfino</a>'
     });
-    
+
     map = L.map('theMap', {
         center: center,
         zoom: zoom,
@@ -38,34 +38,42 @@ export function addOverlayToMap(layer, name) {
     layerControl.addOverlay(layer, name);
 }
 
-export function showMetroStations(url, color, stationName) {
-    fetch(url)
-        .then(response => response.json())
-        .then(data => {
-            let stations = data.stops;
-            for (let i = 0; i < stations.length; i++) {
+export function addOverlayToMap_fromArray(array, name) {
+    let group = L.layerGroup(array);
+    addOverlayToMap(group, name);
+}
 
-                if (typeof stationName === 'undefined' ||
-                    (stationName !== null && stationName === stations[i][0])) {
+export async function getMetroStations(url, color, stationName) {
+    var array = [];
 
-                    let station = stations[i];
-                    let name = station[0];
+    const stationsResult = await fetch(url);
+    const stationsData = await stationsResult.json();
 
-                    // add MARKER with name and color
-                    let pin = L.marker([station[1], station[2]]).addTo(map);
-                    pin.bindPopup(name);
-                    pin.setIcon(L.icon({
-                        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-' + color + '.png',
-                        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-                        iconSize: [25, 41],
-                        iconAnchor: [12, 41],
-                        popupAnchor: [1, -34],
-                        shadowSize: [41, 41]
-                    }));
-                }
-            }
-        })
-        .catch(error => console.error('Error fetching metro stations:', error));
+    let stations = stationsData.stops;
+    for (let i = 0; i < stations.length; i++) {
+
+        if (typeof stationName === 'undefined' ||
+            (stationName !== null && stationName === stations[i][0])) {
+
+            let station = stations[i];
+            let name = station[0];
+
+            // add MARKER with name and color
+            let pin = L.marker([station[1], station[2]]);
+            pin.bindPopup(name);
+            pin.setIcon(L.icon({
+                iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-' + color + '.png',
+                shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+                iconSize: [25, 41],
+                iconAnchor: [12, 41],
+                popupAnchor: [1, -34],
+                shadowSize: [41, 41]
+            }));
+
+            array.push(pin);
+        }
+    }
+    return array;
 }
 
 export async function getMetroRange(url, color, stationFolder, stationName) {
@@ -131,7 +139,7 @@ export async function getMetroRange(url, color, stationFolder, stationName) {
             //AddPolygon(data.distance1600, color, name, true);
         }
     }
-    
+
     return group;
 }
 
