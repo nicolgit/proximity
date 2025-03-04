@@ -1,5 +1,5 @@
 ﻿<!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
     <title>metro proximity project - beta</title>
@@ -34,9 +34,10 @@
         async function onLoadBody() {
 
             var defaultOverlays = [
-                await getMetroRange("data/roma/linea-b.json", "blue", "data/roma/stations"),
-                await getMetroRange("data/roma/linea-a.json", "red", "data/roma/stations"),
-                await getMetroRange("data/roma/linea-c.json", "green", "data/roma/stations")
+                await getMetroRange("data/roma/linea-a.json", "red", "data/roma/stations"),    
+                await getMetroRange("data/roma/linea-b.json", "blue", "data/roma/stations"),        
+                await getMetroRange("data/roma/linea-c.json", "green", "data/roma/stations"),
+                await getMetroRange("data/roma/FL1.json", "#166D42", "data/roma/stations")
             ];
 
             initMap(center, mapZoom, defaultOverlays);
@@ -47,13 +48,14 @@
             stations.push(...await getMetroStations("data/roma/linea-a.json", "red"));
             stations.push(...await getMetroStations("data/roma/linea-b.json", "blue"));
             stations.push(...await getMetroStations("data/roma/linea-c.json", "green"));
+            stations.push(...await getMetroStations("data/roma/FL1.json", "green"));
 
-            addOverlayToMap_fromArray(stations, "metro stations");
+            addOverlayToMap_fromArray(stations, "stations");
 
-            addOverlayToMap(defaultOverlays[0], "Line B");
             addOverlayToMap(defaultOverlays[1], "Line A");
-            addOverlayToMap(defaultOverlays[1], "Line C");
-
+            addOverlayToMap(defaultOverlays[0], "Line B");
+            addOverlayToMap(defaultOverlays[2], "Line C");
+            addOverlayToMap(defaultOverlays[3], "FL1");
             //addOverlayToMap( await getMetroRange("data/roma/linea-b.json","blue", "data/roma/stations", "Rebibbia"), "Rebibbia");
         }
 

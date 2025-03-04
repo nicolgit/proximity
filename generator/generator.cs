@@ -22,12 +22,35 @@ internal class Program
 
     }
 
+    enum API
+    {
+        none,
+        Azure,
+        MapBox
+    }
+
+    static string azureMapKey = config["azureSubscriptionKey"]!.ToString();
+    static string mapBoxKey = config["mapBoxSubscriptionKey"]!.ToString();
+    static string mapApiString = config["API"]!.ToString();
+
     static bool BuildStations()
     {
-        string mapKey = config["subscriptionKey"]!.ToString();
+        API mapApi = API.none;
+        if (mapApiString == "Azure")
+        {
+            mapApi = API.Azure;
+        }
+        else if (mapApiString == "MapBox")
+        {
+            mapApi = API.MapBox;
+        }
+        else
+        {
+            throw new Exception($"Invalid API selected: ${mapApiString}");
+        }
+
         JArray distances = (JArray)config["distances"]!;
         string stations = config["stations"]!.ToString();
-
 
         foreach (string metro in config["metro"]!)
         {
@@ -43,9 +66,6 @@ internal class Program
                 double latitude = (double)item[1]!;
                 double longitude = (double)item[2]!;
 
-                //latitude and longitude ensure that use . for decimal point and not
-                string centerString = $"{latitude.ToString(CultureInfo.InvariantCulture)},{longitude.ToString(CultureInfo.InvariantCulture)}";
-
                 JObject metroStationData = new JObject();
                 for (int d = 0; d < distances.Count; d++)
                 {
@@ -53,28 +73,12 @@ internal class Program
 
                     Console.WriteLine($"generating area for {name} with distance {distance}");
 
-                    // build url
-                    string url = $"https://atlas.microsoft.com/route/range/json?api-version=1.0&query={centerString}&distanceBudgetInMeters={distance}&TravelMode=car&avoid=motorways&traffic=false&vehicleMaxSpeed=5&subscription-key={mapKey}";
-                    //Console.WriteLine($"calling {url}");
+                    JArray rangePolygon;
 
-                    // call api
-                    string response = new HttpClient().GetStringAsync(url).Result;
+                    if (mapApi == API.Azure) rangePolygon = callAzureApi(longitude, latitude, distance);
+                    else rangePolygon = callMapBoxApi(longitude, latitude, distance);
 
-                    JObject jsonResp = JObject.Parse(response);
-
-                    // get array at root > reachableRange > boundary
-                    JArray points = (JArray)jsonResp.Root["reachableRange"]!["boundary"]!;
-
-                    //Convert from array of {"latitude":41.90627,"longitude":12.41428} to array of  [41.90627,12.41428]
-                    JArray convertedPoints = new JArray();
-                    foreach (JObject point in points)
-                    {
-                        double lat = (double)point["latitude"]!;
-                        double lon = (double)point["longitude"]!;
-                        convertedPoints.Add(new JArray(lat, lon));
-                    }
-
-                    metroStationData.Add($"distance{distance}", convertedPoints); 
+                    metroStationData.Add($"distance{distance}", rangePolygon);
                 }
 
                 // save response to file
@@ -83,5 +87,81 @@ internal class Program
             }
         }
         return true;
+    }
+
+    static JArray callAzureApi(double longitude, double latitude, double distance)
+    {
+        //latitude and longitude ensure that use . for decimal point and not
+        string centerString = $"{latitude.ToString(CultureInfo.InvariantCulture)},{longitude.ToString(CultureInfo.InvariantCulture)}";
+
+        // build url
+        string url = $"https://atlas.microsoft.com/route/range/json?api-version=1.0&query={centerString}&distanceBudgetInMeters={distance}&TravelMode=car&avoid=motorways&traffic=false&vehicleMaxSpeed=5&subscription-key={azureMapKey}";
+        Console.WriteLine($"calling {url}");
+
+        string response = "";
+
+        // call api
+        try
+        {
+            response = new HttpClient().GetStringAsync(url).Result;
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"Error calling Azure API: {e.Message}");
+            throw;
+        }
+
+        JObject jsonResp = JObject.Parse(response);
+
+        // get array at root > reachableRange > boundary
+        JArray points = (JArray)jsonResp.Root["reachableRange"]!["boundary"]!;
+
+        //Convert from array of {"latitude":41.90627,"longitude":12.41428} to array of  [41.90627,12.41428]
+        JArray convertedPoints = new JArray();
+        foreach (JObject point in points)
+        {
+            double lat = (double)point["latitude"]!;
+            double lon = (double)point["longitude"]!;
+            convertedPoints.Add(new JArray(lat, lon));
+        }
+        return convertedPoints;
+    }
+
+    static JArray callMapBoxApi(double longitude, double latitude, double distance) {
+        //latitude and longitude ensure that use . for decimal point and not
+        string centerString = $"{longitude.ToString(CultureInfo.InvariantCulture)},{latitude.ToString(CultureInfo.InvariantCulture)}";
+
+        // build url
+        string url = $"https://api.mapbox.com/isochrone/v1/mapbox/walking/{centerString}?contours_meters={distance}&polygons=true&denoise=1&access_token={mapBoxKey}";
+        
+        Console.WriteLine($"calling {url}");
+
+        string response = "";
+
+        // call api
+        try
+        {
+            response = new HttpClient().GetStringAsync(url).Result;
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"Error calling MapBox API: {e.Message}");
+            throw;
+        }
+
+        JObject jsonResp = JObject.Parse(response);
+
+        // get array at root > features > geometry > coordinates
+        JArray points = (JArray)jsonResp["features"]![0]!["geometry"]!["coordinates"]![0]!;
+
+        //Convert from array of [12.41428,41.90627] to array of  [41.90627,12.41428]
+        JArray convertedPoints = new JArray();
+        foreach (JArray point in points)
+        {
+            double lat = (double)point[1]!;
+            double lon = (double)point[0]!;
+            convertedPoints.Add(new JArray(lat, lon));
+        }
+        return convertedPoints;
     }
 }
