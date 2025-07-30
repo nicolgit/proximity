@@ -18,12 +18,34 @@ A simple "Hello World" .NET 8 console application with Azure Storage integration
 
 ## Configuration
 
-### Setup Azure Storage Connection
+### Setup Configuration
 
 1. Copy `generator.config.json.template` to `generator.config.json`
 2. Replace the placeholder values:
    - `<your-storage-account-name>`: Your Azure Storage account name
    - `<your-account-key>`: Your Azure Storage account key
+   - `<azure-maps-subscription-key>`: Your Azure Maps API key (if using Azure Maps)
+   - `<mapbox-subscription-key>`: Your MapBox API token (if using MapBox)
+3. Set the `API` field to either `"Azure"` or `"MapBox"` depending on your preferred provider
+4. Configure the `GeneratorSettings` section for your metro data:
+   - `buildStations`: Enable/disable station generation
+   - `distances`: Array of distances in meters for proximity calculations
+   - `stations`: Output directory for generated station data
+   - `metro`: Array of metro line definition files
+
+### API Provider Configuration
+
+The generator supports two mapping API providers:
+
+**Azure Maps:**
+- Set `"API": "Azure"` in AppSettings
+- Provide your Azure Maps subscription key
+- Best for enterprise scenarios with Azure integration
+
+**MapBox:**
+- Set `"API": "MapBox"` in AppSettings  
+- Provide your MapBox access token
+- Good for flexible mapping solutions
 
 ### Security Best Practices
 
@@ -38,6 +60,35 @@ A simple "Hello World" .NET 8 console application with Azure Storage integration
 - Implement proper RBAC for storage access
 
 ## Usage
+
+### Command Line Parameters
+
+The generator supports the following command-line parameters:
+
+```bash
+generator [options]
+```
+
+**Options:**
+- `-l, --logging <level>` - Set the minimum log level
+  - Valid values: `Trace`, `Debug`, `Information`, `Warning`, `Error`, `Critical`, `None`
+  - Default: `Information`
+- `-h, --help` - Show detailed help information
+
+**Examples:**
+```bash
+# Run with default Information logging
+dotnet run
+
+# Run with Debug logging level  
+dotnet run -- --logging Debug
+
+# Run with Warning logging level (short form)
+dotnet run -- -l Warning
+
+# Show help information
+dotnet run -- --help
+```
 
 ### Build the Application
 
@@ -54,16 +105,60 @@ dotnet run
 ### Expected Output
 
 ```
-Generator Application Starting...
+Metro Proximity Generator Starting...
+Log level set to: Information
+Metro Proximity Generator
+=========================
 Configuration loaded successfully
-Hello World from Generator!
-=================================
+Log Level: Information
 Testing Azure Storage connection...
 ✓ Azure Storage connection test successful!
   Account Kind: StorageV2
   SKU Name: Standard_LRS
-Generator Application Completed Successfully
+
+No valid Azure Maps API key configured. Skipping Azure Maps API test.
+Testing MapBox API key...
+✓ MapBox API key validation successful!
+  Status: OK
+
+Metro Proximity Generator Completed Successfully
 ```
+
+The application will test:
+- **Azure Storage connectivity** (if connection string is valid)
+- **Azure Maps API key** (if configured and API is set to "Azure")
+- **MapBox API key** (if configured and API is set to "MapBox")
+
+### Error Handling
+
+**Critical Service Failures:**
+If any configured service fails validation, the application will exit with code 1:
+
+```
+❌ Azure Storage connection test failed (check configuration)
+   Error: Settings must be of the form "name=value".
+❌ Critical service validation failed. Please check your configuration.
+```
+
+**Exit Codes:**
+- `0` - Success (all tests passed or were skipped)
+- `1` - Failure (one or more critical service tests failed)
+
+**Service Validation Logic:**
+- **Not configured** = Skipped (not a failure)
+- **Configured but invalid** = Critical failure (application exits)
+- **Configured and valid** = Success (continues)
+
+**With Debug Logging:**
+```bash
+dotnet run -- --logging Debug
+```
+
+**Help Output:**
+```bash
+dotnet run -- --help
+```
+Shows comprehensive usage information, examples, and configuration guidance.
 
 ## Project Structure
 
@@ -82,6 +177,7 @@ generator/
 - **Azure.Identity** (1.12.1): Azure authentication library
 - **Microsoft.Extensions.Configuration** (8.0.0): Configuration framework
 - **Microsoft.Extensions.Logging** (8.0.1): Logging framework
+- **System.CommandLine** (2.0.0-beta4): Command-line parsing library
 
 ## Azure Storage Integration
 
