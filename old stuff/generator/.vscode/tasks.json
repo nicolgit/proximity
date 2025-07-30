@@ -1,0 +1,13 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "build",
+			"type": "dotnet",
+			"task": "build maps-playground.csproj",
+			"file": "maps-playground.csproj",
+			"group": "build",
+			"problemMatcher": [],
+		}
+	]
+}

@@ -1,0 +1,79 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>metro proximity project - beta</title>
+    <meta charset="utf-8" />
+    <style>
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        #theMap {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link href="https://unpkg.com/maplibre-gl/dist/maplibre-gl.css" rel="stylesheet" />
+
+    <script type="module" src="map-library.js"></script>
+
+
+    <script type="module">
+        import { initMap, getMetroStations, getMetroRange, addOverlayToMap, addOverlayToMap_fromArray } from './map-library.js';
+
+        let center = [41.8915943, 12.4724982]; // roma
+        let mapZoom = 12;
+
+        async function onLoadBody() {
+
+            var defaultOverlays = [
+                await getMetroRange("data/roma/linea-a.json", "red", "data/roma/stations"),    
+                await getMetroRange("data/roma/linea-b.json", "blue", "data/roma/stations"),        
+                await getMetroRange("data/roma/linea-c.json", "green", "data/roma/stations"),
+                await getMetroRange("data/roma/FL1.json", "#166D42", "data/roma/stations")
+            ];
+
+            initMap(center, mapZoom, defaultOverlays);
+
+            getMetroRange("data/roma/linea-a.json", "red", "data/roma/stations");
+
+            var stations = [];
+            stations.push(...await getMetroStations("data/roma/linea-a.json", "red"));
+            stations.push(...await getMetroStations("data/roma/linea-b.json", "blue"));
+            stations.push(...await getMetroStations("data/roma/linea-c.json", "green"));
+            stations.push(...await getMetroStations("data/roma/FL1.json", "green"));
+
+            addOverlayToMap_fromArray(stations, "stations");
+
+            addOverlayToMap(defaultOverlays[0], "Line A");
+            addOverlayToMap(defaultOverlays[1], "Line B");
+            addOverlayToMap(defaultOverlays[2], "Line C");
+            addOverlayToMap(defaultOverlays[3], "FL1");
+            //addOverlayToMap( await getMetroRange("data/roma/linea-b.json","blue", "data/roma/stations", "Rebibbia"), "Rebibbia");
+        }
+
+        window.onLoadBody = onLoadBody;
+    </script>
+</head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-7J0ZL0BK5J"></script>
+<script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    gtag('js', new Date());
+
+    gtag('config', 'G-7J0ZL0BK5J');
+</script>
+
+<body onload="onLoadBody();">
+    <div id="theMap"></div>
+</body>
+
+</html>
