@@ -1,0 +1,40 @@
+{
+  "ConnectionStrings": {
+    // For development: Use connection string with account key
+    "AzureStorage": "DefaultEndpointsProtocol=https;AccountName=<your-storage-account-name>;AccountKey=<your-account-key>;EndpointSuffix=core.windows.net",
+    
+    // For production: Prefer Managed Identity (no connection string needed)
+    // Use Azure.Identity.DefaultAzureCredential in code instead
+    // "AzureStorage": "" // Leave empty when using Managed Identity
+  },
+  "AppSettings": {
+    "ApplicationName": "Generator",
+    "Version": "1.0.0",
+    "Environment": "Development"
+  },
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft": "Warning",
+      "Microsoft.Hosting.Lifetime": "Information"
+    }
+  },
+  
+  // Security Best Practices:
+  // 1. Never commit real connection strings to source control
+  // 2. Use Azure Key Vault for production secrets
+  // 3. Prefer Managed Identity over connection strings
+  // 4. Rotate keys regularly
+  // 5. Use least privilege access policies
+  
+  // Azure Storage Configuration Options:
+  "AzureStorage": {
+    "StorageAccountName": "<your-storage-account-name>",
+    "ContainerName": "generator-data",
+    "BlobPrefix": "generated/",
+    "RetryOptions": {
+      "MaxRetries": 3,
+      "DelayBetweenRetriesInSeconds": 2
+    }
+  }
+}
