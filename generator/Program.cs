@@ -5,21 +5,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.CommandLine;
 using System.Globalization;
+using Generator.Types;
 
 namespace Generator;
-
-public class AreaEntity : ITableEntity
-{
-    public string PartitionKey { get; set; } = "area";
-    public string RowKey { get; set; } = string.Empty;
-    public string? Name { get; set; }
-    public string? DisplayName { get; set; }
-    public double Latitude { get; set; }
-    public double Longitude { get; set; }
-    public int DiameterMeters { get; set; }
-    public DateTimeOffset? Timestamp { get; set; }
-    public Azure.ETag ETag { get; set; }
-}
 
 public class Program
 {
@@ -78,7 +66,7 @@ public class Program
         createCommand.SetHandler(async (string name, string center, int diameter, string displayName, string loggingLevel) =>
         {
             await InitializeLoggingAndConfigurationAsync(loggingLevel);
-            await CreateAreaAsync(name, center, diameter, displayName);
+            await AreaManager.CreateAreaAsync(name, center, diameter, displayName, _logger, _configuration);
         }, nameArgument, centerOption, diameterOption, displayNameOption, loggingOption);
 
         // Create area delete command
@@ -145,101 +133,6 @@ public class Program
 
         // Add a small delay to make this truly async
         await Task.Delay(1);
-    }
-
-    private static async Task CreateAreaAsync(string name, string center, int diameter, string displayName)
-    {
-        try
-        {
-            _logger?.LogInformation("Creating area: {Name} with display name: {DisplayName}", name, displayName);
-
-            // Parse center coordinates
-            var coordinates = center.Split(',');
-            if (coordinates.Length != 2 ||
-                !double.TryParse(coordinates[0].Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var latitude) ||
-                !double.TryParse(coordinates[1].Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var longitude))
-            {
-                Console.WriteLine("❌ Invalid center format. Use: latitude,longitude (e.g., 41.9028,12.4964)");
-                Environment.Exit(1);
-                return;
-            }
-
-            _logger?.LogInformation("Parsed coordinates: Latitude={Latitude}, Longitude={Longitude}", latitude, longitude);
-
-            // Validate coordinates
-            if (latitude < -90 || latitude > 90)
-            {
-                Console.WriteLine($"❌ Latitude must be between -90 and 90 degrees (got {latitude})");
-                Environment.Exit(1);
-                return;
-            }
-
-            if (longitude < -180 || longitude > 180)
-            {
-                Console.WriteLine($"❌ Longitude must be between -180 and 180 degrees (got {longitude})");
-                Environment.Exit(1);
-                return;
-            }
-
-            if (diameter <= 0)
-            {
-                Console.WriteLine("❌ Diameter must be a positive number");
-                Environment.Exit(1);
-                return;
-            }
-
-            if (string.IsNullOrWhiteSpace(displayName))
-            {
-                Console.WriteLine("❌ Display name cannot be empty");
-                Environment.Exit(1);
-                return;
-            }
-
-            // Get Azure Storage connection
-            var connectionString = _configuration?.GetConnectionString("AzureStorage");
-            if (string.IsNullOrWhiteSpace(connectionString))
-            {
-                Console.WriteLine("❌ Azure Storage connection string not configured");
-                Environment.Exit(1);
-                return;
-            }
-
-            // Connect to Azure Table Storage
-            var tableServiceClient = new TableServiceClient(connectionString);
-            var tableClient = tableServiceClient.GetTableClient("area");
-
-            // Create table if it doesn't exist
-            await tableClient.CreateIfNotExistsAsync();
-            _logger?.LogInformation("Connected to Azure Table Storage");
-
-            // Create or update area entity
-            var area = new AreaEntity
-            {
-                RowKey = name.ToLowerInvariant(),
-                Name = name,
-                DisplayName = displayName,
-                Latitude = latitude,
-                Longitude = longitude,
-                DiameterMeters = diameter
-            };
-
-            // Use UpsertEntity to replace if exists
-            await tableClient.UpsertEntityAsync(area, TableUpdateMode.Replace);
-
-            _logger?.LogInformation("Area created/updated successfully: {Name} ({DisplayName}) at ({Lat},{Lon}) with diameter {Diameter}m",
-                name, displayName, latitude, longitude, diameter);
-
-            Console.WriteLine($"✓ Area '{name}' created successfully!");
-            Console.WriteLine($"  Display Name: {displayName}");
-            Console.WriteLine($"  Center: {latitude}, {longitude}");
-            Console.WriteLine($"  Diameter: {diameter} meters");
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "Failed to create area: {Name}", name);
-            Console.WriteLine($"❌ Failed to create area '{name}': {ex.Message}");
-            Environment.Exit(1);
-        }
     }
 
     private static async Task DeleteAreaAsync(string name)

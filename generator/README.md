@@ -276,3 +276,14 @@ To extend this application:
 3. Add configuration for multiple environments
 4. Integrate with Azure Key Vault for secret management
 5. Add unit tests and integration tests
+
+
+# AREAS
+
+Naples, IT
+
+```dotnet run  -- area create naples --center 40.8585186,14.2543934 --diameter 10000 --displayname "Napoli" --logging debug```
+
+Rome, IT
+```dotnet run  -- area create rome --center 41.9099533,12.3711939 --diameter 15000 --displayname "Roma" --logging debug```
+
