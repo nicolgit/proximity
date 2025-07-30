@@ -38,7 +38,7 @@ public class Program
         {
             ArgumentHelpName = "level"
         };
-        loggingOption.SetDefaultValue("Information");
+        loggingOption.SetDefaultValue("None");
 
         // Add area command group
         var areaCommand = new Command("area", "Manage areas for proximity calculations");
@@ -98,19 +98,8 @@ public class Program
         areaCommand.AddCommand(createCommand);
         areaCommand.AddCommand(deleteCommand);
 
-        // Create generator command (original functionality)
-        var generateCommand = new Command("generate", "Generate station proximity data");
-        generateCommand.AddOption(loggingOption);
-
-        generateCommand.SetHandler(async (string loggingLevel) =>
-        {
-            await InitializeLoggingAndConfigurationAsync(loggingLevel);
-            await RunGeneratorAsync();
-        }, loggingOption);
-
         // Add commands to root
         rootCommand.AddCommand(areaCommand);
-        rootCommand.AddCommand(generateCommand);
 
         // Parse and invoke the command
         return await rootCommand.InvokeAsync(args);
@@ -141,6 +130,18 @@ public class Program
             .Build();
 
         _logger.LogInformation("Configuration loaded successfully");
+
+        // Test Azure Storage and map connection 
+        var storageTestPassed = await TestAzureStorageConnectionAsync();
+        var mapApiTestPassed = await TestMapBoxApiKeyAsync();
+
+        // Exit if any critical tests failed
+        if (!storageTestPassed || !mapApiTestPassed)
+        {
+            _logger?.LogError("One or more critical service tests failed. Exiting application.");
+            Console.WriteLine("❌ Critical service validation failed. Please check your configuration.");
+            Environment.Exit(1);
+        }
 
         // Add a small delay to make this truly async
         await Task.Delay(1);
@@ -287,39 +288,6 @@ public class Program
         }
     }
 
-    private static async Task RunGeneratorAsync()
-    {
-        try
-        {
-            _logger?.LogInformation("Metro Proximity Generator Starting...");
-
-            // Display startup message
-            Console.WriteLine("Metro Proximity Generator");
-            Console.WriteLine("=========================");
-            Console.WriteLine();
-
-            // Test Azure Storage and map connection 
-            var storageTestPassed = await TestAzureStorageConnectionAsync();
-            var mapApiTestPassed = await TestMapBoxApiKeyAsync();
-
-            // Exit if any critical tests failed
-            if (!storageTestPassed || !mapApiTestPassed)
-            {
-                _logger?.LogError("One or more critical service tests failed. Exiting application.");
-                Console.WriteLine("❌ Critical service validation failed. Please check your configuration.");
-                Environment.Exit(1);
-                return;
-            }
-
-            _logger?.LogInformation("Metro Proximity Generator Completed Successfully");
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "An error occurred while running the generator application");
-            Environment.Exit(1);
-        }
-    }
-
     private static async Task<bool> TestAzureStorageConnectionAsync()
     {
         try
@@ -335,7 +303,6 @@ public class Program
             _logger?.LogInformation("Testing Azure Storage connection...");
 
             // Create BlobServiceClient with connection string
-            // Note: In production, prefer using Managed Identity over connection strings
             var blobServiceClient = new BlobServiceClient(connectionString);
 
             // Test connection by getting account info
@@ -370,7 +337,7 @@ public class Program
             if (string.IsNullOrWhiteSpace(mapBoxKey) || mapBoxKey.Contains("<") || mapBoxKey.Contains(">"))
             {
                 _logger?.LogInformation("No valid MapBox API key configured. Skipping MapBox API test.");
-                return true; // Not configured is not a failure
+                return false;
             }
 
             _logger?.LogInformation("Testing MapBox API key...");

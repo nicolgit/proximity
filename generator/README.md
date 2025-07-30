@@ -62,22 +62,13 @@ dotnet run -- area delete <name>
 dotnet run -- area delete "rome-center"
 ```
 
-### Data Generation
 
-#### Generate Proximity Data
-Run the original proximity data generation:
-
-```bash
-dotnet run -- generate
-```
-
-This command tests Azure Storage and MapBox API connections and runs the proximity data generation logic.
 
 ### Global Options
 
 All commands support the following logging option:
 
-- `-l, --logging <level>`: Set the minimum log level (Trace, Debug, Information, Warning, Error, Critical, None). Default: Information
+- `-l, --logging <level>`: Set the minimum log level (Trace, Debug, Information, Warning, Error, Critical, None). Default: None
 
 **Examples:**
 ```bash
