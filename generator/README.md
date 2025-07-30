@@ -1,20 +1,92 @@
-# Generator - .NET 8 Console Application
+# Generator - Metro Proximity Generator
 
-A simple "Hello World" .NET 8 console application with Azure Storage integration capabilities.
+A .NET 8 console application for managing areas and generating station proximity data using Azure Maps or MapBox APIs.
 
 ## Features
 
 - .NET 8 console application
+- Area management with Azure Table Storage
 - Configuration management using JSON files
-- Azure Storage Blob client integration
-- Comprehensive logging
+- Azure Storage Blob and Table client integration
+- MapBox API integration for geographical data
+- Comprehensive logging with configurable levels
 - Error handling with retry logic
 - Security best practices
+- Command-line interface with System.CommandLine
 
 ## Prerequisites
 
 - .NET 8.0 SDK
-- Azure Storage Account (for storage testing)
+- Azure Storage Account (for area storage and output data)
+- MapBox API Key (for geographical services)
+
+## Commands
+
+### Area Management
+
+#### Create Area
+Create a new area with center coordinates and diameter:
+
+```bash
+dotnet run -- area create <name> --center <latitude,longitude> --diameter <meters> --displayname <display_name>
+```
+
+**Parameters:**
+- `<name>`: Name of the area (required)
+- `--center`: Center coordinates as 'latitude,longitude' (required)
+- `--diameter`: Diameter in meters (required)
+- `--displayname`: Display name for the area (required)
+
+**Examples:**
+```bash
+# Create an area centered in Rome with 1km diameter
+dotnet run -- area create "rome-center" --center "41.9028,12.4964" --diameter 1000 --displayname "Rome City Center"
+
+# Create an area at equator with 500m diameter
+dotnet run -- area create "equator-point" --center "0,0" --diameter 500 --displayname "Equator Reference Point"
+```
+
+#### Delete Area
+Delete an existing area:
+
+```bash
+dotnet run -- area delete <name>
+```
+
+**Parameters:**
+- `<name>`: Name of the area to delete (required)
+
+**Examples:**
+```bash
+# Delete the Rome area
+dotnet run -- area delete "rome-center"
+```
+
+### Data Generation
+
+#### Generate Proximity Data
+Run the original proximity data generation:
+
+```bash
+dotnet run -- generate
+```
+
+This command tests Azure Storage and MapBox API connections and runs the proximity data generation logic.
+
+### Global Options
+
+All commands support the following logging option:
+
+- `-l, --logging <level>`: Set the minimum log level (Trace, Debug, Information, Warning, Error, Critical, None). Default: Information
+
+**Examples:**
+```bash
+# Create area with debug logging
+dotnet run -- area create "test" --center "40,40" --diameter 1000 --displayname "Test Area" --logging Debug
+
+# Generate data with warning-only logging
+dotnet run -- generate --logging Warning
+```
 
 ## Configuration
 

@@ -1,10 +1,25 @@
 using Azure.Storage.Blobs;
+using Azure.Data.Tables;
 using Azure.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.CommandLine;
+using System.Globalization;
 
 namespace Generator;
+
+public class AreaEntity : ITableEntity
+{
+    public string PartitionKey { get; set; } = "area";
+    public string RowKey { get; set; } = string.Empty;
+    public string? Name { get; set; }
+    public string? DisplayName { get; set; }
+    public double Latitude { get; set; }
+    public double Longitude { get; set; }
+    public int DiameterMeters { get; set; }
+    public DateTimeOffset? Timestamp { get; set; }
+    public Azure.ETag ETag { get; set; }
+}
 
 public class Program
 {
@@ -13,7 +28,10 @@ public class Program
 
     public static async Task<int> Main(string[] args)
     {
-        // Define command-line options
+        // Create root command
+        var rootCommand = new RootCommand("Metro Proximity Generator - Manage areas and generate station proximity data");
+
+        // Define logging option (available for all commands)
         var loggingOption = new Option<string>(
             aliases: new[] { "--logging", "-l" },
             description: "Set the minimum log level (Trace, Debug, Information, Warning, Error, Critical, None)")
@@ -22,34 +40,83 @@ public class Program
         };
         loggingOption.SetDefaultValue("Information");
 
-        var helpOption = new Option<bool>(
-            aliases: new[] { "--help", "-h", "-?" },
-            description: "Show help information");
+        // Add area command group
+        var areaCommand = new Command("area", "Manage areas for proximity calculations");
 
-        // Create root command
-        var rootCommand = new RootCommand("Metro Proximity Generator - Generate station proximity data using Azure Maps or MapBox APIs")
+        // Create area create command
+        var createCommand = new Command("create", "Create a new area");
+
+        var nameArgument = new Argument<string>("name", "The name of the area");
+        var centerOption = new Option<string>(
+            aliases: new[] { "--center" },
+            description: "Center coordinates as 'latitude,longitude'")
         {
-            loggingOption,
-            helpOption
+            IsRequired = true,
+            ArgumentHelpName = "lat,lon"
+        };
+        var diameterOption = new Option<int>(
+            aliases: new[] { "--diameter" },
+            description: "Diameter in meters")
+        {
+            IsRequired = true,
+            ArgumentHelpName = "meters"
+        };
+        var displayNameOption = new Option<string>(
+            aliases: new[] { "--displayname" },
+            description: "Display name for the area")
+        {
+            IsRequired = true,
+            ArgumentHelpName = "display_name"
         };
 
-        // Set the handler for the root command
-        rootCommand.SetHandler(async (loggingLevel, showHelp) =>
-        {
-            if (showHelp)
-            {
-                ShowDetailedHelp();
-                return;
-            }
+        createCommand.AddArgument(nameArgument);
+        createCommand.AddOption(centerOption);
+        createCommand.AddOption(diameterOption);
+        createCommand.AddOption(displayNameOption);
+        createCommand.AddOption(loggingOption);
 
-            await RunGeneratorAsync(loggingLevel);
-        }, loggingOption, helpOption);
+        createCommand.SetHandler(async (string name, string center, int diameter, string displayName, string loggingLevel) =>
+        {
+            await InitializeLoggingAndConfigurationAsync(loggingLevel);
+            await CreateAreaAsync(name, center, diameter, displayName);
+        }, nameArgument, centerOption, diameterOption, displayNameOption, loggingOption);
+
+        // Create area delete command
+        var deleteCommand = new Command("delete", "Delete an area");
+        var deleteNameArgument = new Argument<string>("name", "The name of the area to delete");
+
+        deleteCommand.AddArgument(deleteNameArgument);
+        deleteCommand.AddOption(loggingOption);
+
+        deleteCommand.SetHandler(async (string name, string loggingLevel) =>
+        {
+            await InitializeLoggingAndConfigurationAsync(loggingLevel);
+            await DeleteAreaAsync(name);
+        }, deleteNameArgument, loggingOption);
+
+        // Add commands to area group
+        areaCommand.AddCommand(createCommand);
+        areaCommand.AddCommand(deleteCommand);
+
+        // Create generator command (original functionality)
+        var generateCommand = new Command("generate", "Generate station proximity data");
+        generateCommand.AddOption(loggingOption);
+
+        generateCommand.SetHandler(async (string loggingLevel) =>
+        {
+            await InitializeLoggingAndConfigurationAsync(loggingLevel);
+            await RunGeneratorAsync();
+        }, loggingOption);
+
+        // Add commands to root
+        rootCommand.AddCommand(areaCommand);
+        rootCommand.AddCommand(generateCommand);
 
         // Parse and invoke the command
         return await rootCommand.InvokeAsync(args);
     }
 
-    private static async Task RunGeneratorAsync(string loggingLevel)
+    private static async Task InitializeLoggingAndConfigurationAsync(string loggingLevel)
     {
         // Parse logging level
         if (!Enum.TryParse<LogLevel>(loggingLevel, true, out var logLevel))
@@ -65,23 +132,170 @@ public class Program
             builder.AddConsole().SetMinimumLevel(logLevel));
         _logger = loggerFactory.CreateLogger<Program>();
 
+        _logger.LogInformation("Log level set to: {LogLevel}", logLevel);
+
+        // Load configuration
+        _configuration = new ConfigurationBuilder()
+            .SetBasePath(Directory.GetCurrentDirectory())
+            .AddJsonFile("generator.config.json", optional: false, reloadOnChange: true)
+            .Build();
+
+        _logger.LogInformation("Configuration loaded successfully");
+
+        // Add a small delay to make this truly async
+        await Task.Delay(1);
+    }
+
+    private static async Task CreateAreaAsync(string name, string center, int diameter, string displayName)
+    {
         try
         {
-            _logger.LogInformation("Metro Proximity Generator Starting...");
-            _logger.LogInformation("Log level set to: {LogLevel}", logLevel);
+            _logger?.LogInformation("Creating area: {Name} with display name: {DisplayName}", name, displayName);
 
-            // Load configuration
-            _configuration = new ConfigurationBuilder()
-                .SetBasePath(Directory.GetCurrentDirectory())
-                .AddJsonFile("generator.config.json", optional: false, reloadOnChange: true)
-                .Build();
+            // Parse center coordinates
+            var coordinates = center.Split(',');
+            if (coordinates.Length != 2 ||
+                !double.TryParse(coordinates[0].Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var latitude) ||
+                !double.TryParse(coordinates[1].Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var longitude))
+            {
+                Console.WriteLine("❌ Invalid center format. Use: latitude,longitude (e.g., 41.9028,12.4964)");
+                Environment.Exit(1);
+                return;
+            }
 
-            _logger.LogInformation("Configuration loaded successfully");
+            _logger?.LogInformation("Parsed coordinates: Latitude={Latitude}, Longitude={Longitude}", latitude, longitude);
+
+            // Validate coordinates
+            if (latitude < -90 || latitude > 90)
+            {
+                Console.WriteLine($"❌ Latitude must be between -90 and 90 degrees (got {latitude})");
+                Environment.Exit(1);
+                return;
+            }
+
+            if (longitude < -180 || longitude > 180)
+            {
+                Console.WriteLine($"❌ Longitude must be between -180 and 180 degrees (got {longitude})");
+                Environment.Exit(1);
+                return;
+            }
+
+            if (diameter <= 0)
+            {
+                Console.WriteLine("❌ Diameter must be a positive number");
+                Environment.Exit(1);
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(displayName))
+            {
+                Console.WriteLine("❌ Display name cannot be empty");
+                Environment.Exit(1);
+                return;
+            }
+
+            // Get Azure Storage connection
+            var connectionString = _configuration?.GetConnectionString("AzureStorage");
+            if (string.IsNullOrWhiteSpace(connectionString))
+            {
+                Console.WriteLine("❌ Azure Storage connection string not configured");
+                Environment.Exit(1);
+                return;
+            }
+
+            // Connect to Azure Table Storage
+            var tableServiceClient = new TableServiceClient(connectionString);
+            var tableClient = tableServiceClient.GetTableClient("area");
+
+            // Create table if it doesn't exist
+            await tableClient.CreateIfNotExistsAsync();
+            _logger?.LogInformation("Connected to Azure Table Storage");
+
+            // Create or update area entity
+            var area = new AreaEntity
+            {
+                RowKey = name.ToLowerInvariant(),
+                Name = name,
+                DisplayName = displayName,
+                Latitude = latitude,
+                Longitude = longitude,
+                DiameterMeters = diameter
+            };
+
+            // Use UpsertEntity to replace if exists
+            await tableClient.UpsertEntityAsync(area, TableUpdateMode.Replace);
+
+            _logger?.LogInformation("Area created/updated successfully: {Name} ({DisplayName}) at ({Lat},{Lon}) with diameter {Diameter}m",
+                name, displayName, latitude, longitude, diameter);
+
+            Console.WriteLine($"✓ Area '{name}' created successfully!");
+            Console.WriteLine($"  Display Name: {displayName}");
+            Console.WriteLine($"  Center: {latitude}, {longitude}");
+            Console.WriteLine($"  Diameter: {diameter} meters");
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to create area: {Name}", name);
+            Console.WriteLine($"❌ Failed to create area '{name}': {ex.Message}");
+            Environment.Exit(1);
+        }
+    }
+
+    private static async Task DeleteAreaAsync(string name)
+    {
+        try
+        {
+            _logger?.LogInformation("Deleting area: {Name}", name);
+
+            // Get Azure Storage connection
+            var connectionString = _configuration?.GetConnectionString("AzureStorage");
+            if (string.IsNullOrWhiteSpace(connectionString))
+            {
+                Console.WriteLine("❌ Azure Storage connection string not configured");
+                Environment.Exit(1);
+                return;
+            }
+
+            // Connect to Azure Table Storage
+            var tableServiceClient = new TableServiceClient(connectionString);
+            var tableClient = tableServiceClient.GetTableClient("area");
+
+            // Try to get the entity first to check if it exists
+            try
+            {
+                var response = await tableClient.GetEntityAsync<AreaEntity>("area", name.ToLowerInvariant());
+                var existingArea = response.Value;
+
+                // Delete the entity
+                await tableClient.DeleteEntityAsync("area", name.ToLowerInvariant());
+
+                _logger?.LogInformation("Area deleted successfully: {Name}", name);
+                Console.WriteLine($"✓ Area '{name}' deleted successfully!");
+            }
+            catch (Azure.RequestFailedException ex) when (ex.Status == 404)
+            {
+                _logger?.LogWarning("Area not found: {Name}", name);
+                Console.WriteLine($"❌ Area '{name}' not found");
+                Environment.Exit(1);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to delete area: {Name}", name);
+            Console.WriteLine($"❌ Failed to delete area '{name}': {ex.Message}");
+            Environment.Exit(1);
+        }
+    }
+
+    private static async Task RunGeneratorAsync()
+    {
+        try
+        {
+            _logger?.LogInformation("Metro Proximity Generator Starting...");
 
             // Display startup message
             Console.WriteLine("Metro Proximity Generator");
             Console.WriteLine("=========================");
-            Console.WriteLine($"Log Level: {logLevel}");
             Console.WriteLine();
 
             // Test Azure Storage and map connection 
@@ -97,52 +311,13 @@ public class Program
                 return;
             }
 
-            _logger.LogInformation("Metro Proximity Generator Completed Successfully");
+            _logger?.LogInformation("Metro Proximity Generator Completed Successfully");
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "An error occurred while running the generator application");
             Environment.Exit(1);
         }
-    }
-
-    private static void ShowDetailedHelp()
-    {
-        Console.WriteLine("Metro Proximity Generator");
-        Console.WriteLine("=========================");
-        Console.WriteLine();
-        Console.WriteLine("DESCRIPTION:");
-        Console.WriteLine("    Generates station proximity data for metro systems using Azure Maps or MapBox APIs.");
-        Console.WriteLine("    The application reads configuration from generator.config.json and outputs");
-        Console.WriteLine("    proximity polygons for each metro station at specified distances.");
-        Console.WriteLine();
-        Console.WriteLine("USAGE:");
-        Console.WriteLine("    generator [options]");
-        Console.WriteLine();
-        Console.WriteLine("OPTIONS:");
-        Console.WriteLine("    -l, --logging <level>    Set the minimum log level");
-        Console.WriteLine("                            Valid values: Trace, Debug, Information, Warning, Error, Critical, None");
-        Console.WriteLine("                            Default: Information");
-        Console.WriteLine();
-        Console.WriteLine("    -h, --help              Show this help information");
-        Console.WriteLine();
-        Console.WriteLine("EXAMPLES:");
-        Console.WriteLine("    generator                           # Run with default Information logging");
-        Console.WriteLine("    generator --logging Debug           # Run with Debug logging level");
-        Console.WriteLine("    generator -l Warning                # Run with Warning logging level");
-        Console.WriteLine("    generator --help                    # Show this help");
-        Console.WriteLine();
-        Console.WriteLine("CONFIGURATION:");
-        Console.WriteLine("    The application requires a generator.config.json file with:");
-        Console.WriteLine("    - Azure Storage connection string (for output storage)");
-        Console.WriteLine("    - API configuration (Azure Maps or MapBox)");
-        Console.WriteLine("    - Metro line definitions");
-        Console.WriteLine("    - Distance parameters");
-        Console.WriteLine();
-        Console.WriteLine("SECURITY NOTES:");
-        Console.WriteLine("    - Use Azure Managed Identity in production instead of connection strings");
-        Console.WriteLine("    - Store sensitive keys in Azure Key Vault");
-        Console.WriteLine("    - Never commit real connection strings to source control");
     }
 
     private static async Task<bool> TestAzureStorageConnectionAsync()
