@@ -10,12 +10,12 @@ using System.IO;
 
 namespace api;
 
-public class StorageExample
+public class StorageTester
 {
-    private readonly ILogger<StorageExample> _logger;
+    private readonly ILogger<StorageTester> _logger;
     private readonly StorageService _storageService;
 
-    public StorageExample(ILogger<StorageExample> logger, StorageService storageService)
+    public StorageTester(ILogger<StorageTester> logger, StorageService storageService)
     {
         _logger = logger;
         _storageService = storageService;
@@ -56,93 +56,7 @@ public class StorageExample
         }
     }
 
-    [Function("CreateContainer")]
-    public async Task<IActionResult> CreateContainer([HttpTrigger(AuthorizationLevel.Anonymous, "post")] HttpRequest req)
-    {
-        _logger.LogInformation("Container creation requested.");
 
-        try
-        {
-            var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-            var request = JsonSerializer.Deserialize<CreateContainerRequest>(requestBody);
 
-            if (string.IsNullOrWhiteSpace(request?.ContainerName))
-            {
-                return new BadRequestObjectResult(new { Error = "ContainerName is required" });
-            }
-
-            var success = await _storageService.EnsureContainerExistsAsync(request.ContainerName);
-
-            var response = new
-            {
-                ContainerName = request.ContainerName,
-                Created = success,
-                Timestamp = System.DateTime.UtcNow
-            };
-
-            return new OkObjectResult(response);
-        }
-        catch (System.Exception ex)
-        {
-            _logger.LogError(ex, "Error creating container");
-            return new ObjectResult(new { Error = ex.Message }) { StatusCode = 500 };
-        }
-    }
-
-    [Function("UploadText")]
-    public async Task<IActionResult> UploadText([HttpTrigger(AuthorizationLevel.Anonymous, "post")] HttpRequest req)
-    {
-        _logger.LogInformation("Text upload requested.");
-
-        try
-        {
-            var requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-            var request = JsonSerializer.Deserialize<UploadTextRequest>(requestBody);
-
-            if (string.IsNullOrWhiteSpace(request?.ContainerName) ||
-                string.IsNullOrWhiteSpace(request?.BlobName) ||
-                string.IsNullOrWhiteSpace(request?.Content))
-            {
-                return new BadRequestObjectResult(new { Error = "ContainerName, BlobName, and Content are required" });
-            }
-
-            // Ensure container exists
-            await _storageService.EnsureContainerExistsAsync(request.ContainerName);
-
-            // Get blob client and upload content
-            var containerClient = _storageService.GetContainerClient(request.ContainerName);
-            var blobClient = containerClient.GetBlobClient(request.BlobName);
-
-            var contentBytes = Encoding.UTF8.GetBytes(request.Content);
-            await blobClient.UploadAsync(new MemoryStream(contentBytes), overwrite: true);
-
-            var response = new
-            {
-                ContainerName = request.ContainerName,
-                BlobName = request.BlobName,
-                Size = contentBytes.Length,
-                Uploaded = true,
-                Timestamp = System.DateTime.UtcNow
-            };
-
-            return new OkObjectResult(response);
-        }
-        catch (System.Exception ex)
-        {
-            _logger.LogError(ex, "Error uploading text");
-            return new ObjectResult(new { Error = ex.Message }) { StatusCode = 500 };
-        }
-    }
 }
 
-public class CreateContainerRequest
-{
-    public string ContainerName { get; set; } = string.Empty;
-}
-
-public class UploadTextRequest
-{
-    public string ContainerName { get; set; } = string.Empty;
-    public string BlobName { get; set; } = string.Empty;
-    public string Content { get; set; } = string.Empty;
-}
