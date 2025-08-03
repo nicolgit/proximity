@@ -37,3 +37,11 @@ export interface ApiResponse<T> {
     data?: T
     error?: string
 }
+
+export interface Area {
+    id: string
+    name: string
+    latitude: number
+    longitude: number
+    diameter: number
+}
