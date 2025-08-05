@@ -282,8 +282,8 @@ To extend this application:
 
 Naples, IT
 
-```dotnet run  -- area create naples --center 40.8585186,14.2543934 --diameter 16000 --displayname "Napoli" --logging debug```
+```dotnet run  -- area create naples --center 40.8585186,14.2543934 --diameter 20000 --displayname "Napoli" --logging debug```
 
 Rome, IT
-```dotnet run  -- area create rome --center 41.8902142,12.489656 --diameter 40000 --displayname "Roma" --logging debug```
+```dotnet run  -- area create rome --center 41.8902142,12.489656 --diameter 45000 --displayname "Roma" --logging debug```
 
