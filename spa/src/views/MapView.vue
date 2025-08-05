@@ -133,7 +133,7 @@
       <l-map
         ref="mapRef"
         v-model:zoom="zoom"
-        :center="center"
+        :center="initialCenter"
         :use-global-leaflet="false"
         class="leaflet-map"
         @ready="onMapReady"
@@ -256,7 +256,7 @@ import { onMounted, ref, computed } from 'vue'
 // Map setup
 const mapRef = ref<InstanceType<typeof LMap> | null>(null)
 const zoom = ref(13)
-const center = ref<[number, number]>([41.9028, 12.4964]) // Default to Rome
+const initialCenter = ref<[number, number]>([41.9028, 12.4964]) // Default to Rome
 const selectedLocation = ref<[number, number] | null>(null)
 const selectedLocationName = ref('')
 
@@ -406,8 +406,11 @@ const selectLocation = (result: SearchResult) => {
   
   selectedLocation.value = [lat, lon]
   selectedLocationName.value = result.display_name
-  center.value = [lat, lon]
-  zoom.value = 15
+  
+  // Use map's setView method instead of reactive center
+  if (mapRef.value?.leafletObject) {
+    mapRef.value.leafletObject.setView([lat, lon], 15)
+  }
   
   // Reset search state
   clearSearch()
@@ -419,9 +422,8 @@ const selectLocation = (result: SearchResult) => {
 const goToCurrentLocation = async () => {
   await getLocation()
   
-  if (currentLocation.value) {
-    center.value = [currentLocation.value.lat, currentLocation.value.lng]
-    zoom.value = 16
+  if (currentLocation.value && mapRef.value?.leafletObject) {
+    mapRef.value.leafletObject.setView([currentLocation.value.lat, currentLocation.value.lng], 16)
   }
 }
 
@@ -438,8 +440,9 @@ onMounted(async () => {
   // Try to get user's current location
   await getLocation()
   
-  if (currentLocation.value) {
-    center.value = [currentLocation.value.lat, currentLocation.value.lng]
+  if (currentLocation.value && mapRef.value?.leafletObject) {
+    initialCenter.value = [currentLocation.value.lat, currentLocation.value.lng]
+    mapRef.value.leafletObject.setView([currentLocation.value.lat, currentLocation.value.lng], 13)
   }
 })
 </script>
