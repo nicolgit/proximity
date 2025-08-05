@@ -29,7 +29,7 @@ A .NET 8 console application for managing areas and generating station proximity
 Create a new area with center coordinates and diameter:
 
 ```bash
-dotnet run -- area create <name> --center <latitude,longitude> --diameter <meters> --displayname <display_name> [--developer]
+dotnet run -- area create <name> --center <latitude,longitude> --diameter <meters> --displayname <display_name> [--developer] [--noisochrone]
 ```
 
 **Parameters:**
@@ -38,6 +38,7 @@ dotnet run -- area create <name> --center <latitude,longitude> --diameter <meter
 - `--diameter`: Diameter in meters (required)
 - `--displayname`: Display name for the area (required)
 - `--developer`: Developer mode - limit to first 3 railway stations and 3 tram stops (optional)
+- `--noisochrone`: Skip isochrone generation when creating the area (optional)
 
 **Examples:**
 ```bash
@@ -52,19 +53,81 @@ dotnet run -- area create "test" --center "40,40" --diameter 1000 --displayname 
 ```
 
 #### Delete Area
-Delete an existing area:
+Delete an existing area and all its related data:
 
 ```bash
 dotnet run -- area delete <name>
 ```
+
+**What gets deleted:**
+- The area entity from Azure Table Storage
+- All stations associated with the area
+- All isochrone files for the area from Azure Blob Storage
 
 **Parameters:**
 - `<name>`: Name of the area to delete (required)
 
 **Examples:**
 ```bash
-# Delete the Rome area
+# Delete the Rome area and all its data
 dotnet run -- area delete "rome-center"
+
+# Delete with detailed logging
+dotnet run -- area delete "rome-center" --logging Information
+```
+
+**Sample Output:**
+```bash
+🗑️ Deleting area 'test-area' and all related data...
+  🗑️ Deleting stations for area 'test-area'...
+  ✓ Deleted 15 stations
+  🗑️ Deleting isochrone data for area 'test-area'...
+  ✓ Deleted 75 isochrone files
+✓ Deleted area entity 'test-area'
+✓ Area 'test-area' and all related data deleted successfully!
+```
+
+**Important Notes:**
+- This operation is **irreversible** - all data associated with the area will be permanently deleted
+- If the area doesn't exist, the command will display an error and exit
+- Partial failures (e.g., unable to delete some isochrone files) will be logged but won't prevent the overall deletion
+
+#### List Areas
+List all existing areas with their station counts:
+
+```bash
+dotnet run -- area list
+```
+
+**Output Format:**
+Each area is displayed on a single line with the format: `<area-id> <area-name> <station-count>`
+
+**Examples:**
+```bash
+# List all areas
+dotnet run -- area list
+
+# List all areas with detailed logging
+dotnet run -- area list --logging Information
+```
+
+**Sample Output:**
+```bash
+📍 Found 3 area(s):
+
+milan Milano Dev 6
+naples Napoli 146
+rome Roma 321
+```
+
+**Output Details:**
+- **area-id**: The unique identifier used internally (row key in storage)
+- **area-name**: The display name of the area
+- **station-count**: Number of stations stored for this area
+
+If no areas exist, the command will display:
+```bash
+📝 No areas found
 ```
 
 #### Area Cleanup Behavior
@@ -480,12 +543,12 @@ For faster development and testing, you can use the `--developer` flag with any 
 
 ```bash
 # Quick test with Naples area (only 6 stations max)
-dotnet run -- area create naples-dev --center 40.8585186,14.2543934 --diameter 20000 --displayname "Napoli Dev" --developer --logging debug
+dotnet run -- area create naples --center 40.8585186,14.2543934 --diameter 20000 --displayname "Napoli" --developer --noisochrone --logging debug
 
 # Test Rome area with limited stations
-dotnet run -- area create rome-dev --center 41.8902142,12.489656 --diameter 45000 --displayname "Roma Dev" --developer
+dotnet run -- area create rome --center 41.8902142,12.489656 --diameter 45000 --displayname "Roma" --developer --noisochrone
 
 # Test Milan area with limited stations and logging
-dotnet run -- area create milan-dev --center 45.4627338,9.1777322 --diameter 20000 --displayname "Milano Dev" --developer --logging debug
+dotnet run -- area create milan --center 45.4627338,9.1777322 --diameter 20000 --displayname "Milano" --developer --noisochrone --logging debug
 ```
 

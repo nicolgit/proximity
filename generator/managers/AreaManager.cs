@@ -10,7 +10,7 @@ namespace Generator.Managers;
 
 public static class AreaManager
 {
-    public static async Task CreateAreaAsync(string name, string center, int diameter, string displayName, bool developerMode,
+    public static async Task CreateAreaAsync(string name, string center, int diameter, string displayName, bool developerMode, bool noIsochrone,
         ILogger? logger, IConfiguration? configuration)
     {
         try
@@ -78,8 +78,11 @@ public static class AreaManager
             await stationTableClient.CreateIfNotExistsAsync();
             logger?.LogInformation("Connected to Azure Table Storage");
 
-            // Check if area already exists and clean up isochrone data if it does
-            await CleanupExistingAreaIsochroneAsync(name, connectionString, logger);
+            // Check if area already exists and clean up isochrone data if it does (only if we're going to generate new ones)
+            if (!noIsochrone)
+            {
+                await CleanupExistingAreaIsochroneAsync(name, connectionString, logger);
+            }
 
             // Create or update area entity
             var area = new AreaEntity
@@ -104,7 +107,7 @@ public static class AreaManager
             Console.WriteLine($"  Diameter: {diameter} meters");
 
             // Retrieve and store railway stations using Overpass API
-            await RetrieveAndStoreStationsAsync(name, latitude, longitude, diameter, developerMode, stationTableClient, logger, configuration);
+            await RetrieveAndStoreStationsAsync(name, latitude, longitude, diameter, developerMode, noIsochrone, stationTableClient, logger, configuration);
         }
         catch (Exception ex)
         {
@@ -115,7 +118,7 @@ public static class AreaManager
     }
 
     private static async Task RetrieveAndStoreStationsAsync(string areaName, double latitude, double longitude,
-        int diameterMeters, bool developerMode, TableClient stationTableClient, ILogger? logger, IConfiguration? configuration)
+        int diameterMeters, bool developerMode, bool noIsochrone, TableClient stationTableClient, ILogger? logger, IConfiguration? configuration)
     {
         try
         {
@@ -258,8 +261,16 @@ out body;";
                     await stationTableClient.UpsertEntityAsync(station, TableUpdateMode.Replace);
                     stationsProcessed++;
 
-                    // Generate and save isochrone data
-                    await GenerateAndSaveIsochroneAsync(areaName, stationId, stationName, stationLat, stationLon, railwayType, logger, configuration);
+                    // Generate and save isochrone data (unless skipped)
+                    if (!noIsochrone)
+                    {
+                        await GenerateAndSaveIsochroneAsync(areaName, stationId, stationName, stationLat, stationLon, railwayType, logger, configuration);
+                    }
+                    else
+                    {
+                        logger?.LogInformation("Skipping isochrone generation for station: {StationName} (--noisochrone flag)", stationName);
+                        Console.WriteLine($"  {stationName,-30} ⏭️ Skipping isochrone generation (--noisochrone flag)");
+                    }
 
                     // Update counters for developer mode
                     if (developerMode)
@@ -283,7 +294,14 @@ out body;";
             logger?.LogInformation("Station retrieval completed for area {AreaName}: {Processed} processed, {Skipped} skipped",
                 areaName, stationsProcessed, stationsSkipped);
 
-            Console.WriteLine($"✓ Retrieved and stored {stationsProcessed} stations with isochrone data");
+            if (noIsochrone)
+            {
+                Console.WriteLine($"✓ Retrieved and stored {stationsProcessed} stations (isochrone generation skipped)");
+            }
+            else
+            {
+                Console.WriteLine($"✓ Retrieved and stored {stationsProcessed} stations with isochrone data");
+            }
             if (developerMode)
             {
                 Console.WriteLine($"  🔧 Developer mode: limited to {railwayStationCount} railway stations and {tramStopCount} tram stops");
@@ -641,6 +659,307 @@ out body;";
             logger?.LogError(ex, "Failed to cleanup existing isochrone data for area: {AreaName}", areaName);
             Console.WriteLine($"⚠️ Failed to cleanup existing isochrone data for area '{areaName}': {ex.Message}");
             // Don't throw here - we want to continue with area creation even if cleanup fails
+        }
+    }
+
+    public static async Task ListAreasAsync(ILogger? logger, IConfiguration? configuration)
+    {
+        try
+        {
+            logger?.LogInformation("Listing all areas");
+
+            // Get Azure Storage connection
+            var connectionString = configuration?.GetConnectionString("AzureStorage");
+            if (string.IsNullOrWhiteSpace(connectionString))
+            {
+                Console.WriteLine("❌ Azure Storage connection string not configured");
+                Environment.Exit(1);
+                return;
+            }
+
+            // Connect to Azure Table Storage
+            var tableServiceClient = new TableServiceClient(connectionString);
+            var areaTableClient = tableServiceClient.GetTableClient("area");
+            var stationTableClient = tableServiceClient.GetTableClient("station");
+
+            // Get all areas (table will be created if it doesn't exist, but we'll handle empty results)
+            var areas = new List<AreaEntity>();
+            try
+            {
+                await foreach (var area in areaTableClient.QueryAsync<AreaEntity>())
+                {
+                    areas.Add(area);
+                }
+            }
+            catch (Azure.RequestFailedException ex) when (ex.Status == 404)
+            {
+                // Table doesn't exist
+                logger?.LogInformation("Area table does not exist");
+                Console.WriteLine("📝 No areas found (area table does not exist)");
+                return;
+            }
+
+            if (!areas.Any())
+            {
+                logger?.LogInformation("No areas found in table");
+                Console.WriteLine("📝 No areas found");
+                return;
+            }
+
+            // Sort areas by name for consistent output
+            areas = areas.OrderBy(a => a.Name).ToList();
+
+            logger?.LogInformation("Found {AreaCount} areas", areas.Count);
+            Console.WriteLine($"📍 Found {areas.Count} area(s):");
+            Console.WriteLine();
+
+            // Display each area with station count
+            foreach (var area in areas)
+            {
+                var stationCount = 0;
+
+                if (!string.IsNullOrWhiteSpace(area.Name))
+                {
+                    try
+                    {
+                        // Count stations for this area (stations have PartitionKey = area name in lowercase)
+                        var areaNameLower = area.Name.ToLowerInvariant();
+                        await foreach (var station in stationTableClient.QueryAsync<StationEntity>(
+                            filter: $"PartitionKey eq '{areaNameLower}'"))
+                        {
+                            stationCount++;
+                        }
+                    }
+                    catch (Azure.RequestFailedException ex) when (ex.Status == 404)
+                    {
+                        // Station table doesn't exist, keep count at 0
+                        logger?.LogDebug("Station table does not exist, station count will be 0");
+                    }
+                    catch (Exception ex)
+                    {
+                        logger?.LogWarning(ex, "Failed to count stations for area: {AreaName}", area.Name);
+                        stationCount = -1; // Indicate error
+                    }
+                }
+
+                // Format: <area-id> <area-name> <station number>
+                var stationDisplay = stationCount >= 0 ? stationCount.ToString() : "error";
+                Console.WriteLine($"{area.RowKey} {area.DisplayName ?? area.Name ?? "Unknown"} {stationDisplay}");
+
+                logger?.LogDebug("Area: {AreaId} ({AreaName}) - {StationCount} stations", 
+                    area.RowKey, area.DisplayName ?? area.Name, stationCount);
+            }
+
+            Console.WriteLine();
+            logger?.LogInformation("Listed {AreaCount} areas successfully", areas.Count);
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Failed to list areas");
+            Console.WriteLine($"❌ Failed to list areas: {ex.Message}");
+            Environment.Exit(1);
+        }
+    }
+
+    public static async Task DeleteAreaAsync(string name, ILogger? logger, IConfiguration? configuration)
+    {
+        try
+        {
+            logger?.LogInformation("Deleting area: {Name}", name);
+
+            // Get Azure Storage connection
+            var connectionString = configuration?.GetConnectionString("AzureStorage");
+            if (string.IsNullOrWhiteSpace(connectionString))
+            {
+                Console.WriteLine("❌ Azure Storage connection string not configured");
+                Environment.Exit(1);
+                return;
+            }
+
+            // Connect to Azure Table Storage
+            var tableServiceClient = new TableServiceClient(connectionString);
+            var areaTableClient = tableServiceClient.GetTableClient("area");
+            var stationTableClient = tableServiceClient.GetTableClient("station");
+
+            // Try to get the area entity first to check if it exists
+            AreaEntity? existingArea = null;
+            try
+            {
+                var response = await areaTableClient.GetEntityAsync<AreaEntity>("area", name.ToLowerInvariant());
+                existingArea = response.Value;
+                logger?.LogInformation("Found area to delete: {Name} ({DisplayName})", existingArea.Name, existingArea.DisplayName);
+            }
+            catch (Azure.RequestFailedException ex) when (ex.Status == 404)
+            {
+                logger?.LogWarning("Area not found: {Name}", name);
+                Console.WriteLine($"❌ Area '{name}' not found");
+                Environment.Exit(1);
+                return;
+            }
+
+            Console.WriteLine($"🗑️ Deleting area '{name}' and all related data...");
+
+            // Step 1: Delete all stations for this area
+            await DeleteAreaStationsAsync(name, stationTableClient, logger);
+
+            // Step 2: Delete all isochrone data for this area
+            await DeleteAreaIsochroneDataAsync(name, connectionString, logger);
+
+            // Step 3: Delete the area entity itself
+            try
+            {
+                await areaTableClient.DeleteEntityAsync("area", name.ToLowerInvariant());
+                logger?.LogInformation("Deleted area entity: {Name}", name);
+                Console.WriteLine($"✓ Deleted area entity '{name}'");
+            }
+            catch (Exception ex)
+            {
+                logger?.LogError(ex, "Failed to delete area entity: {Name}", name);
+                Console.WriteLine($"❌ Failed to delete area entity '{name}': {ex.Message}");
+                throw; // Re-throw since this is a critical failure
+            }
+
+            logger?.LogInformation("Area deleted successfully: {Name}", name);
+            Console.WriteLine($"✓ Area '{name}' and all related data deleted successfully!");
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Failed to delete area: {Name}", name);
+            Console.WriteLine($"❌ Failed to delete area '{name}': {ex.Message}");
+            Environment.Exit(1);
+        }
+    }
+
+    private static async Task DeleteAreaStationsAsync(string areaName, TableClient stationTableClient, ILogger? logger)
+    {
+        try
+        {
+            logger?.LogInformation("Deleting all stations for area: {AreaName}", areaName);
+            Console.WriteLine($"  🗑️ Deleting stations for area '{areaName}'...");
+
+            var areaNameLower = areaName.ToLowerInvariant();
+            var stationsToDelete = new List<StationEntity>();
+
+            // Query all stations for this area (partition key = area name)
+            try
+            {
+                await foreach (var station in stationTableClient.QueryAsync<StationEntity>(
+                    filter: $"PartitionKey eq '{areaNameLower}'"))
+                {
+                    stationsToDelete.Add(station);
+                }
+            }
+            catch (Azure.RequestFailedException ex) when (ex.Status == 404)
+            {
+                // Station table doesn't exist
+                logger?.LogInformation("Station table does not exist, no stations to delete");
+                Console.WriteLine($"  ℹ️ No station table found, no stations to delete");
+                return;
+            }
+
+            // Delete stations if any exist
+            if (stationsToDelete.Count > 0)
+            {
+                logger?.LogInformation("Found {Count} stations to delete for area: {AreaName}",
+                    stationsToDelete.Count, areaName);
+
+                var deletedCount = 0;
+                foreach (var station in stationsToDelete)
+                {
+                    try
+                    {
+                        await stationTableClient.DeleteEntityAsync(station.PartitionKey, station.RowKey);
+                        deletedCount++;
+                        logger?.LogDebug("Deleted station: {Name} (ID: {Id})", station.Name, station.RowKey);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger?.LogWarning(ex, "Failed to delete station {Name} (ID: {Id})", station.Name, station.RowKey);
+                    }
+                }
+
+                Console.WriteLine($"  ✓ Deleted {deletedCount} stations");
+                logger?.LogInformation("Successfully deleted {DeletedCount} of {TotalCount} stations for area {AreaName}",
+                    deletedCount, stationsToDelete.Count, areaName);
+            }
+            else
+            {
+                logger?.LogInformation("No stations found for area: {AreaName}", areaName);
+                Console.WriteLine($"  ℹ️ No stations found for area '{areaName}'");
+            }
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Failed to delete stations for area: {AreaName}", areaName);
+            Console.WriteLine($"  ❌ Failed to delete stations for area '{areaName}': {ex.Message}");
+            // Don't throw here - we want to continue with other cleanup steps
+        }
+    }
+
+    private static async Task DeleteAreaIsochroneDataAsync(string areaName, string connectionString, ILogger? logger)
+    {
+        try
+        {
+            logger?.LogInformation("Deleting all isochrone data for area: {AreaName}", areaName);
+            Console.WriteLine($"  🗑️ Deleting isochrone data for area '{areaName}'...");
+
+            // Create blob service client and container
+            var blobServiceClient = new BlobServiceClient(connectionString);
+            var containerClient = blobServiceClient.GetBlobContainerClient("isochrone");
+
+            // Check if container exists
+            if (!await containerClient.ExistsAsync())
+            {
+                logger?.LogInformation("Isochrone container does not exist, no isochrone data to delete");
+                Console.WriteLine($"  ℹ️ No isochrone container found, no isochrone data to delete");
+                return;
+            }
+
+            var areaPrefix = $"{areaName.ToLowerInvariant()}/";
+            var blobsToDelete = new List<string>();
+
+            // List all blobs with the area prefix
+            await foreach (var blobItem in containerClient.GetBlobsAsync(prefix: areaPrefix))
+            {
+                blobsToDelete.Add(blobItem.Name);
+            }
+
+            if (blobsToDelete.Count > 0)
+            {
+                logger?.LogInformation("Found {Count} isochrone files to delete for area {AreaName}",
+                    blobsToDelete.Count, areaName);
+
+                var deletedCount = 0;
+                foreach (var blobName in blobsToDelete)
+                {
+                    try
+                    {
+                        var blobClient = containerClient.GetBlobClient(blobName);
+                        await blobClient.DeleteIfExistsAsync();
+                        deletedCount++;
+                        logger?.LogDebug("Deleted isochrone blob: {BlobName}", blobName);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger?.LogWarning(ex, "Failed to delete isochrone blob: {BlobName}", blobName);
+                    }
+                }
+
+                Console.WriteLine($"  ✓ Deleted {deletedCount} isochrone files");
+                logger?.LogInformation("Successfully deleted {DeletedCount} of {TotalCount} isochrone files for area {AreaName}",
+                    deletedCount, blobsToDelete.Count, areaName);
+            }
+            else
+            {
+                logger?.LogInformation("No isochrone files found for area: {AreaName}", areaName);
+                Console.WriteLine($"  ℹ️ No isochrone files found for area '{areaName}'");
+            }
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Failed to delete isochrone data for area: {AreaName}", areaName);
+            Console.WriteLine($"  ❌ Failed to delete isochrone data for area '{areaName}': {ex.Message}");
+            // Don't throw here - we want to continue with other cleanup steps
         }
     }
 }

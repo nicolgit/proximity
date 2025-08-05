@@ -192,11 +192,11 @@ public class AreaFunction
                 return new BadRequestObjectResult(new { error = "Time parameter is required" });
             }
 
-            // Validate time parameter - must be 10, 15, 20, or 30
-            var allowedTimes = new[] { "10", "15", "20", "30" };
+            // Validate time parameter - must be 5, 10, 15, 20, or 30
+            var allowedTimes = new[] { "5", "10", "15", "20", "30" };
             if (!allowedTimes.Contains(time))
             {
-                return new BadRequestObjectResult(new { error = "Time parameter must be one of: 10, 15, 20, 30" });
+                return new BadRequestObjectResult(new { error = "Time parameter must be one of: 5, 10, 15, 20, 30" });
             }
 
             // Construct blob path: isochrone/{id}/{stationid}/{time}min.json

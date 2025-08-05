@@ -63,19 +63,26 @@ public class Program
         {
             ArgumentHelpName = "developer"
         };
+        var noIsochroneOption = new Option<bool>(
+            aliases: new[] { "--noisochrone" },
+            description: "Skip isochrone generation when creating the area")
+        {
+            ArgumentHelpName = "noisochrone"
+        };
 
         createCommand.AddArgument(nameArgument);
         createCommand.AddOption(centerOption);
         createCommand.AddOption(diameterOption);
         createCommand.AddOption(displayNameOption);
         createCommand.AddOption(developerOption);
+        createCommand.AddOption(noIsochroneOption);
         createCommand.AddOption(loggingOption);
 
-        createCommand.SetHandler(async (string name, string center, int diameter, string displayName, bool developer, string loggingLevel) =>
+        createCommand.SetHandler(async (string name, string center, int diameter, string displayName, bool developer, bool noIsochrone, string loggingLevel) =>
         {
             await InitializeLoggingAndConfigurationAsync(loggingLevel);
-            await AreaManager.CreateAreaAsync(name, center, diameter, displayName, developer, _logger, _configuration);
-        }, nameArgument, centerOption, diameterOption, displayNameOption, developerOption, loggingOption);
+            await AreaManager.CreateAreaAsync(name, center, diameter, displayName, developer, noIsochrone, _logger, _configuration);
+        }, nameArgument, centerOption, diameterOption, displayNameOption, developerOption, noIsochroneOption, loggingOption);
 
         // Create area delete command
         var deleteCommand = new Command("delete", "Delete an area");
@@ -87,12 +94,24 @@ public class Program
         deleteCommand.SetHandler(async (string name, string loggingLevel) =>
         {
             await InitializeLoggingAndConfigurationAsync(loggingLevel);
-            await DeleteAreaAsync(name);
+            await AreaManager.DeleteAreaAsync(name, _logger, _configuration);
         }, deleteNameArgument, loggingOption);
+
+        // Create area list command
+        var listCommand = new Command("list", "List all areas");
+
+        listCommand.AddOption(loggingOption);
+
+        listCommand.SetHandler(async (string loggingLevel) =>
+        {
+            await InitializeLoggingAndConfigurationAsync(loggingLevel);
+            await AreaManager.ListAreasAsync(_logger, _configuration);
+        }, loggingOption);
 
         // Add commands to area group
         areaCommand.AddCommand(createCommand);
         areaCommand.AddCommand(deleteCommand);
+        areaCommand.AddCommand(listCommand);
 
         // Add commands to root
         rootCommand.AddCommand(areaCommand);
@@ -141,52 +160,6 @@ public class Program
 
         // Add a small delay to make this truly async
         await Task.Delay(1);
-    }
-
-    private static async Task DeleteAreaAsync(string name)
-    {
-        try
-        {
-            _logger?.LogInformation("Deleting area: {Name}", name);
-
-            // Get Azure Storage connection
-            var connectionString = _configuration?.GetConnectionString("AzureStorage");
-            if (string.IsNullOrWhiteSpace(connectionString))
-            {
-                Console.WriteLine("❌ Azure Storage connection string not configured");
-                Environment.Exit(1);
-                return;
-            }
-
-            // Connect to Azure Table Storage
-            var tableServiceClient = new TableServiceClient(connectionString);
-            var tableClient = tableServiceClient.GetTableClient("area");
-
-            // Try to get the entity first to check if it exists
-            try
-            {
-                var response = await tableClient.GetEntityAsync<AreaEntity>("area", name.ToLowerInvariant());
-                var existingArea = response.Value;
-
-                // Delete the entity
-                await tableClient.DeleteEntityAsync("area", name.ToLowerInvariant());
-
-                _logger?.LogInformation("Area deleted successfully: {Name}", name);
-                Console.WriteLine($"✓ Area '{name}' deleted successfully!");
-            }
-            catch (Azure.RequestFailedException ex) when (ex.Status == 404)
-            {
-                _logger?.LogWarning("Area not found: {Name}", name);
-                Console.WriteLine($"❌ Area '{name}' not found");
-                Environment.Exit(1);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "Failed to delete area: {Name}", name);
-            Console.WriteLine($"❌ Failed to delete area '{name}': {ex.Message}");
-            Environment.Exit(1);
-        }
     }
 
     private static async Task<bool> TestAzureStorageConnectionAsync()
