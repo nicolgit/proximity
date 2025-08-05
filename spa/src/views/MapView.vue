@@ -308,8 +308,8 @@ const selectedLocation = ref<[number, number] | null>(null)
 const selectedLocationName = ref('')
 
 // Map configuration
-const tileLayerUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
-const attribution = '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+const tileLayerUrl = 'https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png'
+const attribution = '© <a href="https://stadiamaps.com/">Stadia Maps</a>, © <a href="https://openmaptiles.org/">OpenMapTiles</a> © <a href="http://openstreetmap.org">OpenStreetMap</a> contributors'
 
 // Use composables
 const {
