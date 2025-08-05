@@ -212,12 +212,34 @@
           </l-popup>
         </l-circle>
 
+        <!-- Isochrone circles (rendered before stations to be under them) -->
+        <l-circle
+          v-for="(circle, index) in isochroneCircles"
+          :key="`isochrone-${index}`"
+          :lat-lng="circle.center"
+          :radius="circle.radius"
+          :color="circle.color"
+          :fill-color="circle.color"
+          :fill-opacity="0.1"
+          :weight="circle.timeMinutes === 30 ? 2 : 0"
+          :opacity="circle.timeMinutes === 30 ? 0.6 : 0"
+        >
+          <l-popup>
+            <div class="isochrone-popup">
+              <h4>🚶‍♂️ {{ circle.timeMinutes }} minute walk</h4>
+              <p><strong>Distance:</strong> ~{{ Math.round(circle.radius) }}m radius</p>
+              <p><strong>From:</strong> {{ selectedStationForIsochrone?.name }}</p>
+            </div>
+          </l-popup>
+        </l-circle>
+
         <!-- Station markers -->
         <l-marker
           v-for="station in allVisibleStations"
           :key="station.id"
           :lat-lng="[station.latitude, station.longitude]"
           :icon="getStationIcon(station.type) as any"
+          @click="onStationClick(station)"
         >
           <l-popup>
             <div class="station-popup">
@@ -235,6 +257,15 @@
               </h4>
               <p><strong>Type:</strong> {{ station.type === 'station' ? 'Metro Station' : 'Tram Stop' }}</p>
               <p><strong>Location:</strong> {{ station.latitude.toFixed(4) }}, {{ station.longitude.toFixed(4) }}</p>
+              <div class="station-actions">
+                <button 
+                  @click="onStationClick(station)"
+                  class="isochrone-btn"
+                  :class="{ 'isochrone-btn--active': selectedStationForIsochrone?.id === station.id }"
+                >
+                  🚶‍♂️ {{ selectedStationForIsochrone?.id === station.id ? 'Hide' : 'Show' }} Walking Distances
+                </button>
+              </div>
             </div>
           </l-popup>
         </l-marker>
@@ -306,6 +337,15 @@ const showWelcomePopup = ref(true)
 // Stations state
 const visibleStations = ref<Set<string>>(new Set())
 
+// Isochrone state
+const selectedStationForIsochrone = ref<Station | null>(null)
+const isochroneCircles = ref<Array<{
+  center: [number, number]
+  radius: number
+  color: string
+  timeMinutes: number
+}>>([])
+
 // Computed property for all visible stations across all areas
 const allVisibleStations = computed(() => {
   const stations: Station[] = []
@@ -337,6 +377,44 @@ const getStationIcon = (type: 'station' | 'tram_stop') => {
 // Helper function to open Wikipedia link
 const openWikipediaLink = (url: string) => {
   window.open(url, '_blank')
+}
+
+// Function to handle station click and show isochrone circles
+const onStationClick = (station: Station) => {
+  // If clicking the same station, toggle off the isochrones
+  if (selectedStationForIsochrone.value?.id === station.id) {
+    selectedStationForIsochrone.value = null
+    isochroneCircles.value = []
+  } else {
+    // Show isochrones for the new station
+    selectedStationForIsochrone.value = station
+    generateIsochroneCircles(station)
+  }
+}
+
+// Function to generate isochrone circles for walking distances
+const generateIsochroneCircles = (station: Station) => {
+  // Walking speeds: approximately 5 km/h = 83.33 m/min
+  const walkingSpeedMPerMin = 83.33
+  const timeIntervals = [30, 20, 15, 10, 5] // minutes - reversed order so largest renders first (bottom)
+  
+  // Determine color based on station type
+  const baseColor = station.type === 'station' ? '#22c55e' : '#eab308' // green for metro, yellow for tram
+  
+  // Clear existing circles
+  isochroneCircles.value = []
+  
+  // Generate circles for each time interval
+  timeIntervals.forEach(minutes => {
+    const radiusMeters = walkingSpeedMPerMin * minutes
+    
+    isochroneCircles.value.push({
+      center: [station.latitude, station.longitude],
+      radius: radiusMeters,
+      color: baseColor,
+      timeMinutes: minutes
+    })
+  })
 }
 
 // Search event handlers
@@ -396,7 +474,7 @@ const onSearchKeydown = (event: KeyboardEvent) => {
 
 // Map event handlers
 const onMapReady = () => {
-  console.log('Map is ready!')
+  console.log('🗺️ Map is ready!', mapRef.value?.leafletObject)
 }
 
 // Location selection
@@ -420,10 +498,51 @@ const selectLocation = (result: SearchResult) => {
 
 // Current location functionality
 const goToCurrentLocation = async () => {
-  await getLocation()
+  console.log('🗺️ Getting current location...')
+  console.log('🔄 Loading state:', isLocationLoading.value)
   
-  if (currentLocation.value && mapRef.value?.leafletObject) {
-    mapRef.value.leafletObject.setView([currentLocation.value.lat, currentLocation.value.lng], 16)
+  try {
+    await getLocation()
+    
+    console.log('📍 Current location after getLocation():', currentLocation.value)
+    console.log('🗺️ Map ref available:', !!mapRef.value)
+    console.log('🍃 Leaflet object available:', !!mapRef.value?.leafletObject)
+    
+    if (currentLocation.value) {
+      // Handle different coordinate formats
+      let lat, lng
+      
+      if (Array.isArray(currentLocation.value)) {
+        [lat, lng] = currentLocation.value
+      } else if (currentLocation.value.lat !== undefined && currentLocation.value.lng !== undefined) {
+        lat = currentLocation.value.lat
+        lng = currentLocation.value.lng
+      } else {
+        console.error('❌ Invalid coordinate format:', currentLocation.value)
+        return
+      }
+      
+      console.log(`🎯 Centering map on: ${lat}, ${lng}`)
+      
+      if (mapRef.value?.leafletObject) {
+        mapRef.value.leafletObject.setView([lat, lng], 16)
+        console.log('✅ Map centered successfully')
+      } else {
+        console.error('❌ Map reference not available')
+        // Try again after a short delay
+        setTimeout(() => {
+          if (mapRef.value?.leafletObject) {
+            mapRef.value.leafletObject.setView([lat, lng], 16)
+            console.log('✅ Map centered successfully (delayed)')
+          }
+        }, 500)
+      }
+    } else {
+      console.error('❌ Current location not available')
+      console.error('🔍 Is loading:', isLocationLoading.value)
+    }
+  } catch (error) {
+    console.error('❌ Error in goToCurrentLocation:', error)
   }
 }
 
@@ -434,15 +553,30 @@ const closeWelcomePopup = () => {
 
 // Initialize on mount
 onMounted(async () => {
+  console.log('🚀 Component mounted')
+  
   // Load areas first
   await loadAreas()
   
   // Try to get user's current location
   await getLocation()
   
-  if (currentLocation.value && mapRef.value?.leafletObject) {
-    initialCenter.value = [currentLocation.value.lat, currentLocation.value.lng]
-    mapRef.value.leafletObject.setView([currentLocation.value.lat, currentLocation.value.lng], 13)
+  console.log('📍 Initial location check:', currentLocation.value)
+  
+  if (currentLocation.value) {
+    const lat = currentLocation.value.lat
+    const lng = currentLocation.value.lng
+    console.log(`🎯 Setting initial center to: ${lat}, ${lng}`)
+    
+    initialCenter.value = [lat, lng]
+    
+    // Wait a bit for the map to be ready, then set view
+    setTimeout(() => {
+      if (mapRef.value?.leafletObject) {
+        console.log('🗺️ Setting initial map view')
+        mapRef.value.leafletObject.setView([lat, lng], 13)
+      }
+    }, 100)
   }
 })
 </script>
@@ -790,6 +924,57 @@ onMounted(async () => {
 }
 
 .station-popup strong {
+  color: #333;
+}
+
+.station-actions {
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid #eee;
+}
+
+.isochrone-btn {
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+.isochrone-btn:hover {
+  background: #0056b3;
+}
+
+.isochrone-btn--active {
+  background: #dc3545;
+}
+
+.isochrone-btn--active:hover {
+  background: #c82333;
+}
+
+/* Isochrone Popup Styles */
+.isochrone-popup {
+  min-width: 180px;
+}
+
+.isochrone-popup h4 {
+  margin: 0 0 8px 0;
+  color: #333;
+  font-size: 14px;
+}
+
+.isochrone-popup p {
+  margin: 4px 0;
+  font-size: 12px;
+  color: #666;
+}
+
+.isochrone-popup strong {
   color: #333;
 }
 
