@@ -8,7 +8,8 @@ A .NET 8 console application for managing areas and generating station proximity
 - Area management with Azure Table Storage
 - Configuration management using JSON files
 - Azure Storage Blob and Table client integration
-- MapBox API integration for geographical data
+- MapBox API integration for geographical data and isochrone generation
+- Automatic isochrone polygon generation for 5 and 10-minute walking distances
 - Comprehensive logging with configurable levels
 - Error handling with retry logic
 - Security best practices
@@ -17,8 +18,8 @@ A .NET 8 console application for managing areas and generating station proximity
 ## Prerequisites
 
 - .NET 8.0 SDK
-- Azure Storage Account (for area storage and output data)
-- MapBox API Key (for geographical services)
+- Azure Storage Account (for area storage, station data, and isochrone polygons)
+- MapBox API Key (for geographical services and isochrone generation)
 
 ## Commands
 
@@ -66,6 +67,26 @@ dotnet run -- area delete <name>
 dotnet run -- area delete "rome-center"
 ```
 
+#### Area Cleanup Behavior
+
+When creating an area that already exists, the application automatically:
+
+1. **Cleans up existing isochrone data**: Deletes all isochrone files from Azure Blob Storage for the area
+2. **Removes existing station data**: Clears all station records from Azure Table Storage
+3. **Regenerates everything**: Creates fresh station and isochrone data
+
+**Console Output for Existing Area:**
+```bash
+🗑️ Cleaning up 20 existing isochrone files for area 'rome-center'...
+✓ Cleaned up 20 isochrone files
+🗑️ Removing existing stations for area 'rome-center'...
+✓ Removed 15 existing stations
+🔍 Retrieving railway stations within 5000m...
+✓ Retrieved and stored 15 stations with isochrone data
+```
+
+This ensures data consistency and prevents accumulation of outdated isochrone polygons.
+
 
 
 ### Global Options
@@ -107,11 +128,11 @@ When the `--developer` flag is used with the `area create` command:
 
 ```bash
 # Normal mode output
-✓ Retrieved and stored 45 stations
+✓ Retrieved and stored 45 stations with isochrone data
 
 # Developer mode output  
 🔧 Developer mode: limiting to first 3 railway stations and 3 tram stops
-✓ Retrieved and stored 6 stations
+✓ Retrieved and stored 6 stations with isochrone data
   🔧 Developer mode: limited to 3 railway stations and 3 tram stops
 ```
 
@@ -123,6 +144,124 @@ When the `--developer` flag is used with the `area create` command:
 - **Rapid Iteration**: Quickly testing different coordinates and parameters
 
 **Note**: Developer mode only affects the `area create` command. Other commands work normally.
+
+## Isochrone Generation
+
+The application automatically generates walking distance isochrone polygons for each station using the MapBox Isochrone API.
+
+### How Isochrone Generation Works
+
+When creating an area, the application:
+
+1. **Retrieves Stations**: Gets railway stations and tram stops from OpenStreetMap via Overpass API
+2. **Generates Isochrones**: For each station, calls MapBox Isochrone API to generate walking distance polygons
+3. **Multiple Durations**: Creates isochrones for 5-minute and 10-minute walking distances
+4. **Stores in Azure**: Saves the GeoJSON polygons to Azure Blob Storage in the "isochrone" container
+
+### Isochrone File Structure
+
+Isochrone files are stored in Azure Blob Storage using this naming convention:
+
+```
+Container: isochrone
+Path Structure: /{area-id}/{station-id}/{duration}.json
+
+Examples:
+- /rome-center/354964363/5min.json    # 5-minute walking isochrone for station 354964363
+- /rome-center/354964363/10min.json   # 10-minute walking isochrone for station 354964363
+- /rome-center/5216453777/5min.json   # 5-minute walking isochrone for station 5216453777
+- /rome-center/5216453777/10min.json  # 10-minute walking isochrone for station 5216453777
+```
+
+### Isochrone Data Format
+
+Each isochrone file contains a GeoJSON FeatureCollection with polygon data and styling properties:
+
+```json
+{
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[12.495825, 41.9028729], ...]]
+      },
+      "properties": {
+        "contour": 5,
+        "metric": "time",
+        "unit": "minutes",
+        "fill": "#22c55e",
+        "stroke": "#22c55e", 
+        "fill-opacity": 0.1,
+        "stroke-width": 0,
+        "railway-type": "station"
+      }
+    }
+  ],
+  "type": "FeatureCollection"
+}
+```
+
+### Isochrone Styling
+
+The application automatically applies styling based on station type and duration:
+
+#### **Colors by Station Type:**
+- **Railway Stations** (`railway="station"`): Green (#22c55e)
+- **Tram Stops** (`railway="tram_stop"`): Yellow (#eab308)
+- **Unknown Types**: Gray (#6b7280)
+
+#### **Styling Properties:**
+- **Fill Transparency**: 10% opacity (0.1) for all isochrones
+- **Border Width**: 
+  - 30-minute duration: 2px border
+  - All other durations: No border (0px)
+- **Additional Properties**: Includes `railway-type` for identification
+
+#### **Generated Durations:**
+The application generates isochrones for multiple walking distances:
+- 5 minutes
+- 10 minutes  
+- 15 minutes
+- 20 minutes
+- 30 minutes
+
+### Isochrone Console Output
+
+During area creation, you'll see progress for each station with styling applied:
+
+```bash
+🔍 Retrieving railway stations within 1000m of 41.9028, 12.4964...
+✓ Area 'test-area' created successfully!
+  📍 Generating isochrone data for station: Repubblica
+    ✓ Saved 5min isochrone to: test-area/354964363/5min.json
+    ✓ Saved 10min isochrone to: test-area/354964363/10min.json
+    ✓ Saved 15min isochrone to: test-area/354964363/15min.json
+    ✓ Saved 20min isochrone to: test-area/354964363/20min.json
+    ✓ Saved 30min isochrone to: test-area/354964363/30min.json
+  📍 Generating isochrone data for station: Termini (tram stop)
+    ✓ Saved 5min isochrone to: test-area/610865305/5min.json
+    ✓ Saved 10min isochrone to: test-area/610865305/10min.json
+    ✓ Saved 15min isochrone to: test-area/610865305/15min.json
+    ✓ Saved 20min isochrone to: test-area/610865305/20min.json
+    ✓ Saved 30min isochrone to: test-area/610865305/30min.json
+✓ Retrieved and stored 4 stations with isochrone data
+```
+
+With debug logging enabled, you'll also see styling information:
+```bash
+dbug: Added styling to isochrone: fill=#22c55e, stroke=#22c55e, opacity=0.1, width=0
+dbug: Added styling to isochrone: fill=#eab308, stroke=#eab308, opacity=0.1, width=2
+```
+
+### Error Handling
+
+The application gracefully handles isochrone generation errors:
+
+- **Missing MapBox API Key**: Skips isochrone generation with warning
+- **API Rate Limits**: Includes delays between API calls
+- **Network Issues**: Logs errors but continues processing other stations
+- **Invalid Responses**: Validates JSON structure before saving
 
 ## Configuration
 

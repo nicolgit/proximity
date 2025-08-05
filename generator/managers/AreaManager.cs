@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using System.Globalization;
 using System.Text.Json;
 using Generator.Types;
+using Azure.Storage.Blobs;
 
 namespace Generator.Managers;
 
@@ -77,6 +78,9 @@ public static class AreaManager
             await stationTableClient.CreateIfNotExistsAsync();
             logger?.LogInformation("Connected to Azure Table Storage");
 
+            // Check if area already exists and clean up isochrone data if it does
+            await CleanupExistingAreaIsochroneAsync(name, connectionString, logger);
+
             // Create or update area entity
             var area = new AreaEntity
             {
@@ -100,7 +104,7 @@ public static class AreaManager
             Console.WriteLine($"  Diameter: {diameter} meters");
 
             // Retrieve and store railway stations using Overpass API
-            await RetrieveAndStoreStationsAsync(name, latitude, longitude, diameter, developerMode, stationTableClient, logger);
+            await RetrieveAndStoreStationsAsync(name, latitude, longitude, diameter, developerMode, stationTableClient, logger, configuration);
         }
         catch (Exception ex)
         {
@@ -111,7 +115,7 @@ public static class AreaManager
     }
 
     private static async Task RetrieveAndStoreStationsAsync(string areaName, double latitude, double longitude,
-        int diameterMeters, bool developerMode, TableClient stationTableClient, ILogger? logger)
+        int diameterMeters, bool developerMode, TableClient stationTableClient, ILogger? logger, IConfiguration? configuration)
     {
         try
         {
@@ -254,6 +258,9 @@ out body;";
                     await stationTableClient.UpsertEntityAsync(station, TableUpdateMode.Replace);
                     stationsProcessed++;
 
+                    // Generate and save isochrone data
+                    await GenerateAndSaveIsochroneAsync(areaName, stationId, stationName, stationLat, stationLon, railwayType, logger, configuration);
+
                     // Update counters for developer mode
                     if (developerMode)
                     {
@@ -276,7 +283,7 @@ out body;";
             logger?.LogInformation("Station retrieval completed for area {AreaName}: {Processed} processed, {Skipped} skipped",
                 areaName, stationsProcessed, stationsSkipped);
 
-            Console.WriteLine($"✓ Retrieved and stored {stationsProcessed} stations");
+            Console.WriteLine($"✓ Retrieved and stored {stationsProcessed} stations with isochrone data");
             if (developerMode)
             {
                 Console.WriteLine($"  🔧 Developer mode: limited to {railwayStationCount} railway stations and {tramStopCount} tram stops");
@@ -357,6 +364,283 @@ out body;";
             logger?.LogError(ex, "Failed to remove existing stations for area: {AreaName}", areaName);
             Console.WriteLine($"❌ Failed to remove existing stations for area '{areaName}': {ex.Message}");
             // Don't throw here - we want to continue with adding new stations even if cleanup fails
+        }
+    }
+
+    private static async Task GenerateAndSaveIsochroneAsync(string areaName, string stationId, string stationName, 
+        double latitude, double longitude, string? railwayType, ILogger? logger, IConfiguration? configuration)
+    {
+        try
+        {
+            logger?.LogInformation("Generating isochrone data for station: {StationName} (ID: {StationId})", stationName, stationId);
+            Console.WriteLine($"  📍 Generating isochrone data for station: {stationName}");
+
+            // Get MapBox API key
+            var mapBoxKey = configuration?.GetSection("AppSettings")["mapBoxSubscriptionKey"];
+            if (string.IsNullOrWhiteSpace(mapBoxKey) || mapBoxKey.Contains("<") || mapBoxKey.Contains(">"))
+            {
+                logger?.LogWarning("MapBox API key not configured, skipping isochrone generation for station: {StationName}", stationName);
+                Console.WriteLine($"    ⚠️ MapBox API key not configured, skipping isochrone generation");
+                return;
+            }
+
+            // Get Azure Storage connection
+            var connectionString = configuration?.GetConnectionString("AzureStorage");
+            if (string.IsNullOrWhiteSpace(connectionString))
+            {
+                logger?.LogWarning("Azure Storage connection string not configured, skipping isochrone generation for station: {StationName}", stationName);
+                return;
+            }
+
+            // Create blob service client and container
+            var blobServiceClient = new BlobServiceClient(connectionString);
+            var containerClient = blobServiceClient.GetBlobContainerClient("isochrone");
+            await containerClient.CreateIfNotExistsAsync();
+
+            var httpClient = new HttpClient();
+            httpClient.Timeout = TimeSpan.FromSeconds(30);
+
+            // Generate isochrones for 5 and 10 minutes
+            var durations = new[] { 5, 10, 15, 20, 30 };
+
+            foreach (var duration in durations)
+            {
+                try
+                {
+                    // Build MapBox Isochrone API URL
+                    var url = $"https://api.mapbox.com/isochrone/v1/mapbox/walking/{longitude.ToString(CultureInfo.InvariantCulture)},{latitude.ToString(CultureInfo.InvariantCulture)}?contours_minutes={duration}&polygons=true&access_token={mapBoxKey}";
+
+                    logger?.LogDebug("Calling MapBox Isochrone API for {Duration}min: {Url}", duration, url.Replace(mapBoxKey, "***"));
+
+                    var response = await httpClient.GetAsync(url);
+
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var isochroneJson = await response.Content.ReadAsStringAsync();
+                        
+                        // Validate JSON response
+                        var jsonDoc = JsonDocument.Parse(isochroneJson);
+                        if (!jsonDoc.RootElement.TryGetProperty("features", out _))
+                        {
+                            logger?.LogWarning("Invalid isochrone response for station {StationName} ({Duration}min): no features found", stationName, duration);
+                            continue;
+                        }
+
+                        // Add styling properties to the GeoJSON
+                        var styledIsochroneJson = AddStylingToIsochrone(isochroneJson, duration, railwayType, logger);
+
+                        // Create blob path: /areaid/stationid/duration.json
+                        var blobPath = $"{areaName.ToLowerInvariant()}/{stationId}/{duration}min.json";
+                        var blobClient = containerClient.GetBlobClient(blobPath);
+
+                        // Upload to blob storage
+                        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(styledIsochroneJson));
+                        await blobClient.UploadAsync(stream, overwrite: true);
+
+                        logger?.LogInformation("Saved {Duration}min isochrone for station {StationName} to blob: {BlobPath}", 
+                            duration, stationName, blobPath);
+                        Console.WriteLine($"    ✓ Saved {duration}min isochrone to: {blobPath}");
+                    }
+                    else
+                    {
+                        logger?.LogError("MapBox Isochrone API request failed for station {StationName} ({Duration}min) with status: {StatusCode}", 
+                            stationName, duration, response.StatusCode);
+                        Console.WriteLine($"    ❌ Failed to get {duration}min isochrone (Status: {response.StatusCode})");
+                        
+                        var errorContent = await response.Content.ReadAsStringAsync();
+                        logger?.LogDebug("MapBox API error response: {Response}", errorContent);
+                    }
+                }
+                catch (HttpRequestException ex)
+                {
+                    logger?.LogError(ex, "Failed to connect to MapBox Isochrone API for station {StationName} ({Duration}min)", stationName, duration);
+                }
+                catch (TaskCanceledException ex)
+                {
+                    logger?.LogError(ex, "MapBox Isochrone API request timed out for station {StationName} ({Duration}min)", stationName, duration);
+                }
+                catch (JsonException ex)
+                {
+                    logger?.LogError(ex, "Failed to parse MapBox Isochrone API response for station {StationName} ({Duration}min)", stationName, duration);
+                }
+                catch (Exception ex)
+                {
+                    logger?.LogError(ex, "Unexpected error generating {Duration}min isochrone for station {StationName}", duration, stationName);
+                }
+
+                // Add a small delay between API calls to avoid rate limiting
+                await Task.Delay(100);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Failed to generate isochrone data for station: {StationName} (ID: {StationId})", stationName, stationId);
+            // Don't throw here - we want to continue processing other stations even if one fails
+        }
+    }
+
+    private static string AddStylingToIsochrone(string isochroneJson, int duration, string? railwayType, ILogger? logger)
+    {
+        try
+        {
+            // Parse the original GeoJSON
+            var jsonDoc = JsonDocument.Parse(isochroneJson);
+            
+            // Determine colors based on railway type
+            string fillColor, strokeColor;
+            if (railwayType == "station")
+            {
+                // Train station - green
+                fillColor = "#22c55e";
+                strokeColor = "#22c55e";
+            }
+            else if (railwayType == "tram_stop")
+            {
+                // Tram stop - yellow
+                fillColor = "#eab308";
+                strokeColor = "#eab308";
+            }
+            else
+            {
+                // Default for unknown types
+                fillColor = "#6b7280";
+                strokeColor = "#6b7280";
+            }
+
+            // Determine stroke properties based on duration
+            var strokeWidth = duration == 30 ? 2 : 0;
+            var fillOpacity = 0.1; // 10% transparency
+
+            // Create a new JSON structure with styling
+            using var stream = new MemoryStream();
+            using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true });
+
+            writer.WriteStartObject();
+            writer.WriteString("type", "FeatureCollection");
+            
+            writer.WriteStartArray("features");
+            
+            // Process each feature in the original response
+            if (jsonDoc.RootElement.TryGetProperty("features", out var features))
+            {
+                foreach (var feature in features.EnumerateArray())
+                {
+                    writer.WriteStartObject();
+                    writer.WriteString("type", "Feature");
+                    
+                    // Copy geometry
+                    if (feature.TryGetProperty("geometry", out var geometry))
+                    {
+                        writer.WritePropertyName("geometry");
+                        geometry.WriteTo(writer);
+                    }
+                    
+                    // Create properties with original data plus styling
+                    writer.WriteStartObject("properties");
+                    
+                    // Copy original properties
+                    if (feature.TryGetProperty("properties", out var originalProps))
+                    {
+                        foreach (var prop in originalProps.EnumerateObject())
+                        {
+                            writer.WritePropertyName(prop.Name);
+                            prop.Value.WriteTo(writer);
+                        }
+                    }
+                    
+                    // Add styling properties
+                    writer.WriteString("fill", fillColor);
+                    writer.WriteString("stroke", strokeColor);
+                    writer.WriteNumber("fill-opacity", fillOpacity);
+                    writer.WriteNumber("stroke-width", strokeWidth);
+                    writer.WriteString("railway-type", railwayType ?? "unknown");
+                    
+                    writer.WriteEndObject(); // properties
+                    writer.WriteEndObject(); // feature
+                }
+            }
+            
+            writer.WriteEndArray(); // features
+            writer.WriteEndObject(); // root
+
+            writer.Flush();
+            var styledJson = System.Text.Encoding.UTF8.GetString(stream.ToArray());
+            
+            logger?.LogDebug("Added styling to isochrone: fill={FillColor}, stroke={StrokeColor}, opacity={Opacity}, width={Width}", 
+                fillColor, strokeColor, fillOpacity, strokeWidth);
+                
+            return styledJson;
+        }
+        catch (Exception ex)
+        {
+            logger?.LogWarning(ex, "Failed to add styling to isochrone, returning original JSON");
+            return isochroneJson;
+        }
+    }
+
+    private static async Task CleanupExistingAreaIsochroneAsync(string areaName, string connectionString, ILogger? logger)
+    {
+        try
+        {
+            logger?.LogInformation("Checking for existing isochrone data for area: {AreaName}", areaName);
+
+            // Create blob service client and container
+            var blobServiceClient = new BlobServiceClient(connectionString);
+            var containerClient = blobServiceClient.GetBlobContainerClient("isochrone");
+
+            // Check if container exists
+            if (!await containerClient.ExistsAsync())
+            {
+                logger?.LogInformation("Isochrone container does not exist, no cleanup needed");
+                return;
+            }
+
+            var areaPrefix = $"{areaName.ToLowerInvariant()}/";
+            var blobsToDelete = new List<string>();
+
+            // List all blobs with the area prefix
+            await foreach (var blobItem in containerClient.GetBlobsAsync(prefix: areaPrefix))
+            {
+                blobsToDelete.Add(blobItem.Name);
+            }
+
+            if (blobsToDelete.Count > 0)
+            {
+                logger?.LogInformation("Found {Count} existing isochrone files for area {AreaName}, deleting...", 
+                    blobsToDelete.Count, areaName);
+                Console.WriteLine($"🗑️ Cleaning up {blobsToDelete.Count} existing isochrone files for area '{areaName}'...");
+
+                var deletedCount = 0;
+                foreach (var blobName in blobsToDelete)
+                {
+                    try
+                    {
+                        var blobClient = containerClient.GetBlobClient(blobName);
+                        await blobClient.DeleteIfExistsAsync();
+                        deletedCount++;
+                        logger?.LogDebug("Deleted isochrone blob: {BlobName}", blobName);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger?.LogWarning(ex, "Failed to delete isochrone blob: {BlobName}", blobName);
+                    }
+                }
+
+                Console.WriteLine($"✓ Cleaned up {deletedCount} isochrone files");
+                logger?.LogInformation("Successfully deleted {DeletedCount} of {TotalCount} isochrone files for area {AreaName}", 
+                    deletedCount, blobsToDelete.Count, areaName);
+            }
+            else
+            {
+                logger?.LogInformation("No existing isochrone files found for area: {AreaName}", areaName);
+                Console.WriteLine($"ℹ️ No existing isochrone files found for area '{areaName}'");
+            }
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Failed to cleanup existing isochrone data for area: {AreaName}", areaName);
+            Console.WriteLine($"⚠️ Failed to cleanup existing isochrone data for area '{areaName}': {ex.Message}");
+            // Don't throw here - we want to continue with area creation even if cleanup fails
         }
     }
 }
