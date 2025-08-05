@@ -152,5 +152,49 @@ namespace api.Services
         /// Gets the TableServiceClient for advanced operations
         /// </summary>
         public TableServiceClient TableServiceClient => _tableServiceClient;
+
+        /// <summary>
+        /// Retrieves blob content as string from the specified container and blob path
+        /// </summary>
+        /// <param name="containerName">The name of the container</param>
+        /// <param name="blobPath">The path to the blob</param>
+        /// <returns>The blob content as string, or null if blob doesn't exist</returns>
+        public async Task<string?> GetBlobContentAsync(string containerName, string blobPath)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(containerName))
+                    throw new ArgumentException("Container name cannot be null or empty", nameof(containerName));
+
+                if (string.IsNullOrWhiteSpace(blobPath))
+                    throw new ArgumentException("Blob path cannot be null or empty", nameof(blobPath));
+
+                var containerClient = GetContainerClient(containerName);
+                var blobClient = containerClient.GetBlobClient(blobPath);
+
+                // Check if blob exists
+                var exists = await blobClient.ExistsAsync();
+                if (!exists.Value)
+                {
+                    _logger.LogWarning("Blob '{BlobPath}' not found in container '{ContainerName}'", blobPath, containerName);
+                    return null;
+                }
+
+                // Download blob content
+                var response = await blobClient.DownloadContentAsync();
+                var content = response.Value.Content.ToString();
+
+                _logger.LogInformation("Successfully retrieved blob '{BlobPath}' from container '{ContainerName}', size: {Size} bytes", 
+                    blobPath, containerName, content.Length);
+
+                return content;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to retrieve blob '{BlobPath}' from container '{ContainerName}': {ErrorMessage}", 
+                    blobPath, containerName, ex.Message);
+                throw;
+            }
+        }
     }
 }
