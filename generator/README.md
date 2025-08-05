@@ -28,7 +28,7 @@ A .NET 8 console application for managing areas and generating station proximity
 Create a new area with center coordinates and diameter:
 
 ```bash
-dotnet run -- area create <name> --center <latitude,longitude> --diameter <meters> --displayname <display_name>
+dotnet run -- area create <name> --center <latitude,longitude> --diameter <meters> --displayname <display_name> [--developer]
 ```
 
 **Parameters:**
@@ -36,14 +36,18 @@ dotnet run -- area create <name> --center <latitude,longitude> --diameter <meter
 - `--center`: Center coordinates as 'latitude,longitude' (required)
 - `--diameter`: Diameter in meters (required)
 - `--displayname`: Display name for the area (required)
+- `--developer`: Developer mode - limit to first 3 railway stations and 3 tram stops (optional)
 
 **Examples:**
 ```bash
 # Create an area centered in Rome with 1km diameter
 dotnet run -- area create "rome-center" --center "41.9028,12.4964" --diameter 1000 --displayname "Rome City Center"
 
-# Create an area at equator with 500m diameter
-dotnet run -- area create "equator-point" --center "0,0" --diameter 500 --displayname "Equator Reference Point"
+# Create an area at equator with 500m diameter in developer mode
+dotnet run -- area create "equator-point" --center "0,0" --diameter 500 --displayname "Equator Reference Point" --developer
+
+# Create an area with debug logging and developer mode
+dotnet run -- area create "test" --center "40,40" --diameter 1000 --displayname "Test Area" --developer --logging Debug
 ```
 
 #### Delete Area
@@ -66,18 +70,59 @@ dotnet run -- area delete "rome-center"
 
 ### Global Options
 
-All commands support the following logging option:
+All commands support the following options:
 
 - `-l, --logging <level>`: Set the minimum log level (Trace, Debug, Information, Warning, Error, Critical, None). Default: None
+- `--developer`: Developer mode for create area command - limits station retrieval to first 3 railway stations and 3 tram stops
 
 **Examples:**
 ```bash
 # Create area with debug logging
 dotnet run -- area create "test" --center "40,40" --diameter 1000 --displayname "Test Area" --logging Debug
 
+# Create area in developer mode with limited stations
+dotnet run -- area create "test" --center "40,40" --diameter 1000 --displayname "Test Area" --developer
+
+# Combine developer mode with logging
+dotnet run -- area create "test" --center "40,40" --diameter 1000 --displayname "Test Area" --developer --logging Debug
+
 # Generate data with warning-only logging
 dotnet run -- generate --logging Warning
 ```
+
+## Developer Mode
+
+The `--developer` flag is designed to speed up development and testing by limiting the number of stations retrieved from the Overpass API when creating areas.
+
+### How Developer Mode Works
+
+When the `--developer` flag is used with the `area create` command:
+
+1. **Station Limiting**: Only the first 3 railway stations and 3 tram stops are stored
+2. **Faster Processing**: Reduces API response processing time and storage operations  
+3. **Development Friendly**: Makes testing with smaller datasets more manageable
+4. **Clear Indication**: Console output clearly shows when developer mode is active
+
+### Developer Mode Output
+
+```bash
+# Normal mode output
+✓ Retrieved and stored 45 stations
+
+# Developer mode output  
+🔧 Developer mode: limiting to first 3 railway stations and 3 tram stops
+✓ Retrieved and stored 6 stations
+  🔧 Developer mode: limited to 3 railway stations and 3 tram stops
+```
+
+### When to Use Developer Mode
+
+- **Initial Development**: Testing area creation functionality
+- **Configuration Testing**: Verifying Azure Storage and API connections
+- **Debugging**: Investigating issues without processing large datasets
+- **Rapid Iteration**: Quickly testing different coordinates and parameters
+
+**Note**: Developer mode only affects the `area create` command. Other commands work normally.
 
 ## Configuration
 
@@ -282,8 +327,26 @@ To extend this application:
 
 Naples, IT
 
-```dotnet run  -- area create naples --center 40.8585186,14.2543934 --diameter 20000 --displayname "Napoli" --logging debug```
+```dotnet run -- area create naples --center 40.8585186,14.2543934 --diameter 20000 --displayname "Napoli" --logging debug```
 
 Rome, IT
-```dotnet run  -- area create rome --center 41.8902142,12.489656 --diameter 45000 --displayname "Roma" --logging debug```
+```dotnet run -- area create rome --center 41.8902142,12.489656 --diameter 45000 --displayname "Roma" --logging debug```
+
+Milan, IT
+```dotnet run -- area create milan --center 45.4627338,9.1777322 --diameter 15000 --displayname "Milano" --logging debug```
+
+## Developer Mode Examples
+
+For faster development and testing, you can use the `--developer` flag with any of the above commands:
+
+```bash
+# Quick test with Naples area (only 6 stations max)
+dotnet run -- area create naples-dev --center 40.8585186,14.2543934 --diameter 20000 --displayname "Napoli Dev" --developer --logging debug
+
+# Test Rome area with limited stations
+dotnet run -- area create rome-dev --center 41.8902142,12.489656 --diameter 45000 --displayname "Roma Dev" --developer
+
+# Test Milan area with limited stations and logging
+dotnet run -- area create milan-dev --center 45.4627338,9.1777322 --diameter 20000 --displayname "Milano Dev" --developer --logging debug
+```
 

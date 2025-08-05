@@ -9,7 +9,7 @@ namespace Generator.Managers;
 
 public static class AreaManager
 {
-    public static async Task CreateAreaAsync(string name, string center, int diameter, string displayName,
+    public static async Task CreateAreaAsync(string name, string center, int diameter, string displayName, bool developerMode,
         ILogger? logger, IConfiguration? configuration)
     {
         try
@@ -100,7 +100,7 @@ public static class AreaManager
             Console.WriteLine($"  Diameter: {diameter} meters");
 
             // Retrieve and store railway stations using Overpass API
-            await RetrieveAndStoreStationsAsync(name, latitude, longitude, diameter, stationTableClient, logger);
+            await RetrieveAndStoreStationsAsync(name, latitude, longitude, diameter, developerMode, stationTableClient, logger);
         }
         catch (Exception ex)
         {
@@ -111,7 +111,7 @@ public static class AreaManager
     }
 
     private static async Task RetrieveAndStoreStationsAsync(string areaName, double latitude, double longitude,
-        int diameterMeters, TableClient stationTableClient, ILogger? logger)
+        int diameterMeters, bool developerMode, TableClient stationTableClient, ILogger? logger)
     {
         try
         {
@@ -155,6 +155,14 @@ out body;";
 
             var stationsProcessed = 0;
             var stationsSkipped = 0;
+            var railwayStationCount = 0;
+            var tramStopCount = 0;
+
+            if (developerMode)
+            {
+                logger?.LogInformation("Developer mode enabled: limiting to first 3 railway stations and 3 tram stops");
+                Console.WriteLine($"🔧 Developer mode: limiting to first 3 railway stations and 3 tram stops");
+            }
 
             foreach (var element in elements.EnumerateArray())
             {
@@ -213,6 +221,23 @@ out body;";
                         continue;
                     }
 
+                    // Apply developer mode limits
+                    if (developerMode)
+                    {
+                        if (railwayType == "station" && railwayStationCount >= 3)
+                        {
+                            logger?.LogDebug("Skipping railway station {StationName} - developer limit reached (3)", stationName);
+                            stationsSkipped++;
+                            continue;
+                        }
+                        if (railwayType == "tram_stop" && tramStopCount >= 3)
+                        {
+                            logger?.LogDebug("Skipping tram stop {StationName} - developer limit reached (3)", stationName);
+                            stationsSkipped++;
+                            continue;
+                        }
+                    }
+
                     // Create station entity
                     var station = new StationEntity
                     {
@@ -222,12 +247,21 @@ out body;";
                         Latitude = stationLat,
                         Longitude = stationLon,
                         WikipediaLink = wikipediaLink,
-                        Railway = railwayType
+                        Railway = railwayType ?? "unknown"
                     };
 
                     // Store in Azure Table Storage
                     await stationTableClient.UpsertEntityAsync(station, TableUpdateMode.Replace);
                     stationsProcessed++;
+
+                    // Update counters for developer mode
+                    if (developerMode)
+                    {
+                        if (railwayType == "station")
+                            railwayStationCount++;
+                        else if (railwayType == "tram_stop")
+                            tramStopCount++;
+                    }
 
                     logger?.LogDebug("Stored station: {Name} (ID: {Id}, Railway: {Railway}) at ({Lat}, {Lon})",
                         stationName, stationId, railwayType ?? "unknown", stationLat, stationLon);
@@ -243,9 +277,13 @@ out body;";
                 areaName, stationsProcessed, stationsSkipped);
 
             Console.WriteLine($"✓ Retrieved and stored {stationsProcessed} stations");
+            if (developerMode)
+            {
+                Console.WriteLine($"  🔧 Developer mode: limited to {railwayStationCount} railway stations and {tramStopCount} tram stops");
+            }
             if (stationsSkipped > 0)
             {
-                Console.WriteLine($"  ({stationsSkipped} stations skipped due to missing data)");
+                Console.WriteLine($"  ({stationsSkipped} stations skipped due to missing data or limits)");
             }
         }
         catch (HttpRequestException ex)

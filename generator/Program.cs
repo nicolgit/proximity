@@ -57,18 +57,25 @@ public class Program
             IsRequired = true,
             ArgumentHelpName = "display_name"
         };
+        var developerOption = new Option<bool>(
+            aliases: new[] { "--developer" },
+            description: "Developer mode: limit to first 3 stations and 3 tram stops")
+        {
+            ArgumentHelpName = "developer"
+        };
 
         createCommand.AddArgument(nameArgument);
         createCommand.AddOption(centerOption);
         createCommand.AddOption(diameterOption);
         createCommand.AddOption(displayNameOption);
+        createCommand.AddOption(developerOption);
         createCommand.AddOption(loggingOption);
 
-        createCommand.SetHandler(async (string name, string center, int diameter, string displayName, string loggingLevel) =>
+        createCommand.SetHandler(async (string name, string center, int diameter, string displayName, bool developer, string loggingLevel) =>
         {
             await InitializeLoggingAndConfigurationAsync(loggingLevel);
-            await AreaManager.CreateAreaAsync(name, center, diameter, displayName, _logger, _configuration);
-        }, nameArgument, centerOption, diameterOption, displayNameOption, loggingOption);
+            await AreaManager.CreateAreaAsync(name, center, diameter, displayName, developer, _logger, _configuration);
+        }, nameArgument, centerOption, diameterOption, displayNameOption, developerOption, loggingOption);
 
         // Create area delete command
         var deleteCommand = new Command("delete", "Delete an area");
