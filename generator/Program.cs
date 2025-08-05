@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using System.CommandLine;
 using System.Globalization;
 using Generator.Types;
+using Generator.Managers;
 
 namespace Generator;
 

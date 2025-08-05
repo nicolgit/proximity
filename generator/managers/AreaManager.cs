@@ -3,8 +3,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Globalization;
 using System.Text.Json;
+using Generator.Types;
 
-namespace Generator.Types;
+namespace Generator.Managers;
 
 public static class AreaManager
 {
