@@ -45,3 +45,12 @@ export interface Area {
     longitude: number
     diameter: number
 }
+
+export interface Station {
+    id: string
+    name: string
+    latitude: number
+    longitude: number
+    type: 'tram_stop' | 'station'
+    wikipediaLink: string | null
+}

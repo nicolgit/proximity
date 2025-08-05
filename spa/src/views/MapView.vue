@@ -147,7 +147,7 @@
         <l-marker
           v-if="selectedLocation"
           :lat-lng="selectedLocation"
-          :icon="searchLocationIconSvg"
+          :icon="searchLocationIconSvg as any"
         >
           <l-popup>
             <div>{{ selectedLocationName }}</div>
@@ -158,7 +158,7 @@
         <l-marker
           v-if="currentLocation"
           :lat-lng="currentLocation"
-          :icon="userLocationIconSvg"
+          :icon="userLocationIconSvg as any"
         >
           <l-popup>
             <div class="user-location-popup">
@@ -183,9 +183,61 @@
               <h3>📍 {{ area.name }}</h3>
               <p><strong>Location:</strong> {{ area.latitude.toFixed(4) }}, {{ area.longitude.toFixed(4) }}</p>
               <p><strong>Coverage:</strong> {{ area.diameter }}m diameter</p>
+              
+              <!-- Toggle Metro Stations Button -->
+              <div class="station-toggle-section">
+                <button 
+                  @click="toggleStationsForArea(area.id)"
+                  class="station-toggle-btn"
+                  :class="{ 'station-toggle-btn--active': visibleStations.has(area.id) }"
+                  :disabled="isLoadingForArea(area.id)"
+                >
+                  <div v-if="isLoadingForArea(area.id)" class="loading-spinner-small"></div>
+                  <span v-else>
+                    {{ visibleStations.has(area.id) ? '🚇 Hide Metro Stations' : '🚇 Show Metro Stations' }}
+                  </span>
+                </button>
+                
+                <!-- Station count info -->
+                <div v-if="visibleStations.has(area.id)" class="station-count">
+                  {{ getStationsForArea(area.id).length }} stations found
+                </div>
+                
+                <!-- Error message -->
+                <div v-if="getErrorForArea(area.id)" class="station-error">
+                  Error: {{ getErrorForArea(area.id) }}
+                </div>
+              </div>
             </div>
           </l-popup>
         </l-circle>
+
+        <!-- Station markers -->
+        <l-marker
+          v-for="station in allVisibleStations"
+          :key="station.id"
+          :lat-lng="[station.latitude, station.longitude]"
+          :icon="getStationIcon(station.type) as any"
+        >
+          <l-popup>
+            <div class="station-popup">
+              <h4>
+                <span v-if="station.type === 'station'">🚇</span>
+                <span v-else>🚊</span>
+                <span 
+                  v-if="station.wikipediaLink"
+                  @click="openWikipediaLink(station.wikipediaLink)"
+                  class="station-name-link"
+                >
+                  {{ station.name }}
+                </span>
+                <span v-else class="station-name">{{ station.name }}</span>
+              </h4>
+              <p><strong>Type:</strong> {{ station.type === 'station' ? 'Metro Station' : 'Tram Stop' }}</p>
+              <p><strong>Location:</strong> {{ station.latitude.toFixed(4) }}, {{ station.longitude.toFixed(4) }}</p>
+            </div>
+          </l-popup>
+        </l-marker>
       </l-map>
     </div>
   </div>
@@ -195,17 +247,17 @@
 import { useAreas } from '@/composables/useAreas'
 import { useGeolocation } from '@/composables/useGeolocation'
 import { useLocationSearch } from '@/composables/useLocationSearch'
-import type { SearchResult } from '@/types'
-import { searchLocationIconSvg, userLocationIconSvg } from '@/utils/mapIcons'
+import { useStations } from '@/composables/useStations'
+import type { SearchResult, Station } from '@/types'
+import { searchLocationIconSvg, userLocationIconSvg, stationIconSvg, tramStopIconSvg } from '@/utils/mapIcons'
 import { LCircle, LMap, LMarker, LPopup, LTileLayer } from '@vue-leaflet/vue-leaflet'
-import type { LatLng } from 'leaflet'
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, computed } from 'vue'
 
 // Map setup
 const mapRef = ref<InstanceType<typeof LMap> | null>(null)
 const zoom = ref(13)
-const center = ref<LatLng>([41.9028, 12.4964]) // Default to Rome
-const selectedLocation = ref<LatLng | null>(null)
+const center = ref<[number, number]>([41.9028, 12.4964]) // Default to Rome
+const selectedLocation = ref<[number, number] | null>(null)
 const selectedLocationName = ref('')
 
 // Map configuration
@@ -227,7 +279,6 @@ const {
 const {
   coordinates: currentLocation,
   isLoading: isLocationLoading,
-  error: locationError,
   getLocation
 } = useGeolocation()
 
@@ -238,12 +289,55 @@ const {
   load: loadAreas
 } = useAreas()
 
+const {
+  loadStations,
+  getStationsForArea,
+  isLoadingForArea,
+  getErrorForArea
+} = useStations()
+
 // Search UI state
 const isSearchFocused = ref(false)
 const highlightedIndex = ref(-1)
 
 // Welcome popup state
 const showWelcomePopup = ref(true)
+
+// Stations state
+const visibleStations = ref<Set<string>>(new Set())
+
+// Computed property for all visible stations across all areas
+const allVisibleStations = computed(() => {
+  const stations: Station[] = []
+  for (const areaId of visibleStations.value) {
+    stations.push(...getStationsForArea(areaId))
+  }
+  return stations
+})
+
+// Station toggle functionality
+const toggleStationsForArea = async (areaId: string) => {
+  if (visibleStations.value.has(areaId)) {
+    // Hide stations
+    visibleStations.value.delete(areaId)
+  } else {
+    // Show stations - first load them if not already loaded
+    if (getStationsForArea(areaId).length === 0) {
+      await loadStations(areaId)
+    }
+    visibleStations.value.add(areaId)
+  }
+}
+
+// Helper function to get icon for station type
+const getStationIcon = (type: 'station' | 'tram_stop') => {
+  return type === 'station' ? stationIconSvg : tramStopIconSvg
+}
+
+// Helper function to open Wikipedia link
+const openWikipediaLink = (url: string) => {
+  window.open(url, '_blank')
+}
 
 // Search event handlers
 const onSearchFocus = () => {
@@ -293,7 +387,9 @@ const onSearchKeydown = (event: KeyboardEvent) => {
     
     case 'Escape':
       clearSearch()
-      event.target?.blur()
+      if (event.target && 'blur' in event.target && typeof event.target.blur === 'function') {
+        event.target.blur()
+      }
       break
   }
 }
@@ -308,9 +404,9 @@ const selectLocation = (result: SearchResult) => {
   const lat = parseFloat(result.lat)
   const lon = parseFloat(result.lon)
   
-  selectedLocation.value = [lat, lon] as LatLng
+  selectedLocation.value = [lat, lon]
   selectedLocationName.value = result.display_name
-  center.value = [lat, lon] as LatLng
+  center.value = [lat, lon]
   zoom.value = 15
   
   // Reset search state
@@ -324,7 +420,7 @@ const goToCurrentLocation = async () => {
   await getLocation()
   
   if (currentLocation.value) {
-    center.value = currentLocation.value
+    center.value = [currentLocation.value.lat, currentLocation.value.lng]
     zoom.value = 16
   }
 }
@@ -343,7 +439,7 @@ onMounted(async () => {
   await getLocation()
   
   if (currentLocation.value) {
-    center.value = currentLocation.value
+    center.value = [currentLocation.value.lat, currentLocation.value.lng]
   }
 })
 </script>
@@ -585,6 +681,112 @@ onMounted(async () => {
 }
 
 .area-popup strong {
+  color: #333;
+}
+
+/* Station Toggle Button Styles */
+.station-toggle-section {
+  margin-top: 15px;
+  padding-top: 10px;
+  border-top: 1px solid #eee;
+}
+
+.station-toggle-btn {
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+}
+
+.station-toggle-btn:hover:not(:disabled) {
+  background: #0056b3;
+  transform: translateY(-1px);
+}
+
+.station-toggle-btn--active {
+  background: #28a745;
+}
+
+.station-toggle-btn--active:hover:not(:disabled) {
+  background: #1e7e34;
+}
+
+.station-toggle-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.loading-spinner-small {
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top: 2px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.station-count {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #666;
+  font-style: italic;
+}
+
+.station-error {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #dc3545;
+  background: #f8d7da;
+  padding: 4px 6px;
+  border-radius: 3px;
+  border: 1px solid #f5c6cb;
+}
+
+/* Station Popup Styles */
+.station-popup {
+  min-width: 200px;
+}
+
+.station-popup h4 {
+  margin: 0 0 8px 0;
+  color: #333;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.station-name-link {
+  color: #007bff;
+  cursor: pointer;
+  text-decoration: underline;
+  transition: color 0.2s ease;
+}
+
+.station-name-link:hover {
+  color: #0056b3;
+}
+
+.station-name {
+  color: #333;
+}
+
+.station-popup p {
+  margin: 4px 0;
+  font-size: 13px;
+  color: #666;
+}
+
+.station-popup strong {
   color: #333;
 }
 

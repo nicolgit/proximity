@@ -68,3 +68,33 @@ export const searchLocationIconSvg = L.divIcon({
     iconAnchor: [12.5, 41],
     popupAnchor: [0, -41]
 })
+
+// Station icons for metro stations
+export const stationIconSvg = L.divIcon({
+    className: 'custom-marker station-marker-svg',
+    html: `
+    <svg width="20" height="32" viewBox="0 0 20 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M10 0C4.477 0 0 4.477 0 10C0 17.5 10 32 10 32S20 17.5 20 10C20 4.477 15.523 0 10 0Z" fill="#DC2626"/>
+      <circle cx="10" cy="10" r="5" fill="white"/>
+      <rect x="7" y="7" width="6" height="6" rx="1" fill="#B91C1C"/>
+    </svg>
+  `,
+    iconSize: [20, 32],
+    iconAnchor: [10, 32],
+    popupAnchor: [0, -32]
+})
+
+// Tram stop icons
+export const tramStopIconSvg = L.divIcon({
+    className: 'custom-marker tram-stop-marker-svg',
+    html: `
+    <svg width="20" height="32" viewBox="0 0 20 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M10 0C4.477 0 0 4.477 0 10C0 17.5 10 32 10 32S20 17.5 20 10C20 4.477 15.523 0 10 0Z" fill="#F59E0B"/>
+      <circle cx="10" cy="10" r="5" fill="white"/>
+      <circle cx="10" cy="10" r="3" fill="#D97706"/>
+    </svg>
+  `,
+    iconSize: [20, 32],
+    iconAnchor: [10, 32],
+    popupAnchor: [0, -32]
+})
