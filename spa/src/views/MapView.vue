@@ -233,6 +233,22 @@
           </l-popup>
         </l-circle>
 
+        <!-- API Isochrone GeoJSON layers (rendered before stations to be under them) -->
+        <l-geo-json
+          v-for="(isochrone, index) in isochroneGeoJson"
+          :key="`isochrone-geojson-${index}`"
+          :geojson="isochrone.geojson"
+          :options-style="getGeoJsonStyle(isochrone)"
+        >
+          <l-popup>
+            <div class="isochrone-popup">
+              <h4>🚶‍♂️ {{ isochrone.timeMinutes }} minute walk (API)</h4>
+              <p><strong>From:</strong> {{ selectedStationForIsochrone?.name }}</p>
+              <p><strong>Data source:</strong> Routing API</p>
+            </div>
+          </l-popup>
+        </l-geo-json>
+
         <!-- Station markers -->
         <l-marker
           v-for="station in allVisibleStations"
@@ -281,7 +297,7 @@ import { useLocationSearch } from '@/composables/useLocationSearch'
 import { useStations } from '@/composables/useStations'
 import type { SearchResult, Station } from '@/types'
 import { searchLocationIconSvg, userLocationIconSvg, stationIconSvg, tramStopIconSvg } from '@/utils/mapIcons'
-import { LCircle, LMap, LMarker, LPopup, LTileLayer } from '@vue-leaflet/vue-leaflet'
+import { LCircle, LMap, LMarker, LPopup, LTileLayer, LGeoJson } from '@vue-leaflet/vue-leaflet'
 import { onMounted, ref, computed } from 'vue'
 
 // Map setup
@@ -345,6 +361,11 @@ const isochroneCircles = ref<Array<{
   color: string
   timeMinutes: number
 }>>([])
+const isochroneGeoJson = ref<Array<{
+  geojson: any
+  timeMinutes: number
+  color: string
+}>>([])
 
 // Computed property for all visible stations across all areas
 const allVisibleStations = computed(() => {
@@ -379,15 +400,113 @@ const openWikipediaLink = (url: string) => {
   window.open(url, '_blank')
 }
 
+// Helper function to get GeoJSON style options
+const getGeoJsonStyle = (isochrone: any) => {
+  return {
+      color: isochrone.color,
+      fillColor: isochrone.color,
+      fillOpacity: 0.1,
+      weight: isochrone.timeMinutes === 30 ? 2 : 0,
+      opacity: isochrone.timeMinutes === 30 ? 0.6 : 0
+  }
+}
+
 // Function to handle station click and show isochrone circles
-const onStationClick = (station: Station) => {
+const onStationClick = async (station: Station) => {
   // If clicking the same station, toggle off the isochrones
   if (selectedStationForIsochrone.value?.id === station.id) {
     selectedStationForIsochrone.value = null
     isochroneCircles.value = []
+    isochroneGeoJson.value = []
   } else {
     // Show isochrones for the new station
     selectedStationForIsochrone.value = station
+    await loadIsochronesForStation(station)
+  }
+}
+
+// Function to load isochrones from API or fallback to calculated circles
+const loadIsochronesForStation = async (station: Station) => {
+  const timeIntervals = [5, 10, 15, 20, 30] // API time intervals
+  const baseColor = station.type === 'station' ? '#22c55e' : '#eab308' // green for metro, yellow for tram
+  
+  // Clear existing isochrones
+  isochroneCircles.value = []
+  isochroneGeoJson.value = []
+  
+  // Find the area that contains this station
+  const stationArea = areas.value.find(area => {
+    // Check if station is within area bounds
+    const stationLat = station.latitude
+    const stationLng = station.longitude
+    const areaLat = area.latitude
+    const areaLng = area.longitude
+    const radiusKm = (area.diameter / 2) / 1000 // Convert to km
+    
+    // Simple distance check (approximate)
+    const distance = Math.sqrt(
+      Math.pow(stationLat - areaLat, 2) + Math.pow(stationLng - areaLng, 2)
+    ) * 111 // Rough conversion to km
+    
+    return distance <= radiusKm
+  })
+  
+  if (!stationArea) {
+    console.warn('No area found for station, using calculated circles')
+    generateIsochroneCircles(station)
+    return
+  }
+  
+  const apiPromises = timeIntervals.map(async (time) => {
+    try {
+      const response = await fetch(
+        `http://localhost:7071/api/area/${stationArea.id}/station/${station.id}/isochrone/${time}`
+      )
+      
+      if (response.status === 400) {
+        console.warn(`Isochrone not found for ${time} minutes, will use calculated circle`)
+        return { time, success: false, data: null }
+      }
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      
+      const geojson = await response.json()
+      return { time, success: true, data: geojson }
+    } catch (error) {
+      console.error(`Error fetching isochrone for ${time} minutes:`, error)
+      return { time, success: false, data: null }
+    }
+  })
+  
+  try {
+    const results = await Promise.all(apiPromises)
+    
+    // Check if all API calls were successful
+    const allSuccessful = results.every(result => result.success)
+    
+    if (allSuccessful) {
+      // Use API isochrones - reverse order so largest renders first (bottom)
+      const sortedResults = results.sort((a, b) => b.time - a.time) // 30, 20, 15, 10
+      sortedResults.forEach(result => {
+        if (result.success && result.data) {
+          isochroneGeoJson.value.push({
+            geojson: result.data,
+            timeMinutes: result.time,
+            color: baseColor
+          })
+        }
+      })
+      console.log('✅ Using API isochrones')
+    } else {
+      // Fallback to calculated circles
+      console.warn('⚠️ Some API calls failed, falling back to calculated circles')
+      generateIsochroneCircles(station)
+    }
+  } catch (error) {
+    console.error('Error loading isochrones:', error)
+    // Fallback to calculated circles
     generateIsochroneCircles(station)
   }
 }
