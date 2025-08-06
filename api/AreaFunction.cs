@@ -242,4 +242,82 @@ public class AreaFunction
             return new StatusCodeResult(500); // Internal Server Error
         }
     }
+
+    /// <summary>
+    /// HTTP GET endpoint to retrieve combined isochrone data for all stations in an area
+    /// </summary>
+    /// <param name="req">HTTP request</param>
+    /// <param name="id">Area ID from route</param>
+    /// <param name="time">Time parameter (5, 10, 15, 20, or 30 minutes) from route</param>
+    /// <returns>JSON content of the combined isochrone data or 404 if not found</returns>
+    [Function("GetAreaIsochroneData")]
+    public async Task<IActionResult> GetAreaIsochroneData(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "area/{id}/isochrone/{time}")] HttpRequest req,
+        string id,
+        string time)
+    {
+        try
+        {
+            _logger.LogInformation("Processing request to get area-level isochrone data for area: {AreaId}, time: {Time}", 
+                id, time);
+
+            // Validate input parameters
+            if (string.IsNullOrWhiteSpace(id))
+            {
+                return new BadRequestObjectResult(new { error = "Area ID is required" });
+            }
+
+            if (string.IsNullOrWhiteSpace(time))
+            {
+                return new BadRequestObjectResult(new { error = "Time parameter is required" });
+            }
+
+            // Validate time parameter - must be 5, 10, 15, 20, or 30
+            var allowedTimes = new[] { "5", "10", "15", "20", "30" };
+            if (!allowedTimes.Contains(time))
+            {
+                return new BadRequestObjectResult(new { error = "Time parameter must be one of: 5, 10, 15, 20, 30" });
+            }
+
+            // Get pre-generated isochrone data for the area
+            var areaIsochroneData = await _areaService.GetAreaIsochroneAsync(id, time);
+
+            if (areaIsochroneData == null)
+            {
+                _logger.LogWarning("Area-level isochrone data not found for area: {AreaId}, time: {Time}", id, time);
+                return new NotFoundObjectResult(new { error = $"Area-level isochrone data not found for the specified parameters" });
+            }
+
+            _logger.LogInformation("Successfully retrieved area-level isochrone data for area: {AreaId}, time: {Time}", id, time);
+
+            // Return the combined isochrone content as JSON
+            return new ContentResult
+            {
+                Content = areaIsochroneData,
+                ContentType = "application/json",
+                StatusCode = 200
+            };
+        }
+        catch (FileNotFoundException ex)
+        {
+            _logger.LogWarning(ex, "Area isochrone file not found for area: {AreaId}, time: {Time}", id, time);
+            return new NotFoundObjectResult(new { error = ex.Message });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Bad request for get area isochrone data: {Message}", ex.Message);
+            return new BadRequestObjectResult(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "Storage operation failed for get area isochrone data: {Message}", ex.Message);
+            return new StatusCodeResult(503); // Service Unavailable
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error occurred while getting area isochrone data for area: {AreaId}, time: {Time}", 
+                id, time);
+            return new StatusCodeResult(500); // Internal Server Error
+        }
+    }
 }

@@ -76,7 +76,7 @@ Returns isochrone data for a specific station within an area for a given time du
 **Parameters:**
 - `id` (string): The unique identifier for the area
 - `stationid` (string): The unique identifier for the station
-- `time` (string): Time duration in minutes. Must be one of: `10`, `15`, `20`, `30`
+- `time` (string): Time duration in minutes. Must be one of: `5`, `10`, `15`, `20`, `30`
 
 **Response Format:**
 Returns the JSON content from the blob `isochrone/{id}/{stationid}/{time}min.json`. The exact format depends on the stored isochrone data structure.
@@ -93,6 +93,83 @@ GET /api/area/milan/station/central/15
   "features": [
     {
       "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [...]
+      },
+      "properties": {
+        "time": 15,
+        "station": "central"
+      }
+    }
+  ]
+}
+```
+
+### GET /api/area/{id}/isochrone/{time}
+Returns combined isochrone data for all stations within an area for a given time duration. This endpoint aggregates isochrone data from all stations in the specified area into a single response.
+
+**Parameters:**
+- `id` (string): The unique identifier for the area
+- `time` (string): Time duration in minutes. Must be one of: `5`, `10`, `15`, `20`, `30`
+
+**Response Format:**
+Returns a combined GeoJSON FeatureCollection containing isochrone data from all stations in the area. Each feature includes station metadata in its properties.
+
+**Example Request:**
+```
+GET /api/area/milan/isochrone/15
+```
+
+**Example Response:**
+```json
+{
+  "type": "FeatureCollection",
+  "properties": {
+    "areaId": "milan",
+    "areaName": "Milan Metropolitan Area",
+    "time": "15",
+    "stationCount": 8,
+    "totalStations": 10,
+    "generatedAt": "2025-08-06T14:30:00Z"
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [...]
+      },
+      "properties": {
+        "time": 15,
+        "stationId": "central",
+        "stationName": "Central Station",
+        "areaId": "milan"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [...]
+      },
+      "properties": {
+        "time": 15,
+        "stationId": "duomo",
+        "stationName": "Duomo Station",
+        "areaId": "milan"
+      }
+    }
+  ]
+}
+```
+
+**Notes:**
+- The endpoint returns data only for stations that have isochrone data available
+- The `stationCount` in properties indicates how many stations had data available
+- The `totalStations` indicates the total number of stations in the area
+- Each feature retains its original geometry while gaining additional station metadata
+- If no stations have isochrone data for the specified time, returns 404
       "geometry": {
         "type": "Polygon",
         "coordinates": [[[...coordinates...]]]
@@ -128,9 +205,13 @@ GET /api/area/milan/station/central/15
 - `503 Service Unavailable`: Storage service unavailable
 - `500 Internal Server Error`: Unexpected server error
 
-**Specific to Isochrone Endpoint (/api/area/{id}/station/{stationid}/{time}):**
-- `400 Bad Request`: Time parameter must be one of: 10, 15, 20, 30
-- `404 Not Found`: Isochrone data not found for the specified parameters
+**Specific to Isochrone Endpoints:**
+- `/api/area/{id}/station/{stationid}/isochrone/{time}`:
+  - `400 Bad Request`: Time parameter must be one of: 5, 10, 15, 20, 30
+  - `404 Not Found`: Isochrone data not found for the specified parameters
+- `/api/area/{id}/isochrone/{time}`:
+  - `400 Bad Request`: Time parameter must be one of: 5, 10, 15, 20, 30
+  - `404 Not Found`: Area not found or no isochrone data available for any stations in the area
 
 ## Storage Schema
 
