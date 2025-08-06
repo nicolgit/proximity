@@ -139,6 +139,69 @@ public class Program
         // Add commands to station group
         stationCommand.AddCommand(stationListCommand);
 
+        // Create station isochrone command
+        var stationIsochroneCommand = new Command("isochrone", "Generate isochrone data for a specific station");
+        var areaIdIsochroneArgument = new Argument<string>("areaid", "The area ID containing the station");
+        var stationIdArgument = new Argument<string>("stationid", "The station ID to generate isochrones for");
+        var deleteOption = new Option<string?>(
+            aliases: new[] { "--delete" },
+            parseArgument: result =>
+            {
+                // If --delete is specified without a value, return empty string (delete all)
+                // If --delete is specified with a value, return that value
+                // If --delete is not specified, return null
+                if (result.Tokens.Count == 0)
+                {
+                    return "";  // Delete all
+                }
+                return result.Tokens[0].Value;
+            },
+            description: "Delete isochrone(s). Use without value to delete all, or specify duration (5, 10, 15, 20, 30) to delete specific isochrone")
+        {
+            ArgumentHelpName = "duration",
+            Arity = ArgumentArity.ZeroOrOne
+        };
+
+        stationIsochroneCommand.AddArgument(areaIdIsochroneArgument);
+        stationIsochroneCommand.AddArgument(stationIdArgument);
+        stationIsochroneCommand.AddOption(deleteOption);
+        stationIsochroneCommand.AddOption(loggingOption);
+
+        stationIsochroneCommand.SetHandler(async (string areaId, string stationId, string? deleteValue, string loggingLevel) =>
+        {
+            await InitializeLoggingAndConfigurationAsync(loggingLevel);
+            
+            // Parse delete option
+            int? deleteDuration = null;
+            bool isDeleteMode = false;
+            
+            if (deleteValue != null)
+            {
+                isDeleteMode = true;
+                if (!string.IsNullOrEmpty(deleteValue))
+                {
+                    if (int.TryParse(deleteValue, out var parsedDuration))
+                    {
+                        deleteDuration = parsedDuration;
+                    }
+                    else
+                    {
+                        Console.WriteLine($"❌ Invalid duration value '{deleteValue}'. Valid values are: 5, 10, 15, 20, 30");
+                        Environment.Exit(1);
+                        return;
+                    }
+                }
+                else
+                {
+                    deleteDuration = 0; // 0 means delete all
+                }
+            }
+            
+            await AreaManager.GenerateStationIsochroneAsync(areaId, stationId, isDeleteMode, deleteDuration, _logger, _configuration);
+        }, areaIdIsochroneArgument, stationIdArgument, deleteOption, loggingOption);
+
+        stationCommand.AddCommand(stationIsochroneCommand);
+
         // Add commands to root
         rootCommand.AddCommand(areaCommand);
         rootCommand.AddCommand(stationCommand);

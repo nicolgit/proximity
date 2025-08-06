@@ -152,6 +152,88 @@ This ensures data consistency and prevents accumulation of outdated isochrone po
 
 
 
+### Station Management
+
+#### List Stations
+List all stations for a specific area:
+
+```bash
+dotnet run -- station list <areaid> [--filter <text>]
+```
+
+**Parameters:**
+- `<areaid>`: The area ID to list stations for (required)
+- `--filter <text>`: Filter stations by rowkey or name containing the specified text (optional)
+
+**Output Format:**
+```
+Name: <areaid>
+[Filter: <filter>]
+RowKey, Name, RailwayType, WikipediaLink, ABCDE
+```
+
+Where ABCDE represents isochrone availability:
+- A = 5-minute isochrone
+- B = 10-minute isochrone  
+- C = 15-minute isochrone
+- D = 20-minute isochrone
+- E = 30-minute isochrone
+- `*` = Available, `-` = Not available
+
+**Examples:**
+```bash
+# List all stations for Rome area
+dotnet run -- station list rome
+
+# Filter stations containing "Roma" in name or rowkey
+dotnet run -- station list rome --filter Roma
+
+# Filter stations containing "30" in rowkey
+dotnet run -- station list milan --filter 30
+```
+
+#### Generate Station Isochrones
+Generate or delete isochrone data for a specific station:
+
+```bash
+dotnet run -- station isochrone <areaid> <stationid> [--delete [duration]]
+```
+
+**Parameters:**
+- `<areaid>`: The area ID containing the station (required)
+- `<stationid>`: The station ID to process (required)
+- `--delete [duration]`: Delete isochrone(s) instead of generating (optional)
+  - Without value: Delete all isochrones (5, 10, 15, 20, 30 minutes)
+  - With value: Delete specific duration (5, 10, 15, 20, or 30)
+
+**Examples:**
+```bash
+# Generate all isochrones for a station
+dotnet run -- station isochrone milan 21226369
+
+# Delete all isochrones for a station
+dotnet run -- station isochrone milan 21226369 --delete
+
+# Delete only the 10-minute isochrone
+dotnet run -- station isochrone milan 21226369 --delete 10
+
+# Delete only the 30-minute isochrone
+dotnet run -- station isochrone rome 354964363 --delete 30
+```
+
+**What gets generated/deleted:**
+- 5-minute walking isochrone
+- 10-minute walking isochrone
+- 15-minute walking isochrone
+- 20-minute walking isochrone
+- 30-minute walking isochrone
+
+**Error Handling:**
+- Shows error if area doesn't exist
+- Shows error if station doesn't exist in the specified area
+- Shows error for invalid duration values
+- Gracefully handles non-existent isochrone files during deletion
+
 ### Global Options
 
 All commands support the following options:
@@ -543,12 +625,12 @@ For faster development and testing, you can use the `--developer` flag with any 
 
 ```bash
 # Quick test with Naples area (only 6 stations max)
-dotnet run -- area create naples --center 40.8585186,14.2543934 --diameter 20000 --displayname "Napoli" --developer --noisochrone --logging debug
+dotnet run -- area create naples --center 40.8585186,14.2543934 --diameter 21000 --displayname "Napoli" --developer --noisochrone --logging debug
 
 # Test Rome area with limited stations
 dotnet run -- area create rome --center 41.8902142,12.489656 --diameter 45000 --displayname "Roma" --developer --noisochrone
 
 # Test Milan area with limited stations and logging
-dotnet run -- area create milan --center 45.4627338,9.1777322 --diameter 20000 --displayname "Milano" --developer --noisochrone --logging debug
+dotnet run -- area create milan --center 45.4627338,9.1777322 --diameter 25000 --displayname "Milano" --developer --noisochrone --logging debug
 ```
 

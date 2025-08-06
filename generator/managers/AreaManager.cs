@@ -1074,4 +1074,163 @@ out body;";
             Environment.Exit(1);
         }
     }
+
+    public static async Task GenerateStationIsochroneAsync(string areaId, string stationId, bool isDeleteMode, int? deleteDuration, ILogger? logger, IConfiguration? configuration)
+    {
+        try
+        {
+            logger?.LogInformation("Processing isochrones for station: {StationId} in area: {AreaId} - Delete mode: {IsDeleteMode}, Duration: {DeleteDuration}", 
+                stationId, areaId, isDeleteMode, deleteDuration?.ToString() ?? "all");
+
+            // Get Azure Storage connection
+            var connectionString = configuration?.GetConnectionString("AzureStorage");
+            if (string.IsNullOrWhiteSpace(connectionString))
+            {
+                Console.WriteLine("❌ Azure Storage connection string not configured");
+                Environment.Exit(1);
+                return;
+            }
+
+            // Connect to Azure Table Storage and Blob Storage
+            var tableServiceClient = new TableServiceClient(connectionString);
+            var areaTableClient = tableServiceClient.GetTableClient("area");
+            var stationTableClient = tableServiceClient.GetTableClient("station");
+            var blobServiceClient = new BlobServiceClient(connectionString);
+            var containerClient = blobServiceClient.GetBlobContainerClient("isochrone");
+
+            logger?.LogInformation("Connected to Azure Storage services");
+
+            // Check if area exists
+            AreaEntity? area = null;
+            try
+            {
+                var areaResponse = await areaTableClient.GetEntityAsync<AreaEntity>("area", areaId.ToLowerInvariant());
+                area = areaResponse.Value;
+                logger?.LogInformation("Found area: {AreaName} ({DisplayName})", area.Name, area.DisplayName);
+            }
+            catch (Azure.RequestFailedException ex) when (ex.Status == 404)
+            {
+                Console.WriteLine($"❌ Area '{areaId}' not found");
+                Environment.Exit(1);
+                return;
+            }
+
+            // Check if station exists in the specified area
+            StationEntity? station = null;
+            try
+            {
+                var stationResponse = await stationTableClient.GetEntityAsync<StationEntity>(areaId.ToLowerInvariant(), stationId);
+                station = stationResponse.Value;
+                logger?.LogInformation("Found station: {StationName} ({Railway}) at ({Lat}, {Lon})", 
+                    station.Name, station.Railway, station.Latitude, station.Longitude);
+            }
+            catch (Azure.RequestFailedException ex) when (ex.Status == 404)
+            {
+                Console.WriteLine($"❌ Station '{stationId}' not found in area '{areaId}'");
+                Environment.Exit(1);
+                return;
+            }
+
+            Console.WriteLine($"🚉 Processing isochrone data for station: {station.Name}");
+            Console.WriteLine($"   Area: {area.DisplayName ?? area.Name}");
+            Console.WriteLine($"   Station ID: {stationId}");
+            Console.WriteLine($"   Location: {station.Latitude}, {station.Longitude}");
+            Console.WriteLine($"   Type: {station.Railway}");
+
+            // Handle delete operation if specified
+            if (isDeleteMode)
+            {
+                await DeleteStationIsochroneAsync(areaId, stationId, deleteDuration ?? 0, containerClient, logger);
+            }
+            else
+            {
+                // Generate isochrone data for the station
+                await GenerateAndSaveIsochroneAsync(areaId, stationId, station.Name, station.Latitude, station.Longitude, station.Railway, logger, configuration);
+                Console.WriteLine($"✓ Successfully generated isochrone data for station '{station.Name}'");
+            }
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Failed to process isochrones for station: {StationId} in area: {AreaId}", stationId, areaId);
+            Console.WriteLine($"❌ Failed to process isochrones for station '{stationId}' in area '{areaId}': {ex.Message}");
+            Environment.Exit(1);
+        }
+    }
+
+    private static async Task DeleteStationIsochroneAsync(string areaId, string stationId, int deleteDuration, 
+        BlobContainerClient containerClient, ILogger? logger)
+    {
+        try
+        {
+            var validDurations = new[] { 5, 10, 15, 20, 30 };
+            var durationsToDelete = new List<int>();
+
+            if (deleteDuration == 0)
+            {
+                // Delete all isochrones
+                durationsToDelete.AddRange(validDurations);
+                logger?.LogInformation("Deleting all isochrones for station: {StationId} in area: {AreaId}", stationId, areaId);
+                Console.WriteLine($"🗑️ Deleting all isochrone data for station...");
+            }
+            else if (validDurations.Contains(deleteDuration))
+            {
+                // Delete specific duration
+                durationsToDelete.Add(deleteDuration);
+                logger?.LogInformation("Deleting {Duration}min isochrone for station: {StationId} in area: {AreaId}", 
+                    deleteDuration, stationId, areaId);
+                Console.WriteLine($"🗑️ Deleting {deleteDuration}min isochrone data for station...");
+            }
+            else
+            {
+                Console.WriteLine($"❌ Invalid duration '{deleteDuration}'. Valid values are: 5, 10, 15, 20, 30 (or 0 for all)");
+                Environment.Exit(1);
+                return;
+            }
+
+            var deletedCount = 0;
+            var totalToDelete = durationsToDelete.Count;
+
+            foreach (var duration in durationsToDelete)
+            {
+                var blobPath = $"{areaId.ToLowerInvariant()}/{stationId}/{duration}min.json";
+                var blobClient = containerClient.GetBlobClient(blobPath);
+
+                try
+                {
+                    var deleteResponse = await blobClient.DeleteIfExistsAsync();
+                    if (deleteResponse.Value)
+                    {
+                        deletedCount++;
+                        logger?.LogInformation("Deleted isochrone blob: {BlobPath}", blobPath);
+                        Console.WriteLine($"  ✓ Deleted {duration}min isochrone: {blobPath}");
+                    }
+                    else
+                    {
+                        logger?.LogWarning("Isochrone blob not found: {BlobPath}", blobPath);
+                        Console.WriteLine($"  ℹ️ {duration}min isochrone not found: {blobPath}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger?.LogError(ex, "Failed to delete isochrone blob: {BlobPath}", blobPath);
+                    Console.WriteLine($"  ❌ Failed to delete {duration}min isochrone: {ex.Message}");
+                }
+            }
+
+            if (deleteDuration == 0)
+            {
+                Console.WriteLine($"✓ Deleted {deletedCount} of {totalToDelete} isochrone files for station");
+            }
+            else
+            {
+                Console.WriteLine($"✓ Successfully processed {deleteDuration}min isochrone deletion");
+            }
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Failed to delete isochrones for station: {StationId} in area: {AreaId}", stationId, areaId);
+            Console.WriteLine($"❌ Failed to delete isochrones: {ex.Message}");
+            throw;
+        }
+    }
 }
