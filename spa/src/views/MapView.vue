@@ -297,6 +297,7 @@ import { useLocationSearch } from '@/composables/useLocationSearch'
 import { useStations } from '@/composables/useStations'
 import type { SearchResult, Station } from '@/types'
 import { searchLocationIconSvg, userLocationIconSvg, stationIconSvg, tramStopIconSvg } from '@/utils/mapIcons'
+import { getApiUrl } from '@/config/env'
 import { LCircle, LMap, LMarker, LPopup, LTileLayer, LGeoJson } from '@vue-leaflet/vue-leaflet'
 import { onMounted, ref, computed } from 'vue'
 
@@ -450,7 +451,7 @@ const loadIsochronesForStation = async (station: Station, areaId: string) => {
   const apiPromises = timeIntervals.map(async (time) => {
     try {
       const response = await fetch(
-        `http://localhost:7071/api/area/${stationArea.id}/station/${station.id}/isochrone/${time}`
+        getApiUrl(`/area/${stationArea.id}/station/${station.id}/isochrone/${time}`)
       )
       
       if (response.status === 400) {
