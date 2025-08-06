@@ -113,8 +113,35 @@ public class Program
         areaCommand.AddCommand(deleteCommand);
         areaCommand.AddCommand(listCommand);
 
+        // Add station command group
+        var stationCommand = new Command("station", "Manage stations for areas");
+
+        // Create station list command
+        var stationListCommand = new Command("list", "List all stations for a specific area");
+        var areaIdArgument = new Argument<string>("areaid", "The area ID to list stations for");
+        var filterOption = new Option<string>(
+            aliases: new[] { "--filter" },
+            description: "Filter stations by rowkey or name containing the specified text")
+        {
+            ArgumentHelpName = "text"
+        };
+
+        stationListCommand.AddArgument(areaIdArgument);
+        stationListCommand.AddOption(filterOption);
+        stationListCommand.AddOption(loggingOption);
+
+        stationListCommand.SetHandler(async (string areaId, string filter, string loggingLevel) =>
+        {
+            await InitializeLoggingAndConfigurationAsync(loggingLevel);
+            await AreaManager.ListStationsAsync(areaId, filter, _logger, _configuration);
+        }, areaIdArgument, filterOption, loggingOption);
+
+        // Add commands to station group
+        stationCommand.AddCommand(stationListCommand);
+
         // Add commands to root
         rootCommand.AddCommand(areaCommand);
+        rootCommand.AddCommand(stationCommand);
 
         // Parse and invoke the command
         return await rootCommand.InvokeAsync(args);

@@ -962,4 +962,116 @@ out body;";
             // Don't throw here - we want to continue with other cleanup steps
         }
     }
+
+    public static async Task ListStationsAsync(string areaId, string? filter, ILogger? logger, IConfiguration? configuration)
+    {
+        try
+        {
+            logger?.LogInformation("Listing stations for area: {AreaId} with filter: {Filter}", areaId, filter ?? "none");
+
+            // Get Azure Storage connection
+            var connectionString = configuration?.GetConnectionString("AzureStorage");
+            if (string.IsNullOrWhiteSpace(connectionString))
+            {
+                Console.WriteLine("❌ Azure Storage connection string not configured");
+                Environment.Exit(1);
+                return;
+            }
+
+            // Connect to Azure Table Storage and Blob Storage
+            var tableServiceClient = new TableServiceClient(connectionString);
+            var stationTableClient = tableServiceClient.GetTableClient("station");
+            var blobServiceClient = new BlobServiceClient(connectionString);
+            var containerClient = blobServiceClient.GetBlobContainerClient("isochrone");
+
+            logger?.LogInformation("Connected to Azure Storage services");
+
+            // Query all stations for this area (partition key = area ID)
+            var stations = new List<StationEntity>();
+            await foreach (var station in stationTableClient.QueryAsync<StationEntity>(
+                filter: $"PartitionKey eq '{areaId.ToLowerInvariant()}'"))
+            {
+                stations.Add(station);
+            }
+
+            if (!stations.Any())
+            {
+                Console.WriteLine($"❌ No stations found for area: {areaId}");
+                return;
+            }
+
+            // Apply filter if specified
+            var filteredStations = stations;
+            if (!string.IsNullOrWhiteSpace(filter))
+            {
+                filteredStations = stations.Where(s => 
+                    s.RowKey.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
+                    s.Name.Contains(filter, StringComparison.OrdinalIgnoreCase)).ToList();
+
+                if (!filteredStations.Any())
+                {
+                    Console.WriteLine($"❌ No stations found for area: {areaId} with filter: {filter}");
+                    return;
+                }
+            }
+
+            Console.WriteLine($"Name: {areaId}");
+            if (!string.IsNullOrWhiteSpace(filter))
+            {
+                Console.WriteLine($"Filter: {filter}");
+            }
+            Console.WriteLine("RowKey, Name, RailwayType, WikipediaLink, ABCDE");
+            Console.WriteLine(new string('-', 80));
+
+            // Check isochrone availability for each station
+            var durations = new[] { 5, 10, 15, 20, 30 };
+
+            foreach (var station in filteredStations.OrderBy(s => s.Name))
+            {
+                var isochroneStatus = "";
+                
+                // Check each duration (5, 10, 15, 20, 30 minutes)
+                foreach (var duration in durations)
+                {
+                    var blobPath = $"{areaId.ToLowerInvariant()}/{station.RowKey}/{duration}min.json";
+                    var blobClient = containerClient.GetBlobClient(blobPath);
+
+                    try
+                    {
+                        var exists = await blobClient.ExistsAsync();
+                        isochroneStatus += exists.Value ? "*" : "-";
+                    }
+                    catch
+                    {
+                        // If there's an error checking the blob, assume it doesn't exist
+                        isochroneStatus += "-";
+                    }
+                }
+
+                // Format the output line
+                var wikipediaLink = !string.IsNullOrEmpty(station.WikipediaLink) ? station.WikipediaLink : "-";
+                Console.WriteLine($"{station.RowKey}, {station.Name}, {station.Railway}, {wikipediaLink}, {isochroneStatus}");
+            }
+
+            Console.WriteLine();
+            var totalStations = stations.Count;
+            var displayedStations = filteredStations.Count;
+            
+            if (!string.IsNullOrWhiteSpace(filter))
+            {
+                Console.WriteLine($"✓ Listed {displayedStations} of {totalStations} stations for area '{areaId}' (filtered by '{filter}')");
+            }
+            else
+            {
+                Console.WriteLine($"✓ Listed {displayedStations} stations for area '{areaId}'");
+            }
+            Console.WriteLine("Legend: A=5min, B=10min, C=15min, D=20min, E=30min (* = available, - = not available)");
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Failed to list stations for area: {AreaId}", areaId);
+            Console.WriteLine($"❌ Failed to list stations for area '{areaId}': {ex.Message}");
+            Environment.Exit(1);
+        }
+    }
 }
