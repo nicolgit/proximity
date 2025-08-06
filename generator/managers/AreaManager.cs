@@ -5,6 +5,10 @@ using System.Globalization;
 using System.Text.Json;
 using Generator.Types;
 using Azure.Storage.Blobs;
+using NetTopologySuite.Geometries;
+using NetTopologySuite.IO;
+using NetTopologySuite.Operation.Union;
+using NetTopologySuite.Features;
 
 namespace Generator.Managers;
 
@@ -108,6 +112,21 @@ public static class AreaManager
 
             // Retrieve and store railway stations using Overpass API
             await RetrieveAndStoreStationsAsync(name, latitude, longitude, diameter, developerMode, noIsochrone, stationTableClient, logger, configuration);
+
+            // Generate area-wide isochrones if station isochrones were generated
+            if (!noIsochrone)
+            {
+                logger?.LogInformation("Generating area-wide isochrones for area: {Name}", name);
+                Console.WriteLine($"🌍 Generating area-wide isochrones for area: {name}");
+                
+                var durations = new[] { 5, 10, 15, 20, 30 };
+                foreach (var duration in durations)
+                {
+                    await GenerateAreaIsochroneAsync(name, duration, logger, configuration);
+                }
+                
+                Console.WriteLine($"✓ Area-wide isochrones generated successfully for area: {name}");
+            }
         }
         catch (Exception ex)
         {
@@ -1231,6 +1250,158 @@ out body;";
             logger?.LogError(ex, "Failed to delete isochrones for station: {StationId} in area: {AreaId}", stationId, areaId);
             Console.WriteLine($"❌ Failed to delete isochrones: {ex.Message}");
             throw;
+        }
+    }
+
+    public static async Task GenerateAreaIsochroneAsync(string areaId, int duration, ILogger? logger, IConfiguration? configuration)
+    {
+        try
+        {
+            logger?.LogInformation("Generating area-wide isochrone for area: {AreaId}, duration: {Duration}min", areaId, duration);
+            Console.WriteLine($"  📍 Generating {duration}min area-wide isochrone...");
+
+            // Get Azure Storage connection
+            var connectionString = configuration?.GetConnectionString("AzureStorage");
+            if (string.IsNullOrWhiteSpace(connectionString))
+            {
+                logger?.LogError("Azure Storage connection string not configured");
+                Console.WriteLine("❌ Azure Storage connection string not configured");
+                return;
+            }
+
+            // Create blob service client and container
+            var blobServiceClient = new BlobServiceClient(connectionString);
+            var containerClient = blobServiceClient.GetBlobContainerClient("isochrone");
+
+            // Check if container exists
+            if (!await containerClient.ExistsAsync())
+            {
+                logger?.LogWarning("Isochrone container does not exist for area: {AreaId}", areaId);
+                Console.WriteLine($"    ⚠️ No isochrone container found, skipping area-wide isochrone generation");
+                return;
+            }
+
+            // Read all station isochrone files for this duration
+            var areaPrefix = $"{areaId.ToLowerInvariant()}/";
+            var isochroneFiles = new List<string>();
+            var geoJsonReader = new GeoJsonReader();
+            var geometries = new List<Geometry>();
+
+            // Find all station isochrone files for this duration
+            await foreach (var blobItem in containerClient.GetBlobsAsync(prefix: areaPrefix))
+            {
+                if (blobItem.Name.EndsWith($"/{duration}min.json") && 
+                    blobItem.Name.Count(c => c == '/') == 2) // Ensure it's a station file, not an area file
+                {
+                    isochroneFiles.Add(blobItem.Name);
+                }
+            }
+
+            if (!isochroneFiles.Any())
+            {
+                logger?.LogWarning("No station isochrone files found for area: {AreaId}, duration: {Duration}min", areaId, duration);
+                Console.WriteLine($"    ⚠️ No station isochrone files found for {duration}min");
+                return;
+            }
+
+            logger?.LogInformation("Found {Count} station isochrone files for area: {AreaId}, duration: {Duration}min", 
+                isochroneFiles.Count, areaId, duration);
+
+            // Read and parse each isochrone file
+            foreach (var blobPath in isochroneFiles)
+            {
+                try
+                {
+                    var blobClient = containerClient.GetBlobClient(blobPath);
+                    var response = await blobClient.DownloadContentAsync();
+                    var geoJsonContent = response.Value.Content.ToString();
+
+                    // Parse GeoJSON using NetTopologySuite
+                    var stationFeatureCollection = geoJsonReader.Read<FeatureCollection>(geoJsonContent);
+                    
+                    if (stationFeatureCollection != null)
+                    {
+                        foreach (var stationFeature in stationFeatureCollection)
+                        {
+                            if (stationFeature.Geometry != null)
+                            {
+                                geometries.Add(stationFeature.Geometry);
+                            }
+                        }
+                    }
+
+                    logger?.LogDebug("Successfully parsed isochrone file: {BlobPath}", blobPath);
+                }
+                catch (Exception ex)
+                {
+                    logger?.LogWarning(ex, "Failed to parse isochrone file: {BlobPath}", blobPath);
+                }
+            }
+
+            if (!geometries.Any())
+            {
+                logger?.LogWarning("No valid geometries found in isochrone files for area: {AreaId}, duration: {Duration}min", areaId, duration);
+                Console.WriteLine($"    ⚠️ No valid geometries found in isochrone files for {duration}min");
+                return;
+            }
+
+            logger?.LogInformation("Processing {Count} geometries for union operation", geometries.Count);
+
+            // Create union of all geometries
+            Geometry unionGeometry;
+            if (geometries.Count == 1)
+            {
+                unionGeometry = geometries[0];
+            }
+            else
+            {
+                // Use CascadedPolygonUnion for better performance with many polygons
+                var unionOp = new CascadedPolygonUnion(geometries);
+                unionGeometry = unionOp.Union();
+            }
+
+            // Ensure the result is valid
+            if (!unionGeometry.IsValid)
+            {
+                logger?.LogWarning("Union geometry is not valid, attempting to buffer with 0 distance");
+                unionGeometry = unionGeometry.Buffer(0);
+            }
+
+            logger?.LogInformation("Successfully created union geometry with {GeomType}", unionGeometry.GeometryType);
+
+            // Create GeoJSON feature collection with the union geometry
+            var resultFeature = new Feature(unionGeometry, new AttributesTable());
+            
+            // Add properties similar to station isochrones
+            resultFeature.Attributes.Add("fill", "#3b82f6"); // Blue color for area-wide isochrone
+            resultFeature.Attributes.Add("stroke", "#3b82f6");
+            resultFeature.Attributes.Add("fill-opacity", 0.15); // Slightly more visible than station isochrones
+            resultFeature.Attributes.Add("stroke-width", 2);
+            resultFeature.Attributes.Add("contour", duration);
+            resultFeature.Attributes.Add("metric", "time");
+            resultFeature.Attributes.Add("type", "area-wide");
+
+            var resultFeatureCollection = new FeatureCollection { resultFeature };
+
+            // Convert to GeoJSON string
+            var geoJsonWriter = new GeoJsonWriter();
+            var geoJsonResult = geoJsonWriter.Write(resultFeatureCollection);
+
+            // Save the result to blob storage at /isochrone/areaid/ddmin.json
+            var areaIsochroneBlobPath = $"{areaId.ToLowerInvariant()}/{duration}min.json";
+            var areaIsochroneBlobClient = containerClient.GetBlobClient(areaIsochroneBlobPath);
+
+            using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(geoJsonResult));
+            await areaIsochroneBlobClient.UploadAsync(stream, overwrite: true);
+
+            logger?.LogInformation("Successfully saved area-wide isochrone to: {BlobPath}", areaIsochroneBlobPath);
+            Console.WriteLine($"    ✓ Saved {duration}min area-wide isochrone to: {areaIsochroneBlobPath}");
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Failed to generate area-wide isochrone for area: {AreaId}, duration: {Duration}min", areaId, duration);
+            Console.WriteLine($"    ❌ Failed to generate {duration}min area-wide isochrone: {ex.Message}");
+            // Don't throw here - we want to continue with other durations even if one fails
         }
     }
 }

@@ -40,6 +40,14 @@ dotnet run -- area create <name> --center <latitude,longitude> --diameter <meter
 - `--developer`: Developer mode - limit to first 3 railway stations and 3 tram stops (optional)
 - `--noisochrone`: Skip isochrone generation when creating the area (optional)
 
+**Isochrone Generation:**
+When creating an area (unless `--noisochrone` is specified), the system will:
+1. Generate individual isochrones for each station (5, 10, 15, 20, 30 minutes)
+2. Create area-wide isochrones by computing the union of all station isochrones for each duration
+3. Save area-wide isochrones to `/isochrone/{areaid}/{duration}min.json`
+
+The area-wide isochrones represent the combined accessibility area from all transit stations in the area, handling overlaps correctly using geometric union operations.
+
 **Examples:**
 ```bash
 # Create an area centered in Rome with 1km diameter
@@ -50,6 +58,9 @@ dotnet run -- area create "equator-point" --center "0,0" --diameter 500 --displa
 
 # Create an area with debug logging and developer mode
 dotnet run -- area create "test" --center "40,40" --diameter 1000 --displayname "Test Area" --developer --logging Debug
+
+# Create an area without generating isochrones
+dotnet run -- area create "stations-only" --center "41.9028,12.4964" --diameter 1000 --displayname "Stations Only" --noisochrone
 ```
 
 #### Delete Area
@@ -407,6 +418,51 @@ The application gracefully handles isochrone generation errors:
 - **API Rate Limits**: Includes delays between API calls
 - **Network Issues**: Logs errors but continues processing other stations
 - **Invalid Responses**: Validates JSON structure before saving
+
+## Area-Wide Isochrones
+
+### Overview
+
+Area-wide isochrones provide a unified view of transit accessibility across an entire area by combining all individual station isochrones into a single geometric representation.
+
+### Generation Process
+
+1. **Individual Station Isochrones**: First, isochrones are generated for each transit station (5, 10, 15, 20, 30 minutes)
+2. **Collection**: All station isochrone files for a specific duration are collected from blob storage
+3. **Geometric Union**: NetTopologySuite performs a geometric union operation to combine overlapping polygons
+4. **Validation**: The resulting geometry is validated and fixed if necessary using buffer operations
+5. **Storage**: The unified polygon is saved as GeoJSON at `/isochrone/{areaid}/{duration}min.json`
+
+### File Structure
+
+```
+isochrone/
+├── {areaid}/
+│   ├── {stationid1}/
+│   │   ├── 5min.json    # Individual station isochrone
+│   │   ├── 10min.json
+│   │   └── ...
+│   ├── {stationid2}/
+│   │   └── ...
+│   ├── 5min.json        # Area-wide isochrone (union of all stations)
+│   ├── 10min.json       # Area-wide isochrone
+│   └── ...
+```
+
+### Technical Implementation
+
+- **Library**: NetTopologySuite for geometric operations
+- **Union Algorithm**: CascadedPolygonUnion for optimal performance with multiple polygons
+- **Overlap Handling**: Automatic geometric union correctly handles overlapping areas
+- **Styling**: Area-wide isochrones use blue color (#3b82f6) with 15% opacity
+- **Properties**: GeoJSON includes metadata (type: "area-wide", duration, styling)
+
+### Use Cases
+
+- **Urban Planning**: Visualize combined transit accessibility across a city district
+- **Real Estate**: Assess overall transit connectivity for property development
+- **Transportation Analysis**: Identify gaps in transit coverage
+- **Policy Making**: Evaluate the effectiveness of transit network coverage
 
 ## Configuration
 
