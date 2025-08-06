@@ -208,6 +208,31 @@
                   Error: {{ getErrorForArea(area.id) }}
                 </div>
               </div>
+
+              <!-- Toggle Proximity Data Button -->
+              <div class="proximity-toggle-section">
+                <button 
+                  @click="toggleAreaIsochronesForArea(area.id)"
+                  class="proximity-toggle-btn"
+                  :class="{ 'proximity-toggle-btn--active': visibleAreaIsochrones.has(area.id) }"
+                  :disabled="isLoadingAreaIsochroneForArea(area.id)"
+                >
+                  <div v-if="isLoadingAreaIsochroneForArea(area.id)" class="loading-spinner-small"></div>
+                  <span v-else>
+                    {{ visibleAreaIsochrones.has(area.id) ? '🏙️ Hide Proximity Data' : '🏙️ Show Proximity Data' }}
+                  </span>
+                </button>
+                
+                <!-- Proximity count info -->
+                <div v-if="visibleAreaIsochrones.has(area.id)" class="proximity-count">
+                  {{ areaIsochroneGeoJson.filter(iso => iso.areaId === area.id).length }} proximity zones shown
+                </div>
+                
+                <!-- Error message -->
+                <div v-if="getAreaIsochroneErrorForArea(area.id)" class="proximity-error">
+                  Error: {{ getAreaIsochroneErrorForArea(area.id) }}
+                </div>
+              </div>
             </div>
           </l-popup>
         </l-circle>
@@ -245,6 +270,21 @@
               <h4>🚶‍♂️ {{ isochrone.timeMinutes }} minute walk (API)</h4>
               <p><strong>From:</strong> {{ selectedStationForIsochrone?.name }}</p>
               <p><strong>Data source:</strong> Routing API</p>
+            </div>
+          </l-popup>
+        </l-geo-json>
+
+        <!-- Area Proximity Isochrone GeoJSON layers (rendered before stations to be under them) -->
+        <l-geo-json
+          v-for="(isochrone, index) in areaIsochroneGeoJson"
+          :key="`area-isochrone-geojson-${index}`"
+          :geojson="isochrone.geojson"
+          :options-style="getGeoJsonStyle(isochrone)"
+        >
+          <l-popup>
+            <div class="isochrone-popup">
+              <h4>🏙️ {{ isochrone.timeMinutes }} minute proximity</h4>
+              <p><strong>Data source:</strong> Area Proximity API</p>
             </div>
           </l-popup>
         </l-geo-json>
@@ -354,6 +394,17 @@ const showWelcomePopup = ref(true)
 // Stations state
 const visibleStations = ref<Set<string>>(new Set())
 
+// Area proximity/isochrone state
+const visibleAreaIsochrones = ref<Set<string>>(new Set())
+const isLoadingAreaIsochrones = ref<Set<string>>(new Set())
+const areaIsochroneErrors = ref<Map<string, string>>(new Map())
+const areaIsochroneGeoJson = ref<Array<{
+  geojson: any
+  timeMinutes: number
+  color: string
+  areaId: string
+}>>([])
+
 // Isochrone state
 const selectedStationForIsochrone = ref<Station | null>(null)
 const isochroneCircles = ref<Array<{
@@ -407,12 +458,100 @@ const openWikipediaLink = (url: string) => {
 
 // Helper function to get GeoJSON style options
 const getGeoJsonStyle = (isochrone: any) => {
-  return {
+  return () => ({
       color: isochrone.color,
       fillColor: isochrone.color,
       fillOpacity: 0.1,
       weight: isochrone.timeMinutes === 30 ? 2 : 0,
       opacity: isochrone.timeMinutes === 30 ? 0.6 : 0
+  })
+}
+
+// Area isochrone helper functions
+const isLoadingAreaIsochroneForArea = (areaId: string) => {
+  return isLoadingAreaIsochrones.value.has(areaId)
+}
+
+const getAreaIsochroneErrorForArea = (areaId: string) => {
+  return areaIsochroneErrors.value.get(areaId) || null
+}
+
+// Function to toggle area isochrones
+const toggleAreaIsochronesForArea = async (areaId: string) => {
+  if (visibleAreaIsochrones.value.has(areaId)) {
+    // Hide area isochrones
+    visibleAreaIsochrones.value.delete(areaId)
+    // Remove from map
+    areaIsochroneGeoJson.value = areaIsochroneGeoJson.value.filter(
+      isochrone => isochrone.areaId !== areaId
+    )
+    // Clear any errors
+    areaIsochroneErrors.value.delete(areaId)
+  } else {
+    // Show area isochrones - load them from API
+    await loadAreaIsochrones(areaId)
+  }
+}
+
+// Function to load area isochrones from API
+const loadAreaIsochrones = async (areaId: string) => {
+  const timeIntervals = [5, 10, 15, 20, 30] // API time intervals
+  const baseColor = '#8b5cf6' // purple color for area isochrones
+  
+  // Set loading state
+  isLoadingAreaIsochrones.value.add(areaId)
+  areaIsochroneErrors.value.delete(areaId)
+  
+  // Clear existing area isochrones for this area
+  areaIsochroneGeoJson.value = areaIsochroneGeoJson.value.filter(
+    isochrone => isochrone.areaId !== areaId
+  )
+  
+  try {
+    const promises = timeIntervals.map(async (time) => {
+      try {
+        const response = await fetch(getApiUrl(`/area/${areaId}/isochrone/${time}`))
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+        
+        const geojson = await response.json()
+        return { time, success: true, data: geojson }
+      } catch (error) {
+        console.error(`Error fetching area isochrone for ${time} minutes:`, error)
+        return { time, success: false, data: null }
+      }
+    })
+    
+    const results = await Promise.all(promises)
+    const successfulResults = results.filter(result => result.success && result.data)
+    
+    if (successfulResults.length > 0) {
+      // Add to visible set
+      visibleAreaIsochrones.value.add(areaId)
+      
+      // Add isochrones to map - reverse order so largest renders first (bottom)
+      const sortedResults = successfulResults.sort((a, b) => b.time - a.time)
+      sortedResults.forEach(result => {
+        areaIsochroneGeoJson.value.push({
+          geojson: result.data,
+          timeMinutes: result.time,
+          color: baseColor,
+          areaId: areaId
+        })
+      })
+      
+      console.log(`✅ Loaded ${successfulResults.length} area isochrones for area ${areaId}`)
+    } else {
+      throw new Error('No isochrone data available')
+    }
+  } catch (error) {
+    console.error('Error loading area isochrones:', error)
+    areaIsochroneErrors.value.set(areaId, 'Failed to load proximity data')
+  } finally {
+    // Clear loading state
+    isLoadingAreaIsochrones.value.delete(areaId)
   }
 }
 
@@ -989,6 +1128,64 @@ onMounted(async () => {
 }
 
 .station-error {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #dc3545;
+  background: #f8d7da;
+  padding: 4px 6px;
+  border-radius: 3px;
+  border: 1px solid #f5c6cb;
+}
+
+/* Proximity Toggle Button Styles */
+.proximity-toggle-section {
+  margin-top: 15px;
+  padding-top: 10px;
+  border-top: 1px solid #eee;
+}
+
+.proximity-toggle-btn {
+  background: #8b5cf6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+}
+
+.proximity-toggle-btn:hover:not(:disabled) {
+  background: #7c3aed;
+  transform: translateY(-1px);
+}
+
+.proximity-toggle-btn--active {
+  background: #a855f7;
+}
+
+.proximity-toggle-btn--active:hover:not(:disabled) {
+  background: #9333ea;
+}
+
+.proximity-toggle-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.proximity-count {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #666;
+  font-style: italic;
+}
+
+.proximity-error {
   margin-top: 6px;
   font-size: 12px;
   color: #dc3545;
