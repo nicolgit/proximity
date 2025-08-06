@@ -255,7 +255,7 @@
           :key="station.id"
           :lat-lng="[station.latitude, station.longitude]"
           :icon="getStationIcon(station.type) as any"
-          @click="onStationClick(station)"
+          @click="onStationClick(station, station.areaId)"
         >
           <l-popup>
             <div class="station-popup">
@@ -275,7 +275,7 @@
               <p><strong>Location:</strong> {{ station.latitude.toFixed(4) }}, {{ station.longitude.toFixed(4) }}</p>
               <div class="station-actions">
                 <button 
-                  @click="onStationClick(station)"
+                  @click="onStationClick(station, station.areaId)"
                   class="isochrone-btn"
                   :class="{ 'isochrone-btn--active': selectedStationForIsochrone?.id === station.id }"
                 >
@@ -369,9 +369,13 @@ const isochroneGeoJson = ref<Array<{
 
 // Computed property for all visible stations across all areas
 const allVisibleStations = computed(() => {
-  const stations: Station[] = []
+  const stations: (Station & { areaId: string })[] = []
   for (const areaId of visibleStations.value) {
-    stations.push(...getStationsForArea(areaId))
+    const areaStations = getStationsForArea(areaId).map(station => ({
+      ...station,
+      areaId
+    }))
+    stations.push(...areaStations)
   }
   return stations
 })
@@ -412,7 +416,7 @@ const getGeoJsonStyle = (isochrone: any) => {
 }
 
 // Function to handle station click and show isochrone circles
-const onStationClick = async (station: Station) => {
+const onStationClick = async (station: Station, areaId: string) => {
   // If clicking the same station, toggle off the isochrones
   if (selectedStationForIsochrone.value?.id === station.id) {
     selectedStationForIsochrone.value = null
@@ -421,12 +425,12 @@ const onStationClick = async (station: Station) => {
   } else {
     // Show isochrones for the new station
     selectedStationForIsochrone.value = station
-    await loadIsochronesForStation(station)
+    await loadIsochronesForStation(station, areaId)
   }
 }
 
 // Function to load isochrones from API or fallback to calculated circles
-const loadIsochronesForStation = async (station: Station) => {
+const loadIsochronesForStation = async (station: Station, areaId: string) => {
   const timeIntervals = [5, 10, 15, 20, 30] // API time intervals
   const baseColor = station.type === 'station' ? '#22c55e' : '#eab308' // green for metro, yellow for tram
   
@@ -434,25 +438,11 @@ const loadIsochronesForStation = async (station: Station) => {
   isochroneCircles.value = []
   isochroneGeoJson.value = []
   
-  // Find the area that contains this station
-  const stationArea = areas.value.find(area => {
-    // Check if station is within area bounds
-    const stationLat = station.latitude
-    const stationLng = station.longitude
-    const areaLat = area.latitude
-    const areaLng = area.longitude
-    const radiusKm = (area.diameter / 2) / 1000 // Convert to km
-    
-    // Simple distance check (approximate)
-    const distance = Math.sqrt(
-      Math.pow(stationLat - areaLat, 2) + Math.pow(stationLng - areaLng, 2)
-    ) * 111 // Rough conversion to km
-    
-    return distance <= radiusKm
-  })
+  // Find the area using the provided areaId
+  const stationArea = areas.value.find(area => area.id === areaId)
   
   if (!stationArea) {
-    console.warn('No area found for station, using calculated circles')
+    console.warn('No area found for provided areaId, using calculated circles')
     generateIsochroneCircles(station)
     return
   }
