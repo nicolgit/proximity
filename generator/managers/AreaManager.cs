@@ -1404,4 +1404,230 @@ out body;";
             // Don't throw here - we want to continue with other durations even if one fails
         }
     }
+
+    public static async Task DeleteAreaIsochronesAsync(string areaName, ILogger? logger, IConfiguration? configuration)
+    {
+        try
+        {
+            logger?.LogInformation("Deleting area-wide isochrones for area: {AreaName}", areaName);
+            Console.WriteLine($"🗑️  Deleting area-wide isochrones for area: {areaName}");
+
+            // Get Azure Storage connection
+            var connectionString = configuration?.GetConnectionString("AzureStorage");
+            if (string.IsNullOrWhiteSpace(connectionString))
+            {
+                logger?.LogError("Azure Storage connection string not configured");
+                Console.WriteLine("❌ Azure Storage connection string not configured");
+                return;
+            }
+
+            // Create blob service client and container
+            var blobServiceClient = new BlobServiceClient(connectionString);
+            var containerClient = blobServiceClient.GetBlobContainerClient("isochrone");
+
+            // Check if container exists
+            if (!await containerClient.ExistsAsync())
+            {
+                logger?.LogWarning("Isochrone container does not exist");
+                Console.WriteLine("⚠️  Isochrone container does not exist - nothing to delete");
+                return;
+            }
+
+            // Find area-wide isochrones to delete (files with only 2 path segments: area/duration.json)
+            var areaPrefix = $"{areaName.ToLowerInvariant()}/";
+            var areaIsochronesToDelete = new List<string>();
+
+            await foreach (var blobItem in containerClient.GetBlobsAsync(prefix: areaPrefix))
+            {
+                if (blobItem.Name.EndsWith(".json") && blobItem.Name.Count(c => c == '/') == 1) // Only 1 slash means area/duration.json
+                {
+                    areaIsochronesToDelete.Add(blobItem.Name);
+                }
+            }
+
+            if (!areaIsochronesToDelete.Any())
+            {
+                logger?.LogInformation("No area-wide isochrones found for area: {AreaName}", areaName);
+                Console.WriteLine($"  ℹ️  No area-wide isochrones found for area: {areaName}");
+                return;
+            }
+
+            logger?.LogInformation("Found {Count} area-wide isochrones to delete for area: {AreaName}", 
+                areaIsochronesToDelete.Count, areaName);
+            Console.WriteLine($"  📋 Found {areaIsochronesToDelete.Count} area-wide isochrones to delete:");
+
+            // Delete area-wide isochrones
+            var successCount = 0;
+            foreach (var blobPath in areaIsochronesToDelete)
+            {
+                try
+                {
+                    var blobClient = containerClient.GetBlobClient(blobPath);
+                    await blobClient.DeleteIfExistsAsync();
+                    
+                    // Extract duration from filename for display
+                    var fileName = System.IO.Path.GetFileName(blobPath);
+                    logger?.LogDebug("Deleted area-wide isochrone: {BlobPath}", blobPath);
+                    Console.WriteLine($"    ✓ Deleted: {fileName}");
+                    successCount++;
+                }
+                catch (Exception ex)
+                {
+                    logger?.LogWarning(ex, "Failed to delete area-wide isochrone: {BlobPath}", blobPath);
+                    Console.WriteLine($"    ❌ Failed to delete: {System.IO.Path.GetFileName(blobPath)} - {ex.Message}");
+                }
+            }
+
+            if (successCount == areaIsochronesToDelete.Count)
+            {
+                logger?.LogInformation("Successfully deleted all {Count} area-wide isochrones for area: {AreaName}", 
+                    successCount, areaName);
+                Console.WriteLine($"✅ Successfully deleted all {successCount} area-wide isochrones for area: {areaName}");
+            }
+            else if (successCount > 0)
+            {
+                logger?.LogWarning("Deleted {SuccessCount} out of {TotalCount} area-wide isochrones for area: {AreaName}", 
+                    successCount, areaIsochronesToDelete.Count, areaName);
+                Console.WriteLine($"⚠️  Deleted {successCount} out of {areaIsochronesToDelete.Count} area-wide isochrones for area: {areaName}");
+            }
+            else
+            {
+                logger?.LogError("Failed to delete any area-wide isochrones for area: {AreaName}", areaName);
+                Console.WriteLine($"❌ Failed to delete any area-wide isochrones for area: {areaName}");
+            }
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Failed to delete area-wide isochrones for area: {AreaName}", areaName);
+            Console.WriteLine($"❌ Failed to delete area-wide isochrones for area: {areaName}");
+            Console.WriteLine($"   Error: {ex.Message}");
+            throw;
+        }
+    }
+
+    public static async Task RecreateAreaIsochronesAsync(string areaName, ILogger? logger, IConfiguration? configuration)
+    {
+        try
+        {
+            logger?.LogInformation("Recreating area-wide isochrones for area: {AreaName}", areaName);
+            Console.WriteLine($"🔄 Recreating area-wide isochrones for area: {areaName}");
+
+            // Get Azure Storage connection
+            var connectionString = configuration?.GetConnectionString("AzureStorage");
+            if (string.IsNullOrWhiteSpace(connectionString))
+            {
+                logger?.LogError("Azure Storage connection string not configured");
+                Console.WriteLine("❌ Azure Storage connection string not configured");
+                return;
+            }
+
+            // Create blob service client and container
+            var blobServiceClient = new BlobServiceClient(connectionString);
+            var containerClient = blobServiceClient.GetBlobContainerClient("isochrone");
+
+            // Check if container exists
+            if (!await containerClient.ExistsAsync())
+            {
+                logger?.LogError("Isochrone container does not exist");
+                Console.WriteLine("❌ Isochrone container does not exist");
+                return;
+            }
+
+            // Check if any station isochrones exist for this area
+            var areaPrefix = $"{areaName.ToLowerInvariant()}/";
+            var hasStationIsochrones = false;
+
+            await foreach (var blobItem in containerClient.GetBlobsAsync(prefix: areaPrefix))
+            {
+                // Look for station isochrone files (has 3 path segments: area/station/duration.json)
+                if (blobItem.Name.EndsWith(".json") && blobItem.Name.Count(c => c == '/') == 2)
+                {
+                    hasStationIsochrones = true;
+                    break;
+                }
+            }
+
+            if (!hasStationIsochrones)
+            {
+                logger?.LogError("No station isochrones found for area: {AreaName}", areaName);
+                Console.WriteLine($"❌ No station isochrones found for area: {areaName}");
+                Console.WriteLine($"   Please create the area first using: area create {areaName} --center <lat,lon> --diameter <meters> --displayname \"<name>\"");
+                return;
+            }
+
+            // Delete existing area-wide isochrones (files with only 2 path segments: area/duration.json)
+            var areaIsochronesToDelete = new List<string>();
+            await foreach (var blobItem in containerClient.GetBlobsAsync(prefix: areaPrefix))
+            {
+                if (blobItem.Name.EndsWith(".json") && blobItem.Name.Count(c => c == '/') == 1) // Only 1 slash means area/duration.json
+                {
+                    areaIsochronesToDelete.Add(blobItem.Name);
+                }
+            }
+
+            // Delete existing area-wide isochrones
+            if (areaIsochronesToDelete.Any())
+            {
+                logger?.LogInformation("Deleting {Count} existing area-wide isochrones for area: {AreaName}", 
+                    areaIsochronesToDelete.Count, areaName);
+                Console.WriteLine($"  🗑️  Deleting {areaIsochronesToDelete.Count} existing area-wide isochrones...");
+
+                foreach (var blobPath in areaIsochronesToDelete)
+                {
+                    try
+                    {
+                        var blobClient = containerClient.GetBlobClient(blobPath);
+                        await blobClient.DeleteIfExistsAsync();
+                        logger?.LogDebug("Deleted area-wide isochrone: {BlobPath}", blobPath);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger?.LogWarning(ex, "Failed to delete area-wide isochrone: {BlobPath}", blobPath);
+                    }
+                }
+            }
+
+            // Generate area-wide isochrones for each duration (5, 10, 15, 20, 30)
+            var durations = new[] { 5, 10, 15, 20, 30 };
+            var successCount = 0;
+
+            foreach (var duration in durations)
+            {
+                try
+                {
+                    await GenerateAreaIsochroneAsync(areaName, duration, logger, configuration);
+                    successCount++;
+                }
+                catch (Exception ex)
+                {
+                    logger?.LogError(ex, "Failed to generate area-wide isochrone for duration: {Duration}min", duration);
+                    Console.WriteLine($"    ❌ Failed to generate {duration}min isochrone: {ex.Message}");
+                }
+            }
+
+            if (successCount == durations.Length)
+            {
+                logger?.LogInformation("Successfully recreated all area-wide isochrones for area: {AreaName}", areaName);
+                Console.WriteLine($"✅ Successfully recreated all area-wide isochrones for area: {areaName}");
+            }
+            else if (successCount > 0)
+            {
+                logger?.LogWarning("Recreated {SuccessCount} out of {TotalCount} area-wide isochrones for area: {AreaName}", 
+                    successCount, durations.Length, areaName);
+                Console.WriteLine($"⚠️  Recreated {successCount} out of {durations.Length} area-wide isochrones for area: {areaName}");
+            }
+            else
+            {
+                logger?.LogError("Failed to recreate any area-wide isochrones for area: {AreaName}", areaName);
+                Console.WriteLine($"❌ Failed to recreate any area-wide isochrones for area: {areaName}");
+            }
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Failed to recreate area-wide isochrones for area: {AreaName}", areaName);
+            Console.WriteLine($"❌ Failed to recreate area-wide isochrones for area: {areaName}");
+            Console.WriteLine($"   Error: {ex.Message}");
+            throw;
+        }
+    }
 }

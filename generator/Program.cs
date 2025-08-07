@@ -108,10 +108,38 @@ public class Program
             await AreaManager.ListAreasAsync(_logger, _configuration);
         }, loggingOption);
 
+        // Create area isochrone command
+        var areaIsochroneCommand = new Command("isochrone", "Recreate or delete area-wide isochrones using existing station isochrones");
+        var areaNameArgument = new Argument<string>("areaname", "The name of the area to regenerate isochrones for");
+        var deleteAreaIsochroneOption = new Option<bool>(
+            aliases: new[] { "--delete" },
+            description: "Delete area-wide isochrones instead of creating them")
+        {
+            ArgumentHelpName = "delete"
+        };
+
+        areaIsochroneCommand.AddArgument(areaNameArgument);
+        areaIsochroneCommand.AddOption(deleteAreaIsochroneOption);
+        areaIsochroneCommand.AddOption(loggingOption);
+
+        areaIsochroneCommand.SetHandler(async (string areaName, bool delete, string loggingLevel) =>
+        {
+            await InitializeLoggingAndConfigurationAsync(loggingLevel);
+            if (delete)
+            {
+                await AreaManager.DeleteAreaIsochronesAsync(areaName, _logger, _configuration);
+            }
+            else
+            {
+                await AreaManager.RecreateAreaIsochronesAsync(areaName, _logger, _configuration);
+            }
+        }, areaNameArgument, deleteAreaIsochroneOption, loggingOption);
+
         // Add commands to area group
         areaCommand.AddCommand(createCommand);
         areaCommand.AddCommand(deleteCommand);
         areaCommand.AddCommand(listCommand);
+        areaCommand.AddCommand(areaIsochroneCommand);
 
         // Add station command group
         var stationCommand = new Command("station", "Manage stations for areas");
