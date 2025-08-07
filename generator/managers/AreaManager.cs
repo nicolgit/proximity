@@ -1505,6 +1505,144 @@ out body;";
         }
     }
 
+    public static async Task DeleteAllStationIsochronesAsync(string areaId, ILogger? logger, IConfiguration? configuration)
+    {
+        try
+        {
+            logger?.LogInformation("Deleting all station isochrones for area: {AreaId}", areaId);
+            Console.WriteLine($"🗑️  Deleting all station isochrones for area: {areaId}");
+
+            // Get Azure Storage connection
+            var connectionString = configuration?.GetConnectionString("AzureStorage");
+            if (string.IsNullOrWhiteSpace(connectionString))
+            {
+                Console.WriteLine("❌ Azure Storage connection string not configured");
+                Environment.Exit(1);
+                return;
+            }
+
+            // Connect to Azure Table Storage and Blob Storage
+            var tableServiceClient = new TableServiceClient(connectionString);
+            var areaTableClient = tableServiceClient.GetTableClient("area");
+            var stationTableClient = tableServiceClient.GetTableClient("station");
+            var blobServiceClient = new BlobServiceClient(connectionString);
+            var containerClient = blobServiceClient.GetBlobContainerClient("isochrone");
+
+            logger?.LogInformation("Connected to Azure Storage services");
+
+            // Check if area exists
+            AreaEntity? area = null;
+            try
+            {
+                var areaResponse = await areaTableClient.GetEntityAsync<AreaEntity>("area", areaId.ToLowerInvariant());
+                area = areaResponse.Value;
+                logger?.LogInformation("Found area: {AreaName} ({DisplayName})", area.Name, area.DisplayName);
+                Console.WriteLine($"📍 Area: {area.DisplayName ?? area.Name}");
+            }
+            catch (Azure.RequestFailedException ex) when (ex.Status == 404)
+            {
+                Console.WriteLine($"❌ Area '{areaId}' not found");
+                Environment.Exit(1);
+                return;
+            }
+
+            // Check if isochrone container exists
+            if (!await containerClient.ExistsAsync())
+            {
+                logger?.LogWarning("Isochrone container does not exist");
+                Console.WriteLine("⚠️  Isochrone container does not exist - nothing to delete");
+                return;
+            }
+
+            // Query all stations for this area
+            var stations = new List<StationEntity>();
+            await foreach (var station in stationTableClient.QueryAsync<StationEntity>(
+                filter: $"PartitionKey eq '{areaId.ToLowerInvariant()}'"))
+            {
+                stations.Add(station);
+            }
+
+            if (!stations.Any())
+            {
+                Console.WriteLine($"ℹ️  No stations found for area: {areaId}");
+                return;
+            }
+
+            Console.WriteLine($"📊 Found {stations.Count} stations to process");
+            Console.WriteLine();
+
+            // Delete isochrones for each station
+            var successCount = 0;
+            var failedStations = new List<string>();
+            var currentStationIndex = 1;
+
+            foreach (var station in stations.OrderBy(s => s.Name))
+            {
+                try
+                {
+                    Console.WriteLine($"[{currentStationIndex}/{stations.Count}] 🗑️  Deleting isochrones for: {station.Name}");
+                    Console.WriteLine($"   Station ID: {station.RowKey}");
+
+                    // Delete all isochrones for this station (all durations)
+                    await DeleteStationIsochroneAsync(areaId, station.RowKey, 0, containerClient, logger); // 0 means delete all
+                    
+                    Console.WriteLine($"   ✅ Successfully deleted isochrones for: {station.Name}");
+                    successCount++;
+                }
+                catch (Exception ex)
+                {
+                    logger?.LogError(ex, "Failed to delete isochrones for station: {StationId} ({StationName}) in area: {AreaId}", 
+                        station.RowKey, station.Name, areaId);
+                    Console.WriteLine($"   ❌ Failed to delete isochrones for: {station.Name} - {ex.Message}");
+                    failedStations.Add($"{station.Name} ({station.RowKey})");
+                }
+
+                Console.WriteLine(); // Add spacing between stations
+                currentStationIndex++;
+            }
+
+            // Summary
+            Console.WriteLine();
+            Console.WriteLine("=== DELETION SUMMARY ===");
+            Console.WriteLine($"Total stations processed: {stations.Count}");
+            Console.WriteLine($"Successfully processed: {successCount}");
+            Console.WriteLine($"Failed: {failedStations.Count}");
+
+            if (failedStations.Any())
+            {
+                Console.WriteLine($"Failed stations:");
+                foreach (var failedStation in failedStations)
+                {
+                    Console.WriteLine($"  - {failedStation}");
+                }
+            }
+
+            if (successCount == stations.Count)
+            {
+                logger?.LogInformation("Successfully deleted isochrones for all {Count} stations in area: {AreaId}", successCount, areaId);
+                Console.WriteLine($"🎉 Successfully deleted all station isochrones for area: {areaId}");
+            }
+            else if (successCount > 0)
+            {
+                logger?.LogWarning("Deleted isochrones for {SuccessCount} out of {TotalCount} stations in area: {AreaId}", 
+                    successCount, stations.Count, areaId);
+                Console.WriteLine($"⚠️  Deleted isochrones for {successCount} out of {stations.Count} stations in area: {areaId}");
+            }
+            else
+            {
+                logger?.LogError("Failed to delete isochrones for any stations in area: {AreaId}", areaId);
+                Console.WriteLine($"❌ Failed to delete isochrones for any stations in area: {areaId}");
+            }
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Failed to delete all station isochrones for area: {AreaId}", areaId);
+            Console.WriteLine($"❌ Failed to delete station isochrones for area: {areaId}");
+            Console.WriteLine($"   Error: {ex.Message}");
+            throw;
+        }
+    }
+
     public static async Task RegenerateAllStationIsochronesAsync(string areaId, ILogger? logger, IConfiguration? configuration)
     {
         try

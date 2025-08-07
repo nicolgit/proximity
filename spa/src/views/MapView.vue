@@ -108,6 +108,43 @@
       </div>
     </div>
 
+    <!-- Area Proximity Level Selector -->
+    <div class="proximity-level-toolbar">
+      <div class="proximity-level-header">
+        <span class="proximity-level-title">🏙️ Proximity Level</span>
+        <button 
+          @click="toggleProximityToolbar"
+          class="proximity-level-toggle"
+          :class="{ 'proximity-level-toggle--active': showProximityToolbar }"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline :points="showProximityToolbar ? '6 9 12 15 18 9' : '9 18 15 12 9 6'"></polyline>
+          </svg>
+        </button>
+      </div>
+      
+      <div v-show="showProximityToolbar" class="proximity-level-selector">
+        <div class="proximity-level-slider-container">
+          <div class="proximity-level-slider-labels">
+            <span v-for="level in proximityLevelOptions" :key="level" class="slider-label">
+              {{ level }}min
+            </span>
+          </div>
+          <input
+            type="range"
+            :min="0"
+            :max="proximityLevelOptions.length - 1"
+            :value="proximityLevelOptions.indexOf(pendingProximityLevel)"
+            @input="selectProximityLevelByIndex(($event.target as HTMLInputElement).value)"
+            class="proximity-level-slider"
+          />
+          <div class="proximity-level-current">
+            Currently showing: <strong>{{ pendingProximityLevel }}min</strong> proximity zones
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Location button -->
     <button 
       @click="goToCurrentLocation"
@@ -225,7 +262,7 @@
                 
                 <!-- Proximity count info -->
                 <div v-if="visibleAreaIsochrones.has(area.id)" class="proximity-count">
-                  {{ areaIsochroneGeoJson.filter(iso => iso.areaId === area.id).length }} proximity zones shown
+                  {{ areaIsochroneGeoJson.filter(iso => iso.areaId === area.id).length }} proximity zones shown (up to {{ selectedProximityLevel }}min)
                 </div>
                 
                 <!-- Error message -->
@@ -237,7 +274,22 @@
           </l-popup>
         </l-circle>
 
-        <!-- Isochrone circles (rendered before stations to be under them) -->
+        <!-- Area Proximity Isochrone GeoJSON layers (rendered first, on the bottom) -->
+        <l-geo-json
+          v-for="(isochrone, index) in areaIsochroneGeoJson"
+          :key="`area-isochrone-geojson-${index}`"
+          :geojson="isochrone.geojson"
+          :options-style="getGeoJsonStyle(isochrone)"
+        >
+          <l-popup>
+            <div class="isochrone-popup">
+              <h4>🏙️ {{ isochrone.timeMinutes }} minute proximity</h4>
+              <p><strong>Data source:</strong> Area Proximity API</p>
+            </div>
+          </l-popup>
+        </l-geo-json>
+
+        <!-- Station Isochrone circles (rendered on top of area isochrones) -->
         <l-circle
           v-for="(circle, index) in isochroneCircles"
           :key="`isochrone-${index}`"
@@ -246,8 +298,8 @@
           :color="circle.color"
           :fill-color="circle.color"
           :fill-opacity="0.1"
-          :weight="circle.timeMinutes === 30 ? 2 : 0"
-          :opacity="circle.timeMinutes === 30 ? 0.6 : 0"
+          :weight="circle.timeMinutes === selectedProximityLevel ? 2 : 0"
+          :opacity="circle.timeMinutes === selectedProximityLevel ? 0.6 : 0"
         >
           <l-popup>
             <div class="isochrone-popup">
@@ -258,7 +310,7 @@
           </l-popup>
         </l-circle>
 
-        <!-- API Isochrone GeoJSON layers (rendered before stations to be under them) -->
+        <!-- Station API Isochrone GeoJSON layers (rendered on top of area isochrones) -->
         <l-geo-json
           v-for="(isochrone, index) in isochroneGeoJson"
           :key="`isochrone-geojson-${index}`"
@@ -270,21 +322,6 @@
               <h4>🚶‍♂️ {{ isochrone.timeMinutes }} minute walk (API)</h4>
               <p><strong>From:</strong> {{ selectedStationForIsochrone?.name }}</p>
               <p><strong>Data source:</strong> Routing API</p>
-            </div>
-          </l-popup>
-        </l-geo-json>
-
-        <!-- Area Proximity Isochrone GeoJSON layers (rendered before stations to be under them) -->
-        <l-geo-json
-          v-for="(isochrone, index) in areaIsochroneGeoJson"
-          :key="`area-isochrone-geojson-${index}`"
-          :geojson="isochrone.geojson"
-          :options-style="getGeoJsonStyle(isochrone)"
-        >
-          <l-popup>
-            <div class="isochrone-popup">
-              <h4>🏙️ {{ isochrone.timeMinutes }} minute proximity</h4>
-              <p><strong>Data source:</strong> Area Proximity API</p>
             </div>
           </l-popup>
         </l-geo-json>
@@ -339,7 +376,7 @@ import type { SearchResult, Station } from '@/types'
 import { searchLocationIconSvg, userLocationIconSvg, stationIconSvg, tramStopIconSvg } from '@/utils/mapIcons'
 import { getApiUrl } from '@/config/env'
 import { LCircle, LMap, LMarker, LPopup, LTileLayer, LGeoJson } from '@vue-leaflet/vue-leaflet'
-import { onMounted, ref, computed } from 'vue'
+import { onMounted, ref, computed, onUnmounted } from 'vue'
 
 // Map setup
 const mapRef = ref<InstanceType<typeof LMap> | null>(null)
@@ -405,6 +442,32 @@ const areaIsochroneGeoJson = ref<Array<{
   areaId: string
 }>>([])
 
+// Proximity level selector state
+const showProximityToolbar = ref(false)
+const proximityLevelOptions = ref([5, 10, 15, 20, 30])
+const selectedProximityLevel = ref(30)
+const pendingProximityLevel = ref(30) // For debounced updates
+
+// Debounced proximity level update
+let proximityLevelDebounceTimer: NodeJS.Timeout | null = null
+
+const debouncedProximityLevelUpdate = (level: number) => {
+  // Clear existing timer
+  if (proximityLevelDebounceTimer) {
+    clearTimeout(proximityLevelDebounceTimer)
+  }
+  
+  // Update pending level immediately for UI responsiveness
+  pendingProximityLevel.value = level
+  
+  // Set timer to update actual level after delay
+  proximityLevelDebounceTimer = setTimeout(() => {
+    selectedProximityLevel.value = level
+    refreshVisibleAreaIsochrones()
+    proximityLevelDebounceTimer = null
+  }, 300) // 300ms debounce delay
+}
+
 // Isochrone state
 const selectedStationForIsochrone = ref<Station | null>(null)
 const isochroneCircles = ref<Array<{
@@ -462,8 +525,8 @@ const getGeoJsonStyle = (isochrone: any) => {
       color: isochrone.color,
       fillColor: isochrone.color,
       fillOpacity: 0.1,
-      weight: isochrone.timeMinutes === 30 ? 2 : 0,
-      opacity: isochrone.timeMinutes === 30 ? 0.6 : 0
+      weight: isochrone.timeMinutes === selectedProximityLevel.value ? 2 : 0,
+      opacity: isochrone.timeMinutes === selectedProximityLevel.value ? 0.6 : 0
   })
 }
 
@@ -495,7 +558,9 @@ const toggleAreaIsochronesForArea = async (areaId: string) => {
 
 // Function to load area isochrones from API
 const loadAreaIsochrones = async (areaId: string) => {
-  const timeIntervals = [5, 10, 15, 20, 30] // API time intervals
+  const selectedLevel = selectedProximityLevel.value
+  // Load all levels up to and including the selected level
+  const levelsToLoad = proximityLevelOptions.value.filter(level => level <= selectedLevel)
   const baseColor = '#8b5cf6' // purple color for area isochrones
   
   // Set loading state
@@ -508,19 +573,19 @@ const loadAreaIsochrones = async (areaId: string) => {
   )
   
   try {
-    const promises = timeIntervals.map(async (time) => {
+    const promises = levelsToLoad.map(async (timeInterval) => {
       try {
-        const response = await fetch(getApiUrl(`/area/${areaId}/isochrone/${time}`))
+        const response = await fetch(getApiUrl(`/area/${areaId}/isochrone/${timeInterval}`))
         
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`)
         }
         
         const geojson = await response.json()
-        return { time, success: true, data: geojson }
+        return { timeInterval, success: true, data: geojson }
       } catch (error) {
-        console.error(`Error fetching area isochrone for ${time} minutes:`, error)
-        return { time, success: false, data: null }
+        console.error(`Error fetching area isochrone for ${timeInterval} minutes:`, error)
+        return { timeInterval, success: false, data: null }
       }
     })
     
@@ -532,17 +597,17 @@ const loadAreaIsochrones = async (areaId: string) => {
       visibleAreaIsochrones.value.add(areaId)
       
       // Add isochrones to map - reverse order so largest renders first (bottom)
-      const sortedResults = successfulResults.sort((a, b) => b.time - a.time)
+      const sortedResults = successfulResults.sort((a, b) => b.timeInterval - a.timeInterval)
       sortedResults.forEach(result => {
         areaIsochroneGeoJson.value.push({
           geojson: result.data,
-          timeMinutes: result.time,
+          timeMinutes: result.timeInterval,
           color: baseColor,
           areaId: areaId
         })
       })
       
-      console.log(`✅ Loaded ${successfulResults.length} area isochrones for area ${areaId}`)
+      console.log(`✅ Loaded ${successfulResults.length} area isochrones for area ${areaId} (levels: ${successfulResults.map(r => r.timeInterval).join(', ')})`)
     } else {
       throw new Error('No isochrone data available')
     }
@@ -800,6 +865,36 @@ const closeWelcomePopup = () => {
   showWelcomePopup.value = false
 }
 
+// Proximity level toolbar functionality
+const toggleProximityToolbar = () => {
+  showProximityToolbar.value = !showProximityToolbar.value
+}
+
+const selectProximityLevel = (level: number) => {
+  debouncedProximityLevelUpdate(level)
+}
+
+const selectProximityLevelByIndex = (indexStr: string) => {
+  const index = parseInt(indexStr, 10)
+  if (index >= 0 && index < proximityLevelOptions.value.length) {
+    const level = proximityLevelOptions.value[index]
+    selectProximityLevel(level)
+  }
+}
+
+const refreshVisibleAreaIsochrones = () => {
+  // Get all currently visible area IDs
+  const visibleAreaIds = Array.from(visibleAreaIsochrones.value)
+  
+  // Clear current isochrones
+  areaIsochroneGeoJson.value = []
+  
+  // Reload isochrones for all visible areas with new level
+  visibleAreaIds.forEach(areaId => {
+    loadAreaIsochrones(areaId)
+  })
+}
+
 // Initialize on mount
 onMounted(async () => {
   console.log('🚀 Component mounted')
@@ -826,6 +921,14 @@ onMounted(async () => {
         mapRef.value.leafletObject.setView([lat, lng], 13)
       }
     }, 100)
+  }
+})
+
+// Cleanup debounce timer on unmount
+onUnmounted(() => {
+  if (proximityLevelDebounceTimer) {
+    clearTimeout(proximityLevelDebounceTimer)
+    proximityLevelDebounceTimer = null
   }
 })
 </script>
@@ -1016,6 +1119,140 @@ onMounted(async () => {
   align-items: center;
   justify-content: center;
   color: #6b7280;
+}
+
+.proximity-level-toolbar {
+  position: absolute;
+  top: 20px;
+  right: 80px;
+  z-index: 1000;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  border: 1px solid #e5e7eb;
+  min-width: 200px;
+}
+
+.proximity-level-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.proximity-level-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.proximity-level-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+  transition: all 0.2s ease;
+}
+
+.proximity-level-toggle:hover {
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+.proximity-level-toggle--active {
+  color: #8b5cf6;
+}
+
+.proximity-level-selector {
+  padding: 12px 16px;
+}
+
+.proximity-level-slider-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.proximity-level-slider-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 500;
+  margin-bottom: -4px;
+}
+
+.slider-label {
+  text-align: center;
+  min-width: 40px;
+}
+
+.proximity-level-slider {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: #e5e7eb;
+  outline: none;
+  appearance: none;
+  cursor: pointer;
+}
+
+.proximity-level-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #8b5cf6;
+  cursor: pointer;
+  border: 3px solid white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease;
+}
+
+.proximity-level-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+  background: #7c3aed;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.proximity-level-slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #8b5cf6;
+  cursor: pointer;
+  border: 3px solid white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease;
+}
+
+.proximity-level-slider::-moz-range-thumb:hover {
+  transform: scale(1.1);
+  background: #7c3aed;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.proximity-level-slider::-moz-range-track {
+  height: 6px;
+  border-radius: 3px;
+  background: #e5e7eb;
+  border: none;
+}
+
+.proximity-level-current {
+  text-align: center;
+  font-size: 13px;
+  color: #374151;
+  padding: 8px 12px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #e9ecef;
 }
 
 .location-btn:hover:not(:disabled) {
@@ -1460,6 +1697,45 @@ onMounted(async () => {
   
   .welcome-btn {
     min-width: auto;
+  }
+  
+  .proximity-level-toolbar {
+    right: 10px;
+    left: 10px;
+    right: auto;
+    width: auto;
+    min-width: auto;
+  }
+  
+  .proximity-level-header {
+    padding: 10px 12px;
+  }
+  
+  .proximity-level-title {
+    font-size: 13px;
+  }
+  
+  .proximity-level-selector {
+    padding: 10px 12px;
+  }
+  
+  .proximity-level-slider-labels {
+    font-size: 11px;
+  }
+  
+  .slider-label {
+    min-width: 30px;
+  }
+  
+  .proximity-level-current {
+    font-size: 12px;
+    padding: 6px 8px;
+  }
+  
+  .location-btn {
+    right: 10px;
+    width: 45px;
+    height: 45px;
   }
 }
 </style>

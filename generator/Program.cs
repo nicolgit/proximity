@@ -190,7 +190,7 @@ public class Program
                 }
                 return result.Tokens[0].Value;
             },
-            description: "Delete isochrone(s). Use without value to delete all, or specify duration (5, 10, 15, 20, 30) to delete specific isochrone")
+            description: "Delete isochrone(s). When used with area only: deletes all station isochrones in the area. When used with area and station: deletes isochrones for that specific station. Use without value to delete all durations, or specify duration (5, 10, 15, 20, 30) to delete specific isochrone")
         {
             ArgumentHelpName = "duration",
             Arity = ArgumentArity.ZeroOrOne
@@ -207,8 +207,17 @@ public class Program
             
             if (string.IsNullOrWhiteSpace(stationId))
             {
-                // No station ID provided - regenerate all stations in the area
-                await AreaManager.RegenerateAllStationIsochronesAsync(areaId, _logger, _configuration);
+                // No station ID provided
+                if (deleteValue != null)
+                {
+                    // Delete mode - delete all station isochrones in the area
+                    await AreaManager.DeleteAllStationIsochronesAsync(areaId, _logger, _configuration);
+                }
+                else
+                {
+                    // Regenerate mode - regenerate all stations in the area
+                    await AreaManager.RegenerateAllStationIsochronesAsync(areaId, _logger, _configuration);
+                }
             }
             else
             {
