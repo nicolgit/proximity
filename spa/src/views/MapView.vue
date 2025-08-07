@@ -320,7 +320,6 @@
             <div class="isochrone-popup">
               <h4>🚶‍♂️ {{ isochrone.timeMinutes }} minute walk (API)</h4>
               <p><strong>From:</strong> {{ selectedStationForIsochrone?.name }}</p>
-              <p><strong>Data source:</strong> Routing API</p>
             </div>
           </l-popup>
         </l-geo-json>
