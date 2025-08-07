@@ -262,7 +262,7 @@
                 
                 <!-- Proximity count info -->
                 <div v-if="visibleAreaIsochrones.has(area.id)" class="proximity-count">
-                  {{ areaIsochroneGeoJson.filter(iso => iso.areaId === area.id).length }} proximity zones shown (up to {{ selectedProximityLevel }}min)
+                  {{ filteredAreaIsochroneGeoJson.filter(iso => iso.areaId === area.id).length }} proximity zones shown (up to {{ selectedProximityLevel }}min)
                 </div>
                 
                 <!-- Error message -->
@@ -276,10 +276,10 @@
 
         <!-- Area Proximity Isochrone GeoJSON layers (rendered first, on the bottom) -->
         <l-geo-json
-          v-for="(isochrone, index) in areaIsochroneGeoJson"
+          v-for="(isochrone, index) in filteredAreaIsochroneGeoJson"
           :key="`area-isochrone-geojson-${index}`"
           :geojson="isochrone.geojson"
-          :options-style="getGeoJsonStyle(isochrone)"
+          :options-style="getGeoJsonStyle(isochrone, index)"
         >
           <l-popup>
             <div class="isochrone-popup">
@@ -291,15 +291,15 @@
 
         <!-- Station Isochrone circles (rendered on top of area isochrones) -->
         <l-circle
-          v-for="(circle, index) in isochroneCircles"
+          v-for="(circle, index) in filteredIsochroneCircles"
           :key="`isochrone-${index}`"
           :lat-lng="circle.center"
           :radius="circle.radius"
           :color="circle.color"
           :fill-color="circle.color"
           :fill-opacity="0.1"
-          :weight="circle.timeMinutes === selectedProximityLevel ? 2 : 0"
-          :opacity="circle.timeMinutes === selectedProximityLevel ? 0.6 : 0"
+          :weight="index === 0 ? 2 : 0"
+          :opacity="index === 0 ? 0.6 : 0.3"
         >
           <l-popup>
             <div class="isochrone-popup">
@@ -312,10 +312,10 @@
 
         <!-- Station API Isochrone GeoJSON layers (rendered on top of area isochrones) -->
         <l-geo-json
-          v-for="(isochrone, index) in isochroneGeoJson"
+          v-for="(isochrone, index) in filteredIsochroneGeoJson"
           :key="`isochrone-geojson-${index}`"
           :geojson="isochrone.geojson"
-          :options-style="getGeoJsonStyle(isochrone)"
+          :options-style="getGeoJsonStyle(isochrone, index)"
         >
           <l-popup>
             <div class="isochrone-popup">
@@ -332,8 +332,7 @@
           :key="station.id"
           :lat-lng="[station.latitude, station.longitude]"
           :icon="getStationIcon(station.type) as any"
-          @click="onStationClick(station, station.areaId)"
-        >
+          @click="onStationClick(station, station.areaId)">
           <l-popup>
             <div class="station-popup">
               <h4>
@@ -464,6 +463,7 @@ const debouncedProximityLevelUpdate = (level: number) => {
   proximityLevelDebounceTimer = setTimeout(() => {
     selectedProximityLevel.value = level
     refreshVisibleAreaIsochrones()
+    refreshStationIsochrones()
     proximityLevelDebounceTimer = null
   }, 300) // 300ms debounce delay
 }
@@ -495,6 +495,21 @@ const allVisibleStations = computed(() => {
   return stations
 })
 
+// Computed property for filtered isochrone circles based on proximity level
+const filteredIsochroneCircles = computed(() => {
+  return isochroneCircles.value.filter(circle => circle.timeMinutes <= selectedProximityLevel.value)
+})
+
+// Computed property for filtered isochrone GeoJSON based on proximity level
+const filteredIsochroneGeoJson = computed(() => {
+  return isochroneGeoJson.value.filter(isochrone => isochrone.timeMinutes <= selectedProximityLevel.value)
+})
+
+// Computed property for filtered area isochrone GeoJSON based on proximity level
+const filteredAreaIsochroneGeoJson = computed(() => {
+  return areaIsochroneGeoJson.value.filter(isochrone => isochrone.timeMinutes <= selectedProximityLevel.value)
+})
+
 // Station toggle functionality
 const toggleStationsForArea = async (areaId: string) => {
   if (visibleStations.value.has(areaId)) {
@@ -520,13 +535,13 @@ const openWikipediaLink = (url: string) => {
 }
 
 // Helper function to get GeoJSON style options
-const getGeoJsonStyle = (isochrone: any) => {
+const getGeoJsonStyle = (isochrone: any, index: number = 0) => {
   return () => ({
       color: isochrone.color,
       fillColor: isochrone.color,
       fillOpacity: 0.1,
-      weight: isochrone.timeMinutes === selectedProximityLevel.value ? 2 : 0,
-      opacity: isochrone.timeMinutes === selectedProximityLevel.value ? 0.6 : 0
+      weight: index === 0 ? 2 : 0,
+      opacity: index === 0 ? 0.6 : 0.3
   })
 }
 
@@ -636,7 +651,8 @@ const onStationClick = async (station: Station, areaId: string) => {
 
 // Function to load isochrones from API or fallback to calculated circles
 const loadIsochronesForStation = async (station: Station, areaId: string) => {
-  const timeIntervals = [5, 10, 15, 20, 30] // API time intervals
+  // Only load time intervals up to the selected proximity level
+  const timeIntervals = proximityLevelOptions.value.filter(level => level <= selectedProximityLevel.value)
   const baseColor = station.type === 'station' ? '#22c55e' : '#eab308' // green for metro, yellow for tram
   
   // Clear existing isochrones
@@ -710,7 +726,10 @@ const loadIsochronesForStation = async (station: Station, areaId: string) => {
 const generateIsochroneCircles = (station: Station) => {
   // Walking speeds: approximately 5 km/h = 83.33 m/min
   const walkingSpeedMPerMin = 83.33
-  const timeIntervals = [30, 20, 15, 10, 5] // minutes - reversed order so largest renders first (bottom)
+  // Only generate circles up to the selected proximity level - reversed order so largest renders first (bottom)
+  const timeIntervals = proximityLevelOptions.value
+    .filter(level => level <= selectedProximityLevel.value)
+    .sort((a, b) => b - a)
   
   // Determine color based on station type
   const baseColor = station.type === 'station' ? '#22c55e' : '#eab308' // green for metro, yellow for tram
@@ -893,6 +912,28 @@ const refreshVisibleAreaIsochrones = () => {
   visibleAreaIds.forEach(areaId => {
     loadAreaIsochrones(areaId)
   })
+}
+
+// Function to refresh station isochrones when proximity level changes
+const refreshStationIsochrones = async () => {
+  if (selectedStationForIsochrone.value) {
+    // Find the area ID for the selected station
+    let stationAreaId = null
+    for (const areaId of visibleStations.value) {
+      const areaStations = getStationsForArea(areaId)
+      if (areaStations.some(s => s.id === selectedStationForIsochrone.value?.id)) {
+        stationAreaId = areaId
+        break
+      }
+    }
+    
+    if (stationAreaId) {
+      await loadIsochronesForStation(selectedStationForIsochrone.value, stationAreaId)
+    } else {
+      // Fallback to calculated circles if area not found
+      generateIsochroneCircles(selectedStationForIsochrone.value)
+    }
+  }
 }
 
 // Initialize on mount
