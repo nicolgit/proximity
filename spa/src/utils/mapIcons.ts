@@ -73,28 +73,28 @@ export const searchLocationIconSvg = L.divIcon({
 export const stationIconSvg = L.divIcon({
     className: 'custom-marker station-marker-svg',
     html: `
-    <svg width="20" height="32" viewBox="0 0 20 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M10 0C4.477 0 0 4.477 0 10C0 17.5 10 32 10 32S20 17.5 20 10C20 4.477 15.523 0 10 0Z" fill="#DC2626"/>
-      <circle cx="10" cy="10" r="5" fill="white"/>
-      <rect x="7" y="7" width="6" height="6" rx="1" fill="#B91C1C"/>
+    <svg width="16" height="24" viewBox="0 0 16 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M8 0C3.582 0 0 3.582 0 8C0 14 8 24 8 24S16 14 16 8C16 3.582 12.418 0 8 0Z" fill="#DC2626"/>
+      <circle cx="8" cy="8" r="4" fill="white"/>
+      <rect x="5.5" y="5.5" width="5" height="5" rx="0.8" fill="#B91C1C"/>
     </svg>
   `,
-    iconSize: [20, 32],
-    iconAnchor: [10, 32],
-    popupAnchor: [0, -32]
+    iconSize: [16, 24],
+    iconAnchor: [8, 24],
+    popupAnchor: [0, -24]
 })
 
 // Tram stop icons
 export const tramStopIconSvg = L.divIcon({
     className: 'custom-marker tram-stop-marker-svg',
     html: `
-    <svg width="20" height="32" viewBox="0 0 20 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M10 0C4.477 0 0 4.477 0 10C0 17.5 10 32 10 32S20 17.5 20 10C20 4.477 15.523 0 10 0Z" fill="#F59E0B"/>
-      <circle cx="10" cy="10" r="5" fill="white"/>
-      <circle cx="10" cy="10" r="3" fill="#D97706"/>
+    <svg width="16" height="24" viewBox="0 0 16 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M8 0C3.582 0 0 3.582 0 8C0 14 8 24 8 24S16 14 16 8C16 3.582 12.418 0 8 0Z" fill="#F59E0B"/>
+      <circle cx="8" cy="8" r="4" fill="white"/>
+      <circle cx="8" cy="8" r="2.5" fill="#D97706"/>
     </svg>
   `,
-    iconSize: [20, 32],
-    iconAnchor: [10, 32],
-    popupAnchor: [0, -32]
+    iconSize: [16, 24],
+    iconAnchor: [8, 24],
+    popupAnchor: [0, -24]
 })
