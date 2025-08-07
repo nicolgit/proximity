@@ -1505,6 +1505,165 @@ out body;";
         }
     }
 
+    public static async Task RegenerateAllStationIsochronesAsync(string areaId, ILogger? logger, IConfiguration? configuration)
+    {
+        try
+        {
+            logger?.LogInformation("Regenerating all station isochrones for area: {AreaId}", areaId);
+            Console.WriteLine($"🔄 Regenerating all station isochrones for area: {areaId}");
+
+            // Get Azure Storage connection
+            var connectionString = configuration?.GetConnectionString("AzureStorage");
+            if (string.IsNullOrWhiteSpace(connectionString))
+            {
+                Console.WriteLine("❌ Azure Storage connection string not configured");
+                Environment.Exit(1);
+                return;
+            }
+
+            // Connect to Azure Table Storage and Blob Storage
+            var tableServiceClient = new TableServiceClient(connectionString);
+            var areaTableClient = tableServiceClient.GetTableClient("area");
+            var stationTableClient = tableServiceClient.GetTableClient("station");
+            var blobServiceClient = new BlobServiceClient(connectionString);
+            var containerClient = blobServiceClient.GetBlobContainerClient("isochrone");
+
+            logger?.LogInformation("Connected to Azure Storage services");
+
+            // Check if area exists
+            AreaEntity? area = null;
+            try
+            {
+                var areaResponse = await areaTableClient.GetEntityAsync<AreaEntity>("area", areaId.ToLowerInvariant());
+                area = areaResponse.Value;
+                logger?.LogInformation("Found area: {AreaName} ({DisplayName})", area.Name, area.DisplayName);
+                Console.WriteLine($"📍 Area: {area.DisplayName ?? area.Name}");
+            }
+            catch (Azure.RequestFailedException ex) when (ex.Status == 404)
+            {
+                Console.WriteLine($"❌ Area '{areaId}' not found");
+                Environment.Exit(1);
+                return;
+            }
+
+            // Query all stations for this area
+            var stations = new List<StationEntity>();
+            await foreach (var station in stationTableClient.QueryAsync<StationEntity>(
+                filter: $"PartitionKey eq '{areaId.ToLowerInvariant()}'"))
+            {
+                stations.Add(station);
+            }
+
+            if (!stations.Any())
+            {
+                Console.WriteLine($"❌ No stations found for area: {areaId}");
+                Environment.Exit(1);
+                return;
+            }
+
+            Console.WriteLine($"📊 Found {stations.Count} stations to process");
+            Console.WriteLine();
+
+            // Process each station
+            var successCount = 0;
+            var failedStations = new List<string>();
+            var currentStationIndex = 1;
+
+            foreach (var station in stations.OrderBy(s => s.Name))
+            {
+                try
+                {
+                    Console.WriteLine($"[{currentStationIndex}/{stations.Count}] 🚉 Processing station: {station.Name}");
+                    Console.WriteLine($"   Station ID: {station.RowKey}");
+                    Console.WriteLine($"   Location: {station.Latitude}, {station.Longitude}");
+                    Console.WriteLine($"   Type: {station.Railway}");
+
+                    // Delete existing isochrones for this station (all durations)
+                    Console.WriteLine($"   🗑️  Deleting existing isochrones...");
+                    await DeleteStationIsochroneAsync(areaId, station.RowKey, 0, containerClient, logger); // 0 means delete all
+
+                    // Generate new isochrones for this station
+                    Console.WriteLine($"   🔄 Generating new isochrones...");
+                    await GenerateAndSaveIsochroneAsync(areaId, station.RowKey, station.Name, station.Latitude, station.Longitude, station.Railway, logger, configuration);
+                    
+                    Console.WriteLine($"   ✅ Successfully regenerated isochrones for: {station.Name}");
+                    successCount++;
+                }
+                catch (Exception ex)
+                {
+                    logger?.LogError(ex, "Failed to regenerate isochrones for station: {StationId} ({StationName}) in area: {AreaId}", 
+                        station.RowKey, station.Name, areaId);
+                    Console.WriteLine($"   ❌ Failed to regenerate isochrones for: {station.Name} - {ex.Message}");
+                    failedStations.Add($"{station.Name} ({station.RowKey})");
+                }
+
+                Console.WriteLine(); // Add spacing between stations
+                currentStationIndex++;
+            }
+
+            // Generate area-wide isochrones after all station isochrones are regenerated
+            if (successCount > 0)
+            {
+                Console.WriteLine($"🌍 Generating area-wide isochrones...");
+                var durations = new[] { 5, 10, 15, 20, 30 };
+                
+                foreach (var duration in durations)
+                {
+                    try
+                    {
+                        await GenerateAreaIsochroneAsync(areaId, duration, logger, configuration);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger?.LogError(ex, "Failed to generate area-wide isochrone for duration: {Duration}min", duration);
+                        Console.WriteLine($"    ❌ Failed to generate {duration}min area-wide isochrone: {ex.Message}");
+                    }
+                }
+                Console.WriteLine($"✅ Area-wide isochrones generation completed");
+            }
+
+            // Summary
+            Console.WriteLine();
+            Console.WriteLine("=== REGENERATION SUMMARY ===");
+            Console.WriteLine($"Total stations processed: {stations.Count}");
+            Console.WriteLine($"Successfully regenerated: {successCount}");
+            Console.WriteLine($"Failed: {failedStations.Count}");
+
+            if (failedStations.Any())
+            {
+                Console.WriteLine($"Failed stations:");
+                foreach (var failedStation in failedStations)
+                {
+                    Console.WriteLine($"  - {failedStation}");
+                }
+            }
+
+            if (successCount == stations.Count)
+            {
+                logger?.LogInformation("Successfully regenerated isochrones for all {Count} stations in area: {AreaId}", successCount, areaId);
+                Console.WriteLine($"🎉 Successfully regenerated isochrones for all stations in area: {areaId}");
+            }
+            else if (successCount > 0)
+            {
+                logger?.LogWarning("Regenerated isochrones for {SuccessCount} out of {TotalCount} stations in area: {AreaId}", 
+                    successCount, stations.Count, areaId);
+                Console.WriteLine($"⚠️  Regenerated isochrones for {successCount} out of {stations.Count} stations in area: {areaId}");
+            }
+            else
+            {
+                logger?.LogError("Failed to regenerate isochrones for any stations in area: {AreaId}", areaId);
+                Console.WriteLine($"❌ Failed to regenerate isochrones for any stations in area: {areaId}");
+            }
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Failed to regenerate all station isochrones for area: {AreaId}", areaId);
+            Console.WriteLine($"❌ Failed to regenerate station isochrones for area: {areaId}");
+            Console.WriteLine($"   Error: {ex.Message}");
+            throw;
+        }
+    }
+
     public static async Task RecreateAreaIsochronesAsync(string areaName, ILogger? logger, IConfiguration? configuration)
     {
         try

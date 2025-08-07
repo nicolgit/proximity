@@ -23,6 +23,7 @@ dotnet run -- area list
 # Station Management  
 dotnet run -- station list rome
 dotnet run -- station list rome --filter Roma
+dotnet run -- station isochrone rome
 dotnet run -- station isochrone milan 21226369
 dotnet run -- station isochrone milan 21226369 --delete
 dotnet run -- station isochrone milan 21226369 --delete 10
