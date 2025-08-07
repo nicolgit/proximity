@@ -91,14 +91,14 @@
           <p v-else-if="areas.length > 0">
             Following areas are currently available: 
             <span v-for="(area, index) in areas" :key="area.id">
-              📍{{ area.name }}<span v-if="index < areas.length - 1">, </span>
+              📍<b>{{ area.name }}</b><span v-if="index < areas.length - 1">, </span>
             </span>
           </p>
           <p v-else>No areas available at the moment</p>
           
           <div class="welcome-actions">
-            <button @click="closeWelcomePopup()" class="welcome-btn welcome-btn--secondary">
-              not used yet! 😅
+            <button @click="openGitHubProject" class="welcome-btn welcome-btn--secondary">
+              📱 View on GitHub
             </button>
             <button @click="closeWelcomePopup" class="welcome-btn welcome-btn--primary">
               🗺️ start explore Map!
@@ -111,7 +111,7 @@
     <!-- Area Proximity Level Selector -->
     <div class="proximity-level-toolbar">
       <div class="proximity-level-header">
-        <span class="proximity-level-title">🏙️ Proximity Level</span>
+        <span class="proximity-level-title">🏙️ Levels</span>
         <button 
           @click="toggleProximityToolbar"
           class="proximity-level-toggle"
@@ -127,7 +127,7 @@
         <div class="proximity-level-slider-container">
           <div class="proximity-level-slider-labels">
             <span v-for="level in proximityLevelOptions" :key="level" class="slider-label">
-              {{ level }}min
+              {{ level }}m
             </span>
           </div>
           <input
@@ -139,7 +139,7 @@
             class="proximity-level-slider"
           />
           <div class="proximity-level-current">
-            Currently showing: <strong>{{ pendingProximityLevel }}min</strong> proximity zones
+             <strong>{{ pendingProximityLevel }}m</strong> proximity zones
           </div>
         </div>
       </div>
@@ -262,7 +262,7 @@
                 
                 <!-- Proximity count info -->
                 <div v-if="visibleAreaIsochrones.has(area.id)" class="proximity-count">
-                  {{ filteredAreaIsochroneGeoJson.filter(iso => iso.areaId === area.id).length }} proximity zones shown (up to {{ selectedProximityLevel }}min)
+                  {{ areaIsochronesWithBorderIndex.filter(iso => iso.areaId === area.id).length }} proximity zones shown (up to {{ selectedProximityLevel }}min)
                 </div>
                 
                 <!-- Error message -->
@@ -276,15 +276,14 @@
 
         <!-- Area Proximity Isochrone GeoJSON layers (rendered first, on the bottom) -->
         <l-geo-json
-          v-for="(isochrone, index) in filteredAreaIsochroneGeoJson"
-          :key="`area-isochrone-geojson-${index}`"
+          v-for="isochrone in areaIsochronesWithBorderIndex"
+          :key="`area-isochrone-geojson-${isochrone.areaId}-${isochrone.timeMinutes}`"
           :geojson="isochrone.geojson"
-          :options-style="getGeoJsonStyle(isochrone, index)"
+          :options-style="getGeoJsonStyle(isochrone, isochrone.borderIndex)"
         >
           <l-popup>
             <div class="isochrone-popup">
               <h4>🏙️ {{ isochrone.timeMinutes }} minute proximity</h4>
-              <p><strong>Data source:</strong> Area Proximity API</p>
             </div>
           </l-popup>
         </l-geo-json>
@@ -510,6 +509,34 @@ const filteredAreaIsochroneGeoJson = computed(() => {
   return areaIsochroneGeoJson.value.filter(isochrone => isochrone.timeMinutes <= selectedProximityLevel.value)
 })
 
+// Computed property for area isochrones with proper border indexing per area
+const areaIsochronesWithBorderIndex = computed(() => {
+  const filtered = filteredAreaIsochroneGeoJson.value
+  const groupedByArea: { [areaId: string]: typeof filtered } = {}
+  
+  // Group isochrones by area
+  filtered.forEach(isochrone => {
+    if (!groupedByArea[isochrone.areaId]) {
+      groupedByArea[isochrone.areaId] = []
+    }
+    groupedByArea[isochrone.areaId].push(isochrone)
+  })
+  
+  // Sort each area's isochrones by time (descending) and add border index
+  const result: Array<typeof filtered[0] & { borderIndex: number }> = []
+  Object.keys(groupedByArea).forEach(areaId => {
+    const areaIsochrones = groupedByArea[areaId].sort((a, b) => b.timeMinutes - a.timeMinutes)
+    areaIsochrones.forEach((isochrone, index) => {
+      result.push({
+        ...isochrone,
+        borderIndex: index // 0 for outermost (largest), 1+ for inner ones
+      })
+    })
+  })
+  
+  return result
+})
+
 // Station toggle functionality
 const toggleStationsForArea = async (areaId: string) => {
   if (visibleStations.value.has(areaId)) {
@@ -521,6 +548,11 @@ const toggleStationsForArea = async (areaId: string) => {
       await loadStations(areaId)
     }
     visibleStations.value.add(areaId)
+  }
+  
+  // Close popup after toggle action
+  if (mapRef.value?.leafletObject) {
+    mapRef.value.leafletObject.closePopup()
   }
 }
 
@@ -568,6 +600,11 @@ const toggleAreaIsochronesForArea = async (areaId: string) => {
   } else {
     // Show area isochrones - load them from API
     await loadAreaIsochrones(areaId)
+  }
+  
+  // Close popup after toggle action
+  if (mapRef.value?.leafletObject) {
+    mapRef.value.leafletObject.closePopup()
   }
 }
 
@@ -884,6 +921,10 @@ const closeWelcomePopup = () => {
   showWelcomePopup.value = false
 }
 
+const openGitHubProject = () => {
+  window.open('https://github.com/nicolgit/metro-proximity', '_blank')
+}
+
 // Proximity level toolbar functionality
 const toggleProximityToolbar = () => {
   showProximityToolbar.value = !showProximityToolbar.value
@@ -1164,8 +1205,9 @@ onUnmounted(() => {
 
 .proximity-level-toolbar {
   position: absolute;
-  top: 20px;
-  right: 80px;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 1000;
   background: white;
   border-radius: 8px;
@@ -1741,9 +1783,10 @@ onUnmounted(() => {
   }
   
   .proximity-level-toolbar {
-    right: 10px;
+    bottom: 10px;
     left: 10px;
-    right: auto;
+    right: 10px;
+    transform: none;
     width: auto;
     min-width: auto;
   }
