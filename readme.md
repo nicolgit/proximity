@@ -1,4 +1,4 @@
-# MetroProximity
+# The Proximity project
 
 MetroProximity è un progetto open source che mira a fornire una mappa interattiva delle aree urbane accessibili a piedi dalle stazioni della metropolitana di Roma. L'obiettivo principale è aiutare le persone a trovare zone in cui è possibile vivere senza la necessità di un'auto, promuovendo uno stile di vita più sostenibile e riducendo l'impatto ambientale.
 
