@@ -16,7 +16,7 @@
             'search-input--loading': isSearching,
             'search-input--has-results': searchResults.length > 0
           }"
-          placeholder="Cerca una località..."
+          placeholder="find a place..."
           autocomplete="off"
         />
         
@@ -283,7 +283,8 @@
         >
           <l-popup>
             <div class="isochrone-popup">
-              <h4>🏙️ {{ isochrone.timeMinutes }} minute proximity</h4>
+              <h4>🏙️ {{ isochrone.timeMinutes }} minutes away</h4>
+              from public transport (train/metro/tram)
             </div>
           </l-popup>
         </l-geo-json>
@@ -302,7 +303,7 @@
         >
           <l-popup>
             <div class="isochrone-popup">
-              <h4>🚶‍♂️ {{ circle.timeMinutes }} minute walk</h4>
+              <h4>🚶‍♂️ {{ circle.timeMinutes }} minutes walk</h4>
               <p><strong>Distance:</strong> ~{{ Math.round(circle.radius) }}m radius</p>
               <p><strong>From:</strong> {{ selectedStationForIsochrone?.name }}</p>
             </div>
@@ -318,7 +319,7 @@
         >
           <l-popup>
             <div class="isochrone-popup">
-              <h4>🚶‍♂️ {{ isochrone.timeMinutes }} minute walk (API)</h4>
+              <h4>🚶‍♂️ {{ isochrone.timeMinutes }} minutes walk</h4>
               <p><strong>From:</strong> {{ selectedStationForIsochrone?.name }}</p>
             </div>
           </l-popup>
@@ -345,8 +346,8 @@
                 </span>
                 <span v-else class="station-name">{{ station.name }}</span>
               </h4>
-              <p><strong>Type:</strong> {{ station.type === 'station' ? 'Metro Station' : 'Tram Stop' }}</p>
-              <p><strong>Location:</strong> {{ station.latitude.toFixed(4) }}, {{ station.longitude.toFixed(4) }}</p>
+              <p>type: <strong>{{ station.type === 'station' ? 'Train/Metro Station' : 'Tram Stop' }}</strong></p>
+              <p>coords: <strong>{{ station.latitude.toFixed(4) }}, {{ station.longitude.toFixed(4) }}</strong> </p>
               <div class="station-actions">
                 <button 
                   @click="onStationClick(station, station.areaId)"
@@ -384,7 +385,7 @@ const selectedLocationName = ref('')
 
 // Map configuration
 const tileLayerUrl = 'https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png'
-const attribution = '© <a href="https://stadiamaps.com/">Stadia Maps</a>, © <a href="https://openmaptiles.org/">OpenMapTiles</a> © <a href="http://openstreetmap.org">OpenStreetMap</a> contributors'
+const attribution = '© <a href="http://github.com/nicolgit">Nicola Delfino</a>, © <a href="https://stadiamaps.com/">Stadia Maps</a>, © <a href="https://openmaptiles.org/">OpenMapTiles</a> © <a href="http://openstreetmap.org">OpenStreetMap</a>'
 
 // Use composables
 const {
