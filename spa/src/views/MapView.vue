@@ -220,56 +220,22 @@
               <h3>📍 {{ area.name }}</h3>
               <p><strong>Location:</strong> {{ area.latitude.toFixed(4) }}, {{ area.longitude.toFixed(4) }}</p>
               <p><strong>Coverage:</strong> {{ area.diameter }}m diameter</p>
-              
-              <!-- Toggle Metro Stations Button -->
-              <div class="station-toggle-section">
-                <button 
-                  @click="toggleStationsForArea(area.id)"
-                  class="station-toggle-btn"
-                  :class="{ 'station-toggle-btn--active': visibleStations.has(area.id) }"
-                  :disabled="isLoadingForArea(area.id)"
-                >
-                  <div v-if="isLoadingForArea(area.id)" class="loading-spinner-small"></div>
-                  <span v-else>
-                    {{ visibleStations.has(area.id) ? '🚇 Hide Metro Stations' : '🚇 Show Metro Stations' }}
-                  </span>
-                </button>
-                
-                <!-- Station count info -->
-                <div v-if="visibleStations.has(area.id)" class="station-count">
-                  {{ getStationsForArea(area.id).length }} stations found
-                </div>
-                
-                <!-- Error message -->
-                <div v-if="getErrorForArea(area.id)" class="station-error">
-                  Error: {{ getErrorForArea(area.id) }}
-                </div>
-              </div>
 
-              <!-- Toggle Proximity Data Button -->
-              <div class="proximity-toggle-section">
-                <button 
-                  @click="toggleAreaIsochronesForArea(area.id)"
-                  class="proximity-toggle-btn"
-                  :class="{ 'proximity-toggle-btn--active': visibleAreaIsochrones.has(area.id) }"
-                  :disabled="isLoadingAreaIsochroneForArea(area.id)"
-                >
-                  <div v-if="isLoadingAreaIsochroneForArea(area.id)" class="loading-spinner-small"></div>
-                  <span v-else>
-                    {{ visibleAreaIsochrones.has(area.id) ? '🏙️ Hide Proximity Data' : '🏙️ Show Proximity Data' }}
-                  </span>
-                </button>
-                
-                <!-- Proximity count info -->
-                <div v-if="visibleAreaIsochrones.has(area.id)" class="proximity-count">
-                  {{ areaIsochronesWithBorderIndex.filter(iso => iso.areaId === area.id).length }} proximity zones shown (up to {{ selectedProximityLevel }}min)
-                </div>
-                
-                <!-- Error message -->
-                <div v-if="getAreaIsochroneErrorForArea(area.id)" class="proximity-error">
-                  Error: {{ getAreaIsochroneErrorForArea(area.id) }}
-                </div>
-              </div>
+              <!-- Use reusable AreaControls component -->
+              <AreaControls
+                :area-id="area.id"
+                :station-visible="visibleStations.has(area.id)"
+                :is-loading-stations="isLoadingForArea(area.id)"
+                :station-count="getStationsForArea(area.id).length"
+                :station-error="getErrorForArea(area.id) ?? undefined"
+                :proximity-visible="visibleAreaIsochrones.has(area.id)"
+                :is-loading-proximity="isLoadingAreaIsochroneForArea(area.id)"
+                :proximity-count="areaIsochronesWithBorderIndex.filter(iso => iso.areaId === area.id).length"
+                :proximity-error="getAreaIsochroneErrorForArea(area.id) ?? undefined"
+                :selected-proximity-level="selectedProximityLevel"
+                @toggle-stations="() => toggleStationsForArea(area.id)"
+                @toggle-proximity="() => toggleAreaIsochronesForArea(area.id)"
+              />
             </div>
           </l-popup>
         </l-circle>
@@ -285,6 +251,22 @@
             <div class="isochrone-popup">
               <h4>🏙️ {{ isochrone.timeMinutes }} minutes away</h4>
               from public transport (train/metro/tram)
+
+              <!-- Area controls reused here -->
+              <AreaControls
+                :area-id="isochrone.areaId"
+                :station-visible="visibleStations.has(isochrone.areaId)"
+                :is-loading-stations="isLoadingForArea(isochrone.areaId)"
+                :station-count="getStationsForArea(isochrone.areaId).length"
+                :station-error="getErrorForArea(isochrone.areaId) ?? undefined"
+                :proximity-visible="visibleAreaIsochrones.has(isochrone.areaId)"
+                :is-loading-proximity="isLoadingAreaIsochroneForArea(isochrone.areaId)"
+                :proximity-count="areaIsochronesWithBorderIndex.filter(iso => iso.areaId === isochrone.areaId).length"
+                :proximity-error="getAreaIsochroneErrorForArea(isochrone.areaId) ?? undefined"
+                :selected-proximity-level="selectedProximityLevel"
+                @toggle-stations="() => toggleStationsForArea(isochrone.areaId)"
+                @toggle-proximity="() => toggleAreaIsochronesForArea(isochrone.areaId)"
+              />
             </div>
           </l-popup>
         </l-geo-json>
@@ -357,6 +339,22 @@
                   🚶‍♂️ {{ selectedStationForIsochrone?.id === station.id ? 'Hide' : 'Show' }} Walking Distances
                 </button>
               </div>
+
+              <!-- Reuse AreaControls for the station's area -->
+              <AreaControls
+                :area-id="station.areaId"
+                :station-visible="visibleStations.has(station.areaId)"
+                :is-loading-stations="isLoadingForArea(station.areaId)"
+                :station-count="getStationsForArea(station.areaId).length"
+                :station-error="getErrorForArea(station.areaId) ?? undefined"
+                :proximity-visible="visibleAreaIsochrones.has(station.areaId)"
+                :is-loading-proximity="isLoadingAreaIsochroneForArea(station.areaId)"
+                :proximity-count="areaIsochronesWithBorderIndex.filter(iso => iso.areaId === station.areaId).length"
+                :proximity-error="getAreaIsochroneErrorForArea(station.areaId) ?? undefined"
+                :selected-proximity-level="selectedProximityLevel"
+                @toggle-stations="() => toggleStationsForArea(station.areaId)"
+                @toggle-proximity="() => toggleAreaIsochronesForArea(station.areaId)"
+              />
             </div>
           </l-popup>
         </l-marker>
@@ -375,6 +373,7 @@ import { searchLocationIconSvg, userLocationIconSvg, stationIconSvg, tramStopIco
 import { getApiUrl } from '@/config/env'
 import { LCircle, LMap, LMarker, LPopup, LTileLayer, LGeoJson } from '@vue-leaflet/vue-leaflet'
 import { onMounted, ref, computed, onUnmounted } from 'vue'
+import AreaControls from '@/components/AreaControls.vue'
 
 // Map setup
 const mapRef = ref<InstanceType<typeof LMap> | null>(null)
@@ -1398,7 +1397,8 @@ onUnmounted(() => {
 }
 
 .station-toggle-btn {
-  background: #007bff;
+  /* grey when stations are not shown */
+  background: #6f7583; /* gray-500 */
   color: white;
   border: none;
   border-radius: 6px;
@@ -1413,16 +1413,17 @@ onUnmounted(() => {
 }
 
 .station-toggle-btn:hover:not(:disabled) {
-  background: #0056b3;
+  background: #4b5563; /* darker gray on hover */
   transform: translateY(-1px);
 }
 
 .station-toggle-btn--active {
-  background: #28a745;
+  /* green when stations are shown */
+  background: #22C55E; /* success green */
 }
 
 .station-toggle-btn--active:hover:not(:disabled) {
-  background: #1e7e34;
+  background: #16a34a; /* darker green */
 }
 
 .station-toggle-btn:disabled {
@@ -1465,7 +1466,8 @@ onUnmounted(() => {
 }
 
 .proximity-toggle-btn {
-  background: #8b5cf6;
+  /* grey when proximity is not shown */
+  background: #6f7583; /* gray-500 */
   color: white;
   border: none;
   border-radius: 6px;
@@ -1480,16 +1482,17 @@ onUnmounted(() => {
 }
 
 .proximity-toggle-btn:hover:not(:disabled) {
-  background: #7c3aed;
+  background: #4b5563; /* darker gray on hover */
   transform: translateY(-1px);
 }
 
 .proximity-toggle-btn--active {
-  background: #a855f7;
+  /* purple when proximity is shown */
+  background: #8b5cf6; /* current purple */
 }
 
 .proximity-toggle-btn--active:hover:not(:disabled) {
-  background: #9333ea;
+  background: #7c3aed; /* darker purple */
 }
 
 .proximity-toggle-btn:disabled {
@@ -1821,5 +1824,37 @@ onUnmounted(() => {
     width: 45px;
     height: 45px;
   }
+}
+
+/* Area Controls Layout */
+.area-controls {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.controls-row--buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.controls-row--buttons .station-toggle-btn,
+.controls-row--buttons .proximity-toggle-btn {
+  flex: 1 1 auto;
+  min-width: 120px;
+}
+
+.controls-row--station-info,
+.controls-row--proximity-info {
+  font-size: 13px;
+  color: #666;
+}
+
+/* ensure errors keep their styling */
+.controls-row--station-info .station-error,
+.controls-row--proximity-info .proximity-error {
+  margin: 0;
 }
 </style>
