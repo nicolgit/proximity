@@ -6,6 +6,7 @@ This file contains the commands to generate production and test data for metro-p
 dotnet run -- area create naples --center 40.8585186,14.2543934 --diameter 20000 --displayname "Napoli" 
 dotnet run -- area create rome --center 41.8902142,12.489656 --diameter 45000 --displayname "Roma" 
 dotnet run -- area create milan --center 45.4627338,9.1777322 --diameter 15000 --displayname "Milano" 
+dotnet run -- area create turin --center 45.0694185,7.661424 --diameter 12000 --displayname "Torino"
 ```
 
 # test
