@@ -219,11 +219,23 @@
           :key="`area-isochrone-geojson-${isochrone.areaId}-${isochrone.timeMinutes}`"
           :geojson="isochrone.geojson"
           :options-style="getGeoJsonStyle(isochrone, isochrone.borderIndex)"
+          @click="onIsochroneClick"
         >
           <l-popup>
             <div class="isochrone-popup" @click="closeAreaPopupOnOutsideClick($event)">
               <h4>🏙️ {{ isochrone.timeMinutes }} minutes away</h4>
               from public transport (train/metro/tram)
+              
+              <!-- Reverse geocoding info for clicked location -->
+              <div v-if="isochroneClickLocation" class="reverse-geocoding-info">
+                <hr style="margin: 10px 0; border: none; border-top: 1px solid #eee;">
+                <div class="location-address">
+                  <strong>📍 Address:</strong>
+                  <div v-if="isLoadingIsochroneAddress" class="address-loading">Loading address...</div>
+                  <div v-else-if="isochroneClickAddress" class="address-text">{{ isochroneClickAddress }}</div>
+                  <div v-else class="address-error">Address not found</div>
+                </div>
+              </div>
 
               <!-- Area controls reused here -->
               <AreaControls
@@ -255,12 +267,24 @@
           :fill-opacity="0.1"
           :weight="index === 0 ? 2 : 0"
           :opacity="index === 0 ? 0.6 : 0.3"
+          @click="onCircleClick"
         >
           <l-popup>
             <div class="isochrone-popup" @click="closeAreaPopupOnOutsideClick($event)">
               <h4>🚶‍♂️ {{ circle.timeMinutes }} minutes walk</h4>
               <p><strong>Distance:</strong> ~{{ Math.round(circle.radius) }}m radius</p>
               <p><strong>From:</strong> {{ selectedStationForIsochrone?.name }}</p>
+              
+              <!-- Reverse geocoding info for clicked location on circle -->
+              <div v-if="circleClickLocation" class="reverse-geocoding-info">
+                <hr style="margin: 10px 0; border: none; border-top: 1px solid #eee;">
+                <div class="location-address">
+                  <strong>📍 Address:</strong>
+                  <div v-if="isLoadingCircleAddress" class="address-loading">Loading address...</div>
+                  <div v-else-if="circleClickAddress" class="address-text">{{ circleClickAddress }}</div>
+                  <div v-else class="address-error">Address not found</div>
+                </div>
+              </div>
             </div>
           </l-popup>
         </l-circle>
@@ -271,11 +295,23 @@
           :key="`isochrone-geojson-${index}`"
           :geojson="isochrone.geojson"
           :options-style="getGeoJsonStyle(isochrone, index)"
+          @click="onStationIsochroneClick"
         >
           <l-popup>
             <div class="isochrone-popup" @click="closeAreaPopupOnOutsideClick($event)">
               <h4>🚶‍♂️ {{ isochrone.timeMinutes }} minutes walk</h4>
               <p><strong>From:</strong> {{ selectedStationForIsochrone?.name }}</p>
+              
+              <!-- Reverse geocoding info for clicked location on station isochrone -->
+              <div v-if="stationIsochroneClickLocation" class="reverse-geocoding-info">
+                <hr style="margin: 10px 0; border: none; border-top: 1px solid #eee;">
+                <div class="location-address">
+                  <strong>📍 Address:</strong>
+                  <div v-if="isLoadingStationIsochroneAddress" class="address-loading">Loading address...</div>
+                  <div v-else-if="stationIsochroneClickAddress" class="address-text">{{ stationIsochroneClickAddress }}</div>
+                  <div v-else class="address-error">Address not found</div>
+                </div>
+              </div>
             </div>
           </l-popup>
         </l-geo-json>
@@ -341,6 +377,7 @@ import { useAreas } from '@/composables/useAreas'
 import { useGeolocation } from '@/composables/useGeolocation'
 import { useLocationSearch } from '@/composables/useLocationSearch'
 import { useStations } from '@/composables/useStations'
+import { LocationSearchService } from '@/services/LocationSearchService'
 import type { SearchResult, Station } from '@/types'
 import { searchLocationIconSvg, userLocationIconSvg, stationIconSvg, tramStopIconSvg } from '@/utils/mapIcons'
 import { getApiUrl } from '@/config/env'
@@ -355,6 +392,21 @@ const zoom = ref(13)
 const initialCenter = ref<[number, number]>([41.9028, 12.4964]) // Default to Rome
 const selectedLocation = ref<[number, number] | null>(null)
 const selectedLocationName = ref('')
+
+// Isochrone click state for reverse geocoding
+const isochroneClickLocation = ref<[number, number] | null>(null)
+const isochroneClickAddress = ref('')
+const isLoadingIsochroneAddress = ref(false)
+
+// Circle click state for reverse geocoding
+const circleClickLocation = ref<[number, number] | null>(null)
+const circleClickAddress = ref('')
+const isLoadingCircleAddress = ref(false)
+
+// Station isochrone click state for reverse geocoding
+const stationIsochroneClickLocation = ref<[number, number] | null>(null)
+const stationIsochroneClickAddress = ref('')
+const isLoadingStationIsochroneAddress = ref(false)
 
 // Map configuration
 const tileLayerUrl = 'https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png'
@@ -808,6 +860,78 @@ const onSearchKeydown = (event: KeyboardEvent) => {
 // Map event handlers
 const onMapReady = () => {
   console.log('🗺️ Map is ready!', mapRef.value?.leafletObject)
+}
+
+const onIsochroneClick = async (event: any) => {
+  const { lat, lng } = event.latlng
+  
+  // Set isochrone click location
+  isochroneClickLocation.value = [lat, lng]
+  isochroneClickAddress.value = ''
+  isLoadingIsochroneAddress.value = true
+  
+  try {
+    // Perform reverse geocoding
+    const result = await LocationSearchService.reverseGeocode(lat, lng)
+    if (result && result.display_name) {
+      isochroneClickAddress.value = result.display_name
+    } else {
+      isochroneClickAddress.value = 'Address not found'
+    }
+  } catch (error) {
+    console.error('Error performing reverse geocoding on isochrone:', error)
+    isochroneClickAddress.value = 'Failed to load address'
+  } finally {
+    isLoadingIsochroneAddress.value = false
+  }
+}
+
+const onCircleClick = async (event: any) => {
+  const { lat, lng } = event.latlng
+  
+  // Set circle click location
+  circleClickLocation.value = [lat, lng]
+  circleClickAddress.value = ''
+  isLoadingCircleAddress.value = true
+  
+  try {
+    // Perform reverse geocoding
+    const result = await LocationSearchService.reverseGeocode(lat, lng)
+    if (result && result.display_name) {
+      circleClickAddress.value = result.display_name
+    } else {
+      circleClickAddress.value = 'Address not found'
+    }
+  } catch (error) {
+    console.error('Error performing reverse geocoding on circle:', error)
+    circleClickAddress.value = 'Failed to load address'
+  } finally {
+    isLoadingCircleAddress.value = false
+  }
+}
+
+const onStationIsochroneClick = async (event: any) => {
+  const { lat, lng } = event.latlng
+  
+  // Set station isochrone click location
+  stationIsochroneClickLocation.value = [lat, lng]
+  stationIsochroneClickAddress.value = ''
+  isLoadingStationIsochroneAddress.value = true
+  
+  try {
+    // Perform reverse geocoding
+    const result = await LocationSearchService.reverseGeocode(lat, lng)
+    if (result && result.display_name) {
+      stationIsochroneClickAddress.value = result.display_name
+    } else {
+      stationIsochroneClickAddress.value = 'Address not found'
+    }
+  } catch (error) {
+    console.error('Error performing reverse geocoding on station isochrone:', error)
+    stationIsochroneClickAddress.value = 'Failed to load address'
+  } finally {
+    isLoadingStationIsochroneAddress.value = false
+  }
 }
 
 // Location selection
@@ -1549,6 +1673,42 @@ onUnmounted(() => {
 
 .isochrone-popup strong {
   color: #333;
+}
+
+/* Reverse Geocoding Info Styles */
+.reverse-geocoding-info {
+  margin-top: 10px;
+}
+
+.location-address {
+  font-size: 12px;
+}
+
+.location-address strong {
+  color: #333;
+  font-size: 12px;
+}
+
+.address-loading {
+  color: #6b7280;
+  font-style: italic;
+  margin-top: 4px;
+  font-size: 11px;
+}
+
+.address-text {
+  color: #374151;
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 1.3;
+  word-wrap: break-word;
+}
+
+.address-error {
+  color: #dc3545;
+  font-style: italic;
+  margin-top: 4px;
+  font-size: 11px;
 }
 
 /* Welcome Popup Styles */
