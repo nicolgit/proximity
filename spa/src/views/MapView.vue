@@ -386,6 +386,15 @@ import { onMounted, ref, computed, onUnmounted } from 'vue'
 import AreaControls from '@/components/AreaControls.vue'
 import WelcomePopup from '@/components/WelcomePopup.vue'
 
+// Props
+interface Props {
+  areaId?: string
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  areaId: undefined
+})
+
 // Map setup
 const mapRef = ref<InstanceType<typeof LMap> | null>(null)
 const zoom = ref(13)
@@ -1083,7 +1092,37 @@ onMounted(async () => {
   // Load areas first
   await loadAreas()
   
-  // Try to get user's current location
+  // Check if we need to center on a specific area
+  if (props.areaId && areas.value.length > 0) {
+    const targetArea = areas.value.find(area => area.id === props.areaId)
+    
+    if (targetArea) {
+      console.log(`🎯 Centering map on area: ${targetArea.name} (${props.areaId})`)
+      
+      // Set initial center to the area coordinates
+      initialCenter.value = [targetArea.latitude, targetArea.longitude]
+      
+      // Calculate zoom level to show the entire area circle
+      // The diameter is in kilometers, we need to convert to appropriate zoom
+      // Zoom calculation: larger diameter needs lower zoom (more zoomed out)
+      const diameterKm = targetArea.diameter
+      const zoomLevel = Math.max(8, Math.min(16, 16 - Math.log2(diameterKm / 5)))
+      
+      // Wait a bit for the map to be ready, then set view
+      setTimeout(() => {
+        if (mapRef.value?.leafletObject) {
+          console.log(`🗺️ Setting area map view: ${targetArea.latitude}, ${targetArea.longitude}, zoom: ${zoomLevel}`)
+          mapRef.value.leafletObject.setView([targetArea.latitude, targetArea.longitude], zoomLevel)
+        }
+      }, 100)
+      
+      return // Skip location-based centering when area is specified
+    } else {
+      console.warn(`⚠️ Area with ID "${props.areaId}" not found`)
+    }
+  }
+  
+  // Try to get user's current location (fallback behavior)
   await getLocation()
   
   console.log('📍 Initial location check:', currentLocation.value)
@@ -1091,14 +1130,14 @@ onMounted(async () => {
   if (currentLocation.value) {
     const lat = currentLocation.value.lat
     const lng = currentLocation.value.lng
-    console.log(`🎯 Setting initial center to: ${lat}, ${lng}`)
+    console.log(`🎯 Setting initial center to user location: ${lat}, ${lng}`)
     
     initialCenter.value = [lat, lng]
     
     // Wait a bit for the map to be ready, then set view
     setTimeout(() => {
       if (mapRef.value?.leafletObject) {
-        console.log('🗺️ Setting initial map view')
+        console.log('🗺️ Setting initial map view to user location')
         mapRef.value.leafletObject.setView([lat, lng], 13)
       }
     }, 100)

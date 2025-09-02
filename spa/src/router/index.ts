@@ -8,6 +8,12 @@ const router = createRouter({
             path: '/',
             name: 'map',
             component: MapView
+        },
+        {
+            path: '/:areaId',
+            name: 'map-area',
+            component: MapView,
+            props: true
         }
     ]
 })
