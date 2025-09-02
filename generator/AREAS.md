@@ -7,6 +7,7 @@ dotnet run -- area create naples --center 40.8585186,14.2543934 --diameter 20000
 dotnet run -- area create rome --center 41.8902142,12.489656 --diameter 45000 --displayname "Roma" 
 dotnet run -- area create milan --center 45.4627338,9.1777322 --diameter 15000 --displayname "Milano" 
 dotnet run -- area create turin --center 45.0694185,7.661424 --diameter 15000 --displayname "Torino"
+dotnet run -- area create florence --center 43.7800525,11.1585676 --diameter 12000 --displayname "Firenze" --noisocrone
 ```
 
 # test
