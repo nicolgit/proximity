@@ -216,7 +216,7 @@
           :dash-array="'5, 5'"
         >
           <l-popup>
-            <div class="area-popup">
+            <div class="area-popup" @click="closeAreaPopupOnOutsideClick($event)">
               <h3>📍 {{ area.name }}</h3>
               <p><strong>Location:</strong> {{ area.latitude.toFixed(4) }}, {{ area.longitude.toFixed(4) }}</p>
               <p><strong>Coverage:</strong> {{ area.diameter }}m diameter</p>
@@ -248,7 +248,7 @@
           :options-style="getGeoJsonStyle(isochrone, isochrone.borderIndex)"
         >
           <l-popup>
-            <div class="isochrone-popup">
+            <div class="isochrone-popup" @click="closeAreaPopupOnOutsideClick($event)">
               <h4>🏙️ {{ isochrone.timeMinutes }} minutes away</h4>
               from public transport (train/metro/tram)
 
@@ -284,7 +284,7 @@
           :opacity="index === 0 ? 0.6 : 0.3"
         >
           <l-popup>
-            <div class="isochrone-popup">
+            <div class="isochrone-popup" @click="closeAreaPopupOnOutsideClick($event)">
               <h4>🚶‍♂️ {{ circle.timeMinutes }} minutes walk</h4>
               <p><strong>Distance:</strong> ~{{ Math.round(circle.radius) }}m radius</p>
               <p><strong>From:</strong> {{ selectedStationForIsochrone?.name }}</p>
@@ -300,7 +300,7 @@
           :options-style="getGeoJsonStyle(isochrone, index)"
         >
           <l-popup>
-            <div class="isochrone-popup">
+            <div class="isochrone-popup" @click="closeAreaPopupOnOutsideClick($event)">
               <h4>🚶‍♂️ {{ isochrone.timeMinutes }} minutes walk</h4>
               <p><strong>From:</strong> {{ selectedStationForIsochrone?.name }}</p>
             </div>
@@ -315,7 +315,7 @@
           :icon="getStationIcon(station.type) as any"
           @click="onStationClick(station, station.areaId)">
           <l-popup>
-            <div class="station-popup">
+            <div class="station-popup" @click="closeAreaPopupOnOutsideClick($event)">
               <h4>
                 <span v-if="station.type === 'station'">🚇</span>
                 <span v-else>🚊</span>
@@ -922,6 +922,18 @@ const closeWelcomePopup = () => {
 
 const openGitHubProject = () => {
   window.open('https://github.com/nicolgit/metro-proximity', '_blank')
+}
+
+// Area popup functionality
+const closeAreaPopupOnOutsideClick = (event: Event) => {
+  // Check if the click target is not inside an interactive element (button, input, etc.)
+  const target = event.target as HTMLElement
+  if (target && !target.closest('button') && !target.closest('input') && !target.closest('select') && !target.closest('a')) {
+    // Close the popup
+    if (mapRef.value?.leafletObject) {
+      mapRef.value.leafletObject.closePopup()
+    }
+  }
 }
 
 // Proximity level toolbar functionality
