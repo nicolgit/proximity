@@ -333,8 +333,8 @@
               <div class="station-actions">
                 <button 
                   @click="onStationClick(station, station.areaId)"
-                  class="isochrone-btn"
-                  :class="{ 'isochrone-btn--active': selectedStationForIsochrone?.id === station.id }"
+                  class="btn"
+                  :class="{ 'btn--active': selectedStationForIsochrone?.id === station.id }"
                 >
                   🚶‍♂️ {{ selectedStationForIsochrone?.id === station.id ? 'Hide' : 'Show' }} Walking Distances
                 </button>
@@ -548,11 +548,6 @@ const toggleStationsForArea = async (areaId: string) => {
     }
     visibleStations.value.add(areaId)
   }
-  
-  // Close popup after toggle action
-  if (mapRef.value?.leafletObject) {
-    mapRef.value.leafletObject.closePopup()
-  }
 }
 
 // Helper function to get icon for station type
@@ -599,11 +594,6 @@ const toggleAreaIsochronesForArea = async (areaId: string) => {
   } else {
     // Show area isochrones - load them from API
     await loadAreaIsochrones(areaId)
-  }
-  
-  // Close popup after toggle action
-  if (mapRef.value?.leafletObject) {
-    mapRef.value.leafletObject.closePopup()
   }
 }
 
@@ -1444,15 +1434,6 @@ onUnmounted(() => {
   transform: none;
 }
 
-.loading-spinner-small {
-  width: 12px;
-  height: 12px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top: 2px solid white;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
 .station-count {
   margin-top: 6px;
   font-size: 12px;
@@ -1573,30 +1554,6 @@ onUnmounted(() => {
   margin-top: 12px;
   padding-top: 8px;
   border-top: 1px solid #eee;
-}
-
-.isochrone-btn {
-  background: #007bff;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  padding: 6px 10px;
-  font-size: 12px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  width: 100%;
-}
-
-.isochrone-btn:hover {
-  background: #0056b3;
-}
-
-.isochrone-btn--active {
-  background: #dc3545;
-}
-
-.isochrone-btn--active:hover {
-  background: #c82333;
 }
 
 /* Isochrone Popup Styles */

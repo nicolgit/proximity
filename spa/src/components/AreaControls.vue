@@ -3,25 +3,25 @@
     <div class="controls-row controls-row--buttons">
       <button
         @click="emitToggleStations"
-        class="station-toggle-btn"
-        :class="{ 'station-toggle-btn--active': stationVisible }"
+        class="btn"
+        :class="{ 'btn--active': stationVisible }"
         :disabled="isLoadingStations"
       >
         <div v-if="isLoadingStations" class="loading-spinner-small"></div>
         <span v-else>
-          {{ stationVisible ? '🚇 Hide Stations' : '🚇 Show Stations' }}
+          {{ stationVisible ? '🚇 Hide Stations' : '🚇&nbsp;Show&nbsp;Stations' }}
         </span>
       </button>
 
       <button
         @click="emitToggleProximity"
-        class="proximity-toggle-btn"
-        :class="{ 'proximity-toggle-btn--active': proximityVisible }"
+        class="btn"
+        :class="{ 'btn--active': proximityVisible }"
         :disabled="isLoadingProximity"
       >
         <div v-if="isLoadingProximity" class="loading-spinner-small"></div>
         <span v-else>
-          {{ proximityVisible ? '🏙️ Hide Proximity' : '🏙️ Show Proximity' }}
+          {{ proximityVisible ? '🏙️ Hide Proximity' : '🏙️&nbsp;Show&nbsp;Proximity' }}
         </span>
       </button>
     </div>
@@ -79,8 +79,7 @@ function emitToggleProximity() {
   align-items: center;
 }
 
-.controls-row--buttons .station-toggle-btn,
-.controls-row--buttons .proximity-toggle-btn {
+.controls-row--buttons .btn {
   flex: 1 1 auto;
   min-width: 120px;
 }
