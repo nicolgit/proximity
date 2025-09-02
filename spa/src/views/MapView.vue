@@ -1105,8 +1105,9 @@ onMounted(async () => {
       // Calculate zoom level to show the entire area circle
       // The diameter is in kilometers, we need to convert to appropriate zoom
       // Zoom calculation: larger diameter needs lower zoom (more zoomed out)
-      const diameterKm = targetArea.diameter
-      const zoomLevel = Math.max(8, Math.min(16, 16 - Math.log2(diameterKm / 5)))
+      const diameterKm = targetArea.diameter/1000
+      const zoomLevel = Math.max(8, Math.min(16, 16 - Math.log2(diameterKm)))
+      //const zoomLevel = 16
       
       // Wait a bit for the map to be ready, then set view
       setTimeout(() => {
