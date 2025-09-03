@@ -5,6 +5,7 @@
 !.vscode/launch.json
 !.vscode/extensions.json
 
+
 # .NET Core build output
 */bin/
 */obj/
@@ -36,3 +37,4 @@ Thumbs.db
 
 #
 *.local.ps1
+
