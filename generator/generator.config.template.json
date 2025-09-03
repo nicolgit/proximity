@@ -1,0 +1,18 @@
+{
+  "ConnectionStrings": {
+    "AzureStorage": "<conection-string-here>"
+  },
+  "AppSettings": {
+    "ApplicationName": "Generator",
+    "Version": "1.0.0",
+    "Environment": "Development",
+    "mapBoxSubscriptionKey": "<mapbox-subscription-key>"
+  },
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft": "Warning",
+      "Microsoft.Hosting.Lifetime": "Information"
+    }
+  }
+}

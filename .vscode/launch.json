@@ -1,0 +1,80 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": ".NET Core Launch (generator)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build-generator",
+            "program": "${workspaceFolder}/generator/bin/Debug/net8.0/generator.dll",
+            "args": [
+                "area",
+                "create",
+                "naples",
+                "--center",
+                "40.8585186,14.2543934",
+                "--diameter",
+                "10000",
+                "--displayname",
+                "Test Area NAPOLI",
+            ],
+            "cwd": "${workspaceFolder}/generator",
+            "console": "internalConsole",
+            "stopAtEntry": false,
+            "internalConsoleOptions": "openOnSessionStart",
+            "env": {
+                "DOTNET_ENVIRONMENT": "Development"
+            },
+            "sourceFileMap": {
+                "/Views": "${workspaceFolder}/Views"
+            }
+        },
+        {
+            "name": ".NET Core Launch (generator - Debug logging)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build-generator",
+            "program": "${workspaceFolder}/generator/bin/Debug/net8.0/generator.dll",
+            "args": [
+                "--logging",
+                "Debug"
+            ],
+            "cwd": "${workspaceFolder}/generator",
+            "console": "internalConsole",
+            "stopAtEntry": false,
+            "internalConsoleOptions": "openOnSessionStart",
+            "env": {
+                "DOTNET_ENVIRONMENT": "Development"
+            },
+            "sourceFileMap": {
+                "/Views": "${workspaceFolder}/Views"
+            }
+        },
+        {
+            "name": ".NET Core Launch (generator - Warning logging)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build-generator",
+            "program": "${workspaceFolder}/generator/bin/Debug/net8.0/generator.dll",
+            "args": [
+                "--logging",
+                "Warning"
+            ],
+            "cwd": "${workspaceFolder}/generator",
+            "console": "internalConsole",
+            "stopAtEntry": false,
+            "internalConsoleOptions": "openOnSessionStart",
+            "env": {
+                "DOTNET_ENVIRONMENT": "Development"
+            },
+            "sourceFileMap": {
+                "/Views": "${workspaceFolder}/Views"
+            }
+        },
+        {
+            "name": ".NET Core Attach",
+            "type": "coreclr",
+            "request": "attach"
+        }
+    ]
+}

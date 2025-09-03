@@ -1,0 +1,23 @@
+{
+    "dotnet.defaultSolution": "generator/generator.csproj",
+    "omnisharp.defaultLaunchSolution": "generator/generator.csproj",
+    "files.exclude": {
+        "**/bin": true,
+        "**/obj": true,
+        "**/.vs": true
+    },
+    "files.watcherExclude": {
+        "**/bin/**": true,
+        "**/obj/**": true,
+        "**/.vs/**": true
+    },
+    "dotnet.completion.showCompletionItemsFromUnimportedNamespaces": true,
+    "dotnet.symbolSearch.searchReferenceAssemblies": false,
+    "csharp.format.enable": true,
+    "csharp.semanticHighlighting.enabled": true,
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+        "source.fixAll": "explicit",
+        "source.organizeImports": "explicit"
+    }
+}

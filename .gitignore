@@ -1,0 +1,38 @@
+# VS Code workspace settings (keep some, ignore others)
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# .NET Core build output
+*/bin/
+*/obj/
+*/.vs/
+
+# Configuration files with sensitive data
+*/generator.config.json
+
+# Logs
+*.log
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE files
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+*.temp
+
+#
+*.local.ps1

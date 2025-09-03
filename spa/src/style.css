@@ -1,0 +1,161 @@
+@import './styles/buttons.css';
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html,
+body {
+    height: 100%;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+#app {
+    height: 100vh;
+    width: 100vw;
+    position: relative;
+}
+
+.search-container {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    padding: 8px;
+    min-width: 300px;
+}
+
+.search-input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 16px;
+    outline: none;
+    transition: border-color 0.2s ease;
+}
+
+.search-input:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.search-results {
+    max-height: 200px;
+    overflow-y: auto;
+    border-top: 1px solid #eee;
+    margin-top: 8px;
+}
+
+.search-result-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #f5f5f5;
+    transition: background-color 0.2s ease;
+}
+
+.search-result-item:hover {
+    background-color: #f8f9fa;
+}
+
+.search-result-item:last-child {
+    border-bottom: none;
+}
+
+.map-container {
+    height: 100vh;
+    width: 100vw;
+}
+
+.leaflet-container {
+    height: 100%;
+    width: 100%;
+}
+
+/* Custom marker styles */
+.custom-marker {
+    background: transparent !important;
+    border: none !important;
+}
+
+.marker-pin {
+    width: 30px;
+    height: 45px;
+    border-radius: 50% 50% 50% 0;
+    position: relative;
+    transform: rotate(-45deg);
+    left: 50%;
+    top: 50%;
+    margin: -45px 0 0 -15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.marker-pin::after {
+    content: '';
+    width: 14px;
+    height: 14px;
+    margin: 8px 0 0 5px;
+    background: white;
+    position: absolute;
+    border-radius: 50%;
+}
+
+.marker-icon {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(45deg);
+    font-size: 16px;
+    z-index: 2;
+}
+
+.user-location-pin {
+    background: linear-gradient(135deg, #22C55E, #16A34A);
+}
+
+.search-location-pin {
+    background: linear-gradient(135deg, #3B82F6, #1D4ED8);
+}
+
+/* SVG marker styles */
+.user-location-marker-svg,
+.search-location-marker-svg {
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+.user-location-marker-svg:hover,
+.search-location-marker-svg:hover {
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.4));
+    transform: scale(1.1);
+    transition: all 0.2s ease;
+}
+
+/* Popup styles */
+.user-location-popup {
+    text-align: center;
+    font-weight: 500;
+    color: #16A34A;
+    padding: 4px 8px;
+    border-radius: 4px;
+    background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+    border: 1px solid #bbf7d0;
+}
+
+/* Enhanced Leaflet popup styling for user location */
+.leaflet-popup-content-wrapper {
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.leaflet-popup-tip {
+    background: white;
+}
