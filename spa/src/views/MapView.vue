@@ -481,7 +481,7 @@ const selectedProximityLevel = ref(30)
 const pendingProximityLevel = ref(30) // For debounced updates
 
 // Debounced proximity level update
-let proximityLevelDebounceTimer: NodeJS.Timeout | null = null
+let proximityLevelDebounceTimer: number | null = null
 
 const debouncedProximityLevelUpdate = (level: number) => {
   // Clear existing timer
@@ -976,7 +976,7 @@ const goToCurrentLocation = async () => {
     
     if (currentLocation.value) {
       // Handle different coordinate formats
-      let lat, lng
+      let lat: number, lng: number
       
       if (Array.isArray(currentLocation.value)) {
         [lat, lng] = currentLocation.value
