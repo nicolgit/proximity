@@ -1,20 +1,55 @@
-# The Proximity project
+# 📡 The Proximity Project 📡
 
-MetroProximity è un progetto open source che mira a fornire una mappa interattiva delle aree urbane accessibili a piedi dalle stazioni della metropolitana di Roma. L'obiettivo principale è aiutare le persone a trovare zone in cui è possibile vivere senza la necessità di un'auto, promuovendo uno stile di vita più sostenibile e riducendo l'impatto ambientale.
+**The Proximity Project** is a browser-based single-page application (SPA) that visualizes a map with isochrones—areas reachable within a certain distance or time—from the nearest railway or tram station. Currently focused on selected metropolitan areas in Italy, the project aims to help users understand how well-connected a location is via reliable rail-based public transport.
 
 ![into](video/welcome.gif)
 
-Questo progetto é stato ispirato da un post su reddit (https://www.reddit.com/r/roma/comments/1ib2ue7/mappa_di_roma_dentro_il_raccordo_indicando_in/), in cui un utente mostrava una mappa molto interessante che dava evidenza in ogni punto all'interno del raccordo anulare romano, di quale fosse la stazione della metro piú vicina. Grazie https://www.reddit.com/user/Piastrellista88/ :-)
+## 🌍 Why This Project?
 
-## Caratteristiche
+In many parts of Italy—and often elsewhere—rail-based public transport (trains and trams) is significantly more reliable and punctual than road-based alternatives. This is largely due to the absence of traffic-related delays.
 
-- **Mappa Interattiva**: Visualizza le aree che si trovano entro un raggio di 1 km da ogni stazione della metropolitana.
-- **Facilità d'Uso**: Interfaccia intuitiva e user-friendly per una navigazione semplice e veloce.
-- **Open Source**: Codice sorgente disponibile pubblicamente per consentire contributi e miglioramenti da parte della comunità.
+**The Proximity Project** is useful for:
 
-## Perché questa mappa
+- **Tourists** looking for short-term rentals in well-connected areas, even if they are not central.
+- **Professionals** relocating for work who want to minimize car usage.
+- **Families** seeking to reduce the number of cars needed by choosing a location with good public transport access.
 
-- **Vita Sostenibile**: Promuove uno stile di vita senza auto, riducendo le emissioni di CO2 e l'inquinamento atmosferico.
-- **Accessibilità**: Aiuta le persone a trovare abitazioni e servizi facilmente raggiungibili a piedi dalle stazioni della metropolitana.
-- **Comunità**: Favorisce la creazione di comunità più coese e connesse, migliorando la qualità della vita urbana.
-- **Contributi della Comunità**: Essendo un progetto open source, chiunque può contribuire con idee, codice e miglioramenti, rendendo MetroProximity un progetto in continua evoluzione.
+## Features
+
+- 🔍 **Address search**: Quickly find any location by typing an address.
+- 📍 **Current location detection**: Automatically centers the map on your current position.
+- 🗺️ **Global isochrone visualization**: Displays isochrones for the entire covered area, using color gradients to indicate distance from the nearest station—ideal for a quick visual overview.
+- 🚉 **Station and stop display**: View all railway and tram stations/stops in the selected area.
+- 🎯 **Station-specific isochrones**: Select a specific station or stop to view its individual isochrone.
+- 🪧 **Interactive isochrones**: Click on any isochrone (global or station-specific) to see a popup showing the distance (in time) from the selected or nearest station.
+
+## 🌐 Access the Application 🌐
+
+You can explore **The Proximity Project** directly at:
+
+👉 [https://proximity.duckiesfarm.com](https://proximity.duckiesfarm.com) 
+
+access specific metropolitan areas directly using the following URLs:
+
+- 🏢 [Rome](https://proximity.duckiesfarm/rome)
+- 🏢 [Milan](https://proximity.duckiesfarm/milan)
+- 🏢 [Turin](https://proximity.duckiesfarm/turin)
+- 🏢 [Florence](https://proximity.duckiesfarm/florence)
+
+
+## 🛠️ Technologies Used
+
+- **JavaScript / TypeScript** – Core languages for the frontend logic  
+- **Vue.js** – Framework for building the single-page application  
+- **Leaflet** – Lightweight open-source library for interactive maps  
+- **C# / Azure Functions** – Backend services and serverless APIs  
+- **OpenStreetMap / Mapbox** – Map rendering and geospatial data sources  
+
+# ☕ Support the Project
+If you find The Proximity Project useful or believe in its mission to promote sustainable and accessible urban mobility, consider supporting its development.
+Maintaining and improving this project takes time, effort, and resources. Your contribution helps cover infrastructure costs, data sourcing, and future enhancements.
+
+👉 [Buy me a coffee](https://buymeacoffee.com/nicolcoffee) – every little bit helps!
+
+# 📄 License
+This project is licensed under the [MIT License](LICENSE).
