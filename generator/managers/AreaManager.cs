@@ -18,9 +18,9 @@ public static class AreaManager
 {
     private static ClientSecretCredential GetAzureCredential(IConfiguration? configuration)
     {
-        var tenantId = configuration?.GetSection("AppSettings")["tenantId"];
-        var clientId = configuration?.GetSection("AppSettings")["clientId"];
-        var clientSecret = configuration?.GetSection("AppSettings")["clientSecret"];
+        var tenantId = configuration?.GetSection("AppSettings")[ConfigurationKeys.TenantId];
+        var clientId = configuration?.GetSection("AppSettings")[ConfigurationKeys.ClientId];
+        var clientSecret = configuration?.GetSection("AppSettings")[ConfigurationKeys.ClientSecret];
 
         if (string.IsNullOrWhiteSpace(tenantId) || string.IsNullOrWhiteSpace(clientId) || string.IsNullOrWhiteSpace(clientSecret))
         {
@@ -35,10 +35,10 @@ public static class AreaManager
         try
         {
             // Check if Azure AD credentials are configured
-            var tenantId = configuration?.GetSection("AppSettings")["tenantId"];
-            var clientId = configuration?.GetSection("AppSettings")["clientId"];
-            var clientSecret = configuration?.GetSection("AppSettings")["clientSecret"];
-            var blobUri = configuration?.GetSection("AppSettings")["blobUri"];
+            var tenantId = configuration?.GetSection("AppSettings")[ConfigurationKeys.TenantId];
+            var clientId = configuration?.GetSection("AppSettings")[ConfigurationKeys.ClientId];
+            var clientSecret = configuration?.GetSection("AppSettings")[ConfigurationKeys.ClientSecret];
+            var blobUri = configuration?.GetSection("AppSettings")[ConfigurationKeys.BlobUri];
 
             if (string.IsNullOrWhiteSpace(tenantId) || string.IsNullOrWhiteSpace(clientId) || 
                 string.IsNullOrWhiteSpace(clientSecret) || string.IsNullOrWhiteSpace(blobUri))
@@ -57,7 +57,7 @@ public static class AreaManager
             var credential = GetAzureCredential(configuration);
             var blobServiceClient = new BlobServiceClient(new Uri(blobUri), credential);
             
-            var tableUri = configuration?.GetSection("AppSettings")["tableUri"];
+            var tableUri = configuration?.GetSection("AppSettings")[ConfigurationKeys.TableUri];
             if (string.IsNullOrWhiteSpace(tableUri))
             {
                 logger?.LogError("Table URI not configured");
@@ -186,9 +186,79 @@ public static class AreaManager
         }
     }
 
+    public static async Task<bool> TestMapBoxApiKeyAsync(ILogger? logger, IConfiguration? configuration)
+    {
+        try
+        {
+            var mapBoxKey = configuration?.GetSection("AppSettings")[ConfigurationKeys.MapBoxSubscriptionKey];
+
+            if (string.IsNullOrWhiteSpace(mapBoxKey) || mapBoxKey.Contains("<") || mapBoxKey.Contains(">"))
+            {
+                logger?.LogInformation("No valid MapBox API key configured. Skipping MapBox API test.");
+                return false;
+            }
+
+            logger?.LogInformation("Testing MapBox API key...");
+
+            // Test MapBox API with a simple account validation request
+            // Using the MapBox Account API to validate the token
+            var httpClient = new HttpClient();
+            httpClient.Timeout = TimeSpan.FromSeconds(10);
+
+            var url = $"https://api.mapbox.com/tokens/v2?access_token={mapBoxKey}";
+
+            logger?.LogDebug("Calling MapBox API: {Url}", url.Replace(mapBoxKey, "***"));
+
+            var response = await httpClient.GetAsync(url);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                logger?.LogInformation("Successfully validated MapBox API key");
+                logger?.LogDebug("MapBox API response: {Response}", content);
+
+                Console.WriteLine($"✓ MapBox API key validation successful!");
+                Console.WriteLine($"  Status: {response.StatusCode}");
+                Console.WriteLine();
+                return true;
+            }
+            else
+            {
+                logger?.LogError("MapBox API key validation failed with status: {StatusCode}", response.StatusCode);
+                Console.WriteLine($"❌ MapBox API key validation failed (Status: {response.StatusCode})");
+                Console.WriteLine();
+                return false;
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            logger?.LogError(ex, "Failed to connect to MapBox API. Check internet connection and API key.");
+            Console.WriteLine("❌ MapBox API connection test failed (check network/key)");
+            Console.WriteLine($"   Error: {ex.Message}");
+            Console.WriteLine();
+            return false;
+        }
+        catch (TaskCanceledException ex)
+        {
+            logger?.LogError(ex, "MapBox API request timed out.");
+            Console.WriteLine("❌ MapBox API request timed out");
+            Console.WriteLine($"   Error: {ex.Message}");
+            Console.WriteLine();
+            return false;
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Failed to validate MapBox API key. This is a critical error.");
+            Console.WriteLine("❌ MapBox API key validation failed (check configuration)");
+            Console.WriteLine($"   Error: {ex.Message}");
+            Console.WriteLine();
+            return false;
+        }
+    }
+
     private static TableServiceClient CreateTableServiceClient(IConfiguration? configuration)
     {
-        var tableUri = configuration?.GetSection("AppSettings")["tableUri"];
+        var tableUri = configuration?.GetSection("AppSettings")[ConfigurationKeys.TableUri];
         if (string.IsNullOrWhiteSpace(tableUri))
         {
             throw new InvalidOperationException("Table storage URI not configured");
@@ -200,7 +270,7 @@ public static class AreaManager
 
     private static BlobServiceClient CreateBlobServiceClient(IConfiguration? configuration)
     {
-        var blobUri = configuration?.GetSection("AppSettings")["blobUri"];
+        var blobUri = configuration?.GetSection("AppSettings")[ConfigurationKeys.BlobUri];
         if (string.IsNullOrWhiteSpace(blobUri))
         {
             throw new InvalidOperationException("Blob storage URI not configured");
@@ -610,7 +680,7 @@ out body;";
             Console.WriteLine($"  📍 Generating isochrone data for station: {stationName}");
 
             // Get MapBox API key
-            var mapBoxKey = configuration?.GetSection("AppSettings")["mapBoxSubscriptionKey"];
+            var mapBoxKey = configuration?.GetSection("AppSettings")[ConfigurationKeys.MapBoxSubscriptionKey];
             if (string.IsNullOrWhiteSpace(mapBoxKey) || mapBoxKey.Contains("<") || mapBoxKey.Contains(">"))
             {
                 logger?.LogWarning("MapBox API key not configured, skipping isochrone generation for station: {StationName}", stationName);

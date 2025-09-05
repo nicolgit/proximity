@@ -305,7 +305,7 @@ public class Program
 
         // Test Azure Storage and map connection 
         var storageTestPassed = await AreaManager.TestAzureStorageConnectionAsync(_logger, _configuration);
-        var mapApiTestPassed = await TestMapBoxApiKeyAsync();
+        var mapApiTestPassed = await AreaManager.TestMapBoxApiKeyAsync(_logger, _configuration);
 
         // Exit if any critical tests failed
         if (!storageTestPassed || !mapApiTestPassed)
@@ -317,89 +317,5 @@ public class Program
 
         // Add a small delay to make this truly async
         await Task.Delay(1);
-    }
-
-    private static ClientSecretCredential GetAzureCredential()
-    {
-        var tenantId = _configuration?.GetSection("AppSettings")["tenantId"];
-        var clientId = _configuration?.GetSection("AppSettings")["clientId"];
-        var clientSecret = _configuration?.GetSection("AppSettings")["clientSecret"];
-
-        if (string.IsNullOrWhiteSpace(tenantId) || string.IsNullOrWhiteSpace(clientId) || string.IsNullOrWhiteSpace(clientSecret))
-        {
-            throw new InvalidOperationException("Azure AD credentials (tenantId, clientId, clientSecret) not configured");
-        }
-
-        return new ClientSecretCredential(tenantId, clientId, clientSecret);
-    }
-
-    private static async Task<bool> TestMapBoxApiKeyAsync()
-    {
-        try
-        {
-            var mapBoxKey = _configuration?.GetSection("AppSettings")["mapBoxSubscriptionKey"];
-
-            if (string.IsNullOrWhiteSpace(mapBoxKey) || mapBoxKey.Contains("<") || mapBoxKey.Contains(">"))
-            {
-                _logger?.LogInformation("No valid MapBox API key configured. Skipping MapBox API test.");
-                return false;
-            }
-
-            _logger?.LogInformation("Testing MapBox API key...");
-
-            // Test MapBox API with a simple account validation request
-            // Using the MapBox Account API to validate the token
-            var httpClient = new HttpClient();
-            httpClient.Timeout = TimeSpan.FromSeconds(10);
-
-            var url = $"https://api.mapbox.com/tokens/v2?access_token={mapBoxKey}";
-
-            _logger?.LogDebug("Calling MapBox API: {Url}", url.Replace(mapBoxKey, "***"));
-
-            var response = await httpClient.GetAsync(url);
-
-            if (response.IsSuccessStatusCode)
-            {
-                var content = await response.Content.ReadAsStringAsync();
-                _logger?.LogInformation("Successfully validated MapBox API key");
-                _logger?.LogDebug("MapBox API response: {Response}", content);
-
-                Console.WriteLine($"✓ MapBox API key validation successful!");
-                Console.WriteLine($"  Status: {response.StatusCode}");
-                Console.WriteLine();
-                return true;
-            }
-            else
-            {
-                _logger?.LogError("MapBox API key validation failed with status: {StatusCode}", response.StatusCode);
-                Console.WriteLine($"❌ MapBox API key validation failed (Status: {response.StatusCode})");
-                Console.WriteLine();
-                return false;
-            }
-        }
-        catch (HttpRequestException ex)
-        {
-            _logger?.LogError(ex, "Failed to connect to MapBox API. Check internet connection and API key.");
-            Console.WriteLine("❌ MapBox API connection test failed (check network/key)");
-            Console.WriteLine($"   Error: {ex.Message}");
-            Console.WriteLine();
-            return false;
-        }
-        catch (TaskCanceledException ex)
-        {
-            _logger?.LogError(ex, "MapBox API request timed out.");
-            Console.WriteLine("❌ MapBox API request timed out");
-            Console.WriteLine($"   Error: {ex.Message}");
-            Console.WriteLine();
-            return false;
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "Failed to validate MapBox API key. This is a critical error.");
-            Console.WriteLine("❌ MapBox API key validation failed (check configuration)");
-            Console.WriteLine($"   Error: {ex.Message}");
-            Console.WriteLine();
-            return false;
-        }
     }
 }
