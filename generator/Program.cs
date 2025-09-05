@@ -161,7 +161,7 @@ public class Program
         stationListCommand.SetHandler(async (string areaId, string filter, string loggingLevel) =>
         {
             await InitializeLoggingAndConfigurationAsync(loggingLevel);
-            await AreaManager.ListStationsAsync(areaId, filter, _logger, _configuration);
+            await StationManager.ListStationsAsync(areaId, filter, _logger, _configuration);
         }, areaIdArgument, filterOption, loggingOption);
 
         // Add commands to station group
@@ -211,12 +211,12 @@ public class Program
                 if (deleteValue != null)
                 {
                     // Delete mode - delete all station isochrones in the area
-                    await AreaManager.DeleteAllStationIsochronesAsync(areaId, _logger, _configuration);
+                    await StationManager.DeleteAllStationIsochronesAsync(areaId, _logger, _configuration);
                 }
                 else
                 {
                     // Regenerate mode - regenerate all stations in the area
-                    await AreaManager.RegenerateAllStationIsochronesAsync(areaId, _logger, _configuration);
+                    await StationManager.RegenerateAllStationIsochronesAsync(areaId, _logger, _configuration);
                 }
             }
             else
@@ -248,7 +248,7 @@ public class Program
                     }
                 }
                 
-                await AreaManager.GenerateStationIsochroneAsync(areaId, stationId, isDeleteMode, deleteDuration, _logger, _configuration);
+                await StationManager.GenerateStationIsochroneAsync(areaId, stationId, isDeleteMode, deleteDuration, _logger, _configuration);
             }
         }, areaIdIsochroneArgument, stationIdArgument, deleteOption, loggingOption);
 
@@ -264,7 +264,7 @@ public class Program
         stationRegenerateCommand.SetHandler(async (string areaId, string loggingLevel) =>
         {
             await InitializeLoggingAndConfigurationAsync(loggingLevel);
-            await AreaManager.RegenerateAllStationIsochronesAsync(areaId, _logger, _configuration);
+            await StationManager.RegenerateAllStationIsochronesAsync(areaId, _logger, _configuration);
         }, areaIdRegenerateArgument, loggingOption);
 
         stationCommand.AddCommand(stationRegenerateCommand);
@@ -304,8 +304,8 @@ public class Program
         _logger.LogInformation("Configuration loaded successfully");
 
         // Test Azure Storage and map connection 
-        var storageTestPassed = await AreaManager.TestAzureStorageConnectionAsync(_logger, _configuration);
-        var mapApiTestPassed = await AreaManager.TestMapBoxApiKeyAsync(_logger, _configuration);
+        var storageTestPassed = await TestManager.TestAzureStorageConnectionAsync(_logger, _configuration);
+        var mapApiTestPassed = await TestManager.TestMapBoxApiKeyAsync(_logger, _configuration);
 
         // Exit if any critical tests failed
         if (!storageTestPassed || !mapApiTestPassed)
