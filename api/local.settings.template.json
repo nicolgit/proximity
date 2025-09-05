@@ -3,7 +3,11 @@
     "Values": {
         "AzureWebJobsStorage": "UseDevelopmentStorage=true",
         "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
-        "CustomStorageConnectionString": "<your-azure-storage-connection-string-here>"
+        "tenantId": "<your-tenant-id>",
+        "clientId": "<your-client-id>",
+        "clientSecret": "<your-client-secret>",
+        "blobUri": "https://<your-storage-account>.blob.core.windows.net/",
+        "tableUri": "https://<your-storage-account>.table.core.windows.net/"
     },
     "Host": {
         "CORS": "<* in dev or nothing in production>"
