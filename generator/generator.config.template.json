@@ -1,12 +1,14 @@
 {
-  "ConnectionStrings": {
-    "AzureStorage": "<conection-string-here>"
-  },
   "AppSettings": {
     "ApplicationName": "Generator",
     "Version": "1.0.0",
     "Environment": "Development",
-    "mapBoxSubscriptionKey": "<mapbox-subscription-key>"
+    "mapBoxSubscriptionKey": "<mapbox-subscription-key>",
+    "tenantId": "<your-tenant-id>",
+    "clientId": "<your-client-id>",
+    "clientSecret": "<your-client-secret>",
+    "blobUri": "https://<your-storage-account>.blob.core.windows.net/",
+    "tableUri": "https://<your-storage-account>.table.core.windows.net/"
   },
   "Logging": {
     "LogLevel": {

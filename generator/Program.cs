@@ -304,7 +304,7 @@ public class Program
         _logger.LogInformation("Configuration loaded successfully");
 
         // Test Azure Storage and map connection 
-        var storageTestPassed = await TestAzureStorageConnectionAsync();
+        var storageTestPassed = await AreaManager.TestAzureStorageConnectionAsync(_logger, _configuration);
         var mapApiTestPassed = await TestMapBoxApiKeyAsync();
 
         // Exit if any critical tests failed
@@ -319,44 +319,18 @@ public class Program
         await Task.Delay(1);
     }
 
-    private static async Task<bool> TestAzureStorageConnectionAsync()
+    private static ClientSecretCredential GetAzureCredential()
     {
-        try
+        var tenantId = _configuration?.GetSection("AppSettings")["tenantId"];
+        var clientId = _configuration?.GetSection("AppSettings")["clientId"];
+        var clientSecret = _configuration?.GetSection("AppSettings")["clientSecret"];
+
+        if (string.IsNullOrWhiteSpace(tenantId) || string.IsNullOrWhiteSpace(clientId) || string.IsNullOrWhiteSpace(clientSecret))
         {
-            var connectionString = _configuration?.GetConnectionString("AzureStorage");
-
-            if (string.IsNullOrWhiteSpace(connectionString))
-            {
-                _logger?.LogInformation("No Azure Storage connection string configured. Skipping storage test.");
-                return true; // Not configured is not a failure
-            }
-
-            _logger?.LogInformation("Testing Azure Storage connection...");
-
-            // Create BlobServiceClient with connection string
-            var blobServiceClient = new BlobServiceClient(connectionString);
-
-            // Test connection by getting account info
-            var accountInfo = await blobServiceClient.GetAccountInfoAsync();
-
-            _logger?.LogInformation("Successfully connected to Azure Storage Account");
-            _logger?.LogInformation("Account Kind: {AccountKind}", accountInfo.Value.AccountKind);
-            _logger?.LogInformation("SKU Name: {SkuName}", accountInfo.Value.SkuName);
-
-            Console.WriteLine($"✓ Azure Storage connection test successful!");
-            Console.WriteLine($"  Account Kind: {accountInfo.Value.AccountKind}");
-            Console.WriteLine($"  SKU Name: {accountInfo.Value.SkuName}");
-            Console.WriteLine();
-            return true;
+            throw new InvalidOperationException("Azure AD credentials (tenantId, clientId, clientSecret) not configured");
         }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "Failed to connect to Azure Storage. This is a critical error.");
-            Console.WriteLine("❌ Azure Storage connection test failed (check configuration)");
-            Console.WriteLine($"   Error: {ex.Message}");
-            Console.WriteLine();
-            return false;
-        }
+
+        return new ClientSecretCredential(tenantId, clientId, clientSecret);
     }
 
     private static async Task<bool> TestMapBoxApiKeyAsync()

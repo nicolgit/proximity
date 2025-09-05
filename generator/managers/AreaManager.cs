@@ -1,10 +1,12 @@
 using Azure.Data.Tables;
+using Azure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Globalization;
 using System.Text.Json;
 using Generator.Types;
 using Azure.Storage.Blobs;
+using Azure.Identity;
 using NetTopologySuite.Geometries;
 using NetTopologySuite.IO;
 using NetTopologySuite.Operation.Union;
@@ -14,6 +16,199 @@ namespace Generator.Managers;
 
 public static class AreaManager
 {
+    private static ClientSecretCredential GetAzureCredential(IConfiguration? configuration)
+    {
+        var tenantId = configuration?.GetSection("AppSettings")["tenantId"];
+        var clientId = configuration?.GetSection("AppSettings")["clientId"];
+        var clientSecret = configuration?.GetSection("AppSettings")["clientSecret"];
+
+        if (string.IsNullOrWhiteSpace(tenantId) || string.IsNullOrWhiteSpace(clientId) || string.IsNullOrWhiteSpace(clientSecret))
+        {
+            throw new InvalidOperationException("Azure AD credentials (tenantId, clientId, clientSecret) not configured");
+        }
+
+        return new ClientSecretCredential(tenantId, clientId, clientSecret);
+    }
+
+    public static async Task<bool> TestAzureStorageConnectionAsync(ILogger? logger, IConfiguration? configuration)
+    {
+        try
+        {
+            // Check if Azure AD credentials are configured
+            var tenantId = configuration?.GetSection("AppSettings")["tenantId"];
+            var clientId = configuration?.GetSection("AppSettings")["clientId"];
+            var clientSecret = configuration?.GetSection("AppSettings")["clientSecret"];
+            var blobUri = configuration?.GetSection("AppSettings")["blobUri"];
+
+            if (string.IsNullOrWhiteSpace(tenantId) || string.IsNullOrWhiteSpace(clientId) || 
+                string.IsNullOrWhiteSpace(clientSecret) || string.IsNullOrWhiteSpace(blobUri))
+            {
+                logger?.LogInformation("Azure AD credentials or blob URI not configured. Skipping storage test.");
+                Console.WriteLine("⚠️ Azure AD credentials not fully configured - storage test skipped");
+                Console.WriteLine("   Please ensure tenantId, clientId, clientSecret, and blobUri are set in configuration");
+                Console.WriteLine();
+                return false; // This is a critical failure since we need these for the app to work
+            }
+
+            logger?.LogInformation("Testing Azure Storage permissions: Storage Blob Data Contributor and Storage Table Data Contributor...");
+            Console.WriteLine("🔍 Testing Azure Storage permissions...");
+
+            // Create BlobServiceClient and TableServiceClient with Azure AD credentials
+            var credential = GetAzureCredential(configuration);
+            var blobServiceClient = new BlobServiceClient(new Uri(blobUri), credential);
+            
+            var tableUri = configuration?.GetSection("AppSettings")["tableUri"];
+            if (string.IsNullOrWhiteSpace(tableUri))
+            {
+                logger?.LogError("Table URI not configured");
+                Console.WriteLine("❌ Table URI not configured");
+                return false;
+            }
+            var tableServiceClient = new TableServiceClient(new Uri(tableUri), credential);
+
+            // Test 1: Verify Storage Blob Data Contributor permissions
+            logger?.LogInformation("Testing Storage Blob Data Contributor permissions...");
+            Console.WriteLine("  📁 Testing Storage Blob Data Contributor permissions...");
+            try
+            {
+                var testContainerName = $"permission-test-{Guid.NewGuid():N}";
+                var containerClient = blobServiceClient.GetBlobContainerClient(testContainerName);
+                
+                // Test container creation (requires Storage Blob Data Contributor)
+                await containerClient.CreateAsync();
+                logger?.LogInformation("✓ Container creation successful - Storage Blob Data Contributor verified");
+                
+                // Test blob upload (requires Storage Blob Data Contributor)
+                var blobClient = containerClient.GetBlobClient("test-blob.txt");
+                await blobClient.UploadAsync(new BinaryData("Test data for permission verification"));
+                logger?.LogInformation("✓ Blob upload successful");
+                
+                // Test blob read (requires Storage Blob Data Contributor)
+                var downloadResult = await blobClient.DownloadContentAsync();
+                logger?.LogInformation("✓ Blob read successful");
+                
+                // Test blob delete (requires Storage Blob Data Contributor)
+                await blobClient.DeleteAsync();
+                logger?.LogInformation("✓ Blob delete successful");
+                
+                // Test container deletion (requires Storage Blob Data Contributor)
+                await containerClient.DeleteAsync();
+                logger?.LogInformation("✓ Container deletion successful - Storage Blob Data Contributor verified");
+                
+                Console.WriteLine("    ✅ Storage Blob Data Contributor permissions verified");
+            }
+            catch (Azure.RequestFailedException ex) when (ex.Status == 403)
+            {
+                logger?.LogError("Storage Blob Data Contributor permissions test failed - access denied");
+                Console.WriteLine("    ❌ Storage Blob Data Contributor permissions missing");
+                Console.WriteLine("       The service principal needs 'Storage Blob Data Contributor' role assignment");
+                Console.WriteLine($"       Service Principal ID: {clientId}");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                logger?.LogError(ex, "Storage Blob Data Contributor permissions test failed");
+                Console.WriteLine("    ❌ Storage Blob Data Contributor test failed");
+                Console.WriteLine($"       Error: {ex.Message}");
+                return false;
+            }
+
+            // Test 2: Verify Storage Table Data Contributor permissions
+            logger?.LogInformation("Testing Storage Table Data Contributor permissions...");
+            Console.WriteLine("  📊 Testing Storage Table Data Contributor permissions...");
+            try
+            {
+                var testTableName = $"permissionTest{Guid.NewGuid():N}";
+                var tableClient = tableServiceClient.GetTableClient(testTableName);
+                
+                // Test table creation (requires Storage Table Data Contributor)
+                await tableClient.CreateAsync();
+                logger?.LogInformation("✓ Table creation successful - Storage Table Data Contributor verified");
+
+                // Test entity creation (requires Storage Table Data Contributor)
+                var testEntity = new TableEntity("testPartition", "testRow")
+                {
+                    ["TestProperty"] = "Permission verification test",
+                    ["Timestamp"] = DateTimeOffset.UtcNow
+                };
+                await tableClient.AddEntityAsync(testEntity);
+                logger?.LogInformation("✓ Entity creation successful");
+
+                // Test entity read (requires Storage Table Data Contributor)
+                var retrievedEntity = await tableClient.GetEntityAsync<TableEntity>("testPartition", "testRow");
+                logger?.LogInformation("✓ Entity read successful");
+
+                // Test entity update (requires Storage Table Data Contributor)
+                testEntity["TestProperty"] = "Updated value";
+                await tableClient.UpsertEntityAsync(testEntity);
+                logger?.LogInformation("✓ Entity update successful");
+
+                // Test entity delete (requires Storage Table Data Contributor)
+                await tableClient.DeleteEntityAsync("testPartition", "testRow");
+                logger?.LogInformation("✓ Entity delete successful");
+
+                // Test table deletion (requires Storage Table Data Contributor)
+                await tableClient.DeleteAsync();
+                logger?.LogInformation("✓ Table deletion successful - Storage Table Data Contributor verified");
+                
+                Console.WriteLine("    ✅ Storage Table Data Contributor permissions verified");
+            }
+            catch (Azure.RequestFailedException ex) when (ex.Status == 403)
+            {
+                logger?.LogError("Storage Table Data Contributor permissions test failed - access denied");
+                Console.WriteLine("    ❌ Storage Table Data Contributor permissions missing");
+                Console.WriteLine("       The service principal needs 'Storage Table Data Contributor' role assignment");
+                Console.WriteLine($"       Service Principal ID: {clientId}");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                logger?.LogError(ex, "Storage Table Data Contributor permissions test failed");
+                Console.WriteLine("    ❌ Storage Table Data Contributor test failed");
+                Console.WriteLine($"       Error: {ex.Message}");
+                return false;
+            }
+
+            logger?.LogInformation("All Azure Storage permissions verified successfully");
+            Console.WriteLine("✅ Azure Storage permission verification complete!");
+            Console.WriteLine("   ✓ Storage Blob Data Contributor - Verified");
+            Console.WriteLine("   ✓ Storage Table Data Contributor - Verified");
+            Console.WriteLine();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Failed to connect to Azure Storage. This is a critical error.");
+            Console.WriteLine("❌ Azure Storage connection test failed (check configuration)");
+            Console.WriteLine($"   Error: {ex.Message}");
+            Console.WriteLine();
+            return false;
+        }
+    }
+
+    private static TableServiceClient CreateTableServiceClient(IConfiguration? configuration)
+    {
+        var tableUri = configuration?.GetSection("AppSettings")["tableUri"];
+        if (string.IsNullOrWhiteSpace(tableUri))
+        {
+            throw new InvalidOperationException("Table storage URI not configured");
+        }
+
+        var credential = GetAzureCredential(configuration);
+        return new TableServiceClient(new Uri(tableUri), credential);
+    }
+
+    private static BlobServiceClient CreateBlobServiceClient(IConfiguration? configuration)
+    {
+        var blobUri = configuration?.GetSection("AppSettings")["blobUri"];
+        if (string.IsNullOrWhiteSpace(blobUri))
+        {
+            throw new InvalidOperationException("Blob storage URI not configured");
+        }
+
+        var credential = GetAzureCredential(configuration);
+        return new BlobServiceClient(new Uri(blobUri), credential);
+    }
     public static async Task CreateAreaAsync(string name, string center, int diameter, string displayName, bool developerMode, bool noIsochrone,
         ILogger? logger, IConfiguration? configuration)
     {
@@ -63,17 +258,19 @@ public static class AreaManager
                 return;
             }
 
-            // Get Azure Storage connection
-            var connectionString = configuration?.GetConnectionString("AzureStorage");
-            if (string.IsNullOrWhiteSpace(connectionString))
+            // Get Azure Storage connection using Azure AD
+            TableServiceClient tableServiceClient;
+            try
             {
-                Console.WriteLine("❌ Azure Storage connection string not configured");
+                tableServiceClient = CreateTableServiceClient(configuration);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Failed to create Azure Table Storage client: {ex.Message}");
                 Environment.Exit(1);
                 return;
             }
 
-            // Connect to Azure Table Storage
-            var tableServiceClient = new TableServiceClient(connectionString);
             var areaTableClient = tableServiceClient.GetTableClient("area");
             var stationTableClient = tableServiceClient.GetTableClient("station");
 
@@ -85,7 +282,7 @@ public static class AreaManager
             // Check if area already exists and clean up isochrone data if it does (only if we're going to generate new ones)
             if (!noIsochrone)
             {
-                await CleanupExistingAreaIsochroneAsync(name, connectionString, logger);
+                await CleanupExistingAreaIsochroneAsync(name, configuration, logger);
             }
 
             // Create or update area entity
@@ -421,16 +618,19 @@ out body;";
                 return;
             }
 
-            // Get Azure Storage connection
-            var connectionString = configuration?.GetConnectionString("AzureStorage");
-            if (string.IsNullOrWhiteSpace(connectionString))
+            // Get Azure Storage connection using Azure AD
+            BlobServiceClient blobServiceClient;
+            try
             {
-                logger?.LogWarning("Azure Storage connection string not configured, skipping isochrone generation for station: {StationName}", stationName);
+                blobServiceClient = CreateBlobServiceClient(configuration);
+            }
+            catch (Exception ex)
+            {
+                logger?.LogWarning(ex, "Failed to create Azure Blob Storage client, skipping isochrone generation for station: {StationName}", stationName);
                 return;
             }
 
             // Create blob service client and container
-            var blobServiceClient = new BlobServiceClient(connectionString);
             var containerClient = blobServiceClient.GetBlobContainerClient("isochrone");
             await containerClient.CreateIfNotExistsAsync();
 
@@ -615,14 +815,25 @@ out body;";
         }
     }
 
-    private static async Task CleanupExistingAreaIsochroneAsync(string areaName, string connectionString, ILogger? logger)
+    private static async Task CleanupExistingAreaIsochroneAsync(string areaName, IConfiguration? configuration, ILogger? logger)
     {
         try
         {
             logger?.LogInformation("Checking for existing isochrone data for area: {AreaName}", areaName);
 
-            // Create blob service client and container
-            var blobServiceClient = new BlobServiceClient(connectionString);
+            // Create blob service client and container using Azure AD
+            BlobServiceClient blobServiceClient;
+            try
+            {
+                blobServiceClient = CreateBlobServiceClient(configuration);
+            }
+            catch (Exception ex)
+            {
+                logger?.LogError(ex, "Failed to create Azure Blob Storage client");
+                Console.WriteLine($"⚠️ Failed to create Azure Blob Storage client: {ex.Message}");
+                return;
+            }
+
             var containerClient = blobServiceClient.GetBlobContainerClient("isochrone");
 
             // Check if container exists
@@ -687,17 +898,20 @@ out body;";
         {
             logger?.LogInformation("Listing all areas");
 
-            // Get Azure Storage connection
-            var connectionString = configuration?.GetConnectionString("AzureStorage");
-            if (string.IsNullOrWhiteSpace(connectionString))
+            // Get Azure Storage connection using Azure AD
+            TableServiceClient tableServiceClient;
+            try
             {
-                Console.WriteLine("❌ Azure Storage connection string not configured");
+                tableServiceClient = CreateTableServiceClient(configuration);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Failed to create Azure Table Storage client: {ex.Message}");
                 Environment.Exit(1);
                 return;
             }
 
             // Connect to Azure Table Storage
-            var tableServiceClient = new TableServiceClient(connectionString);
             var areaTableClient = tableServiceClient.GetTableClient("area");
             var stationTableClient = tableServiceClient.GetTableClient("station");
 
@@ -786,17 +1000,20 @@ out body;";
         {
             logger?.LogInformation("Deleting area: {Name}", name);
 
-            // Get Azure Storage connection
-            var connectionString = configuration?.GetConnectionString("AzureStorage");
-            if (string.IsNullOrWhiteSpace(connectionString))
+            // Get Azure Storage connection using Azure AD
+            TableServiceClient tableServiceClient;
+            try
             {
-                Console.WriteLine("❌ Azure Storage connection string not configured");
+                tableServiceClient = CreateTableServiceClient(configuration);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Failed to create Azure Table Storage client: {ex.Message}");
                 Environment.Exit(1);
                 return;
             }
 
             // Connect to Azure Table Storage
-            var tableServiceClient = new TableServiceClient(connectionString);
             var areaTableClient = tableServiceClient.GetTableClient("area");
             var stationTableClient = tableServiceClient.GetTableClient("station");
 
@@ -822,7 +1039,7 @@ out body;";
             await DeleteAreaStationsAsync(name, stationTableClient, logger);
 
             // Step 2: Delete all isochrone data for this area
-            await DeleteAreaIsochroneDataAsync(name, connectionString, logger);
+            await DeleteAreaIsochroneDataAsync(name, configuration, logger);
 
             // Step 3: Delete the area entity itself
             try
@@ -915,15 +1132,26 @@ out body;";
         }
     }
 
-    private static async Task DeleteAreaIsochroneDataAsync(string areaName, string connectionString, ILogger? logger)
+    private static async Task DeleteAreaIsochroneDataAsync(string areaName, IConfiguration? configuration, ILogger? logger)
     {
         try
         {
             logger?.LogInformation("Deleting all isochrone data for area: {AreaName}", areaName);
             Console.WriteLine($"  🗑️ Deleting isochrone data for area '{areaName}'...");
 
-            // Create blob service client and container
-            var blobServiceClient = new BlobServiceClient(connectionString);
+            // Create blob service client and container using Azure AD
+            BlobServiceClient blobServiceClient;
+            try
+            {
+                blobServiceClient = CreateBlobServiceClient(configuration);
+            }
+            catch (Exception ex)
+            {
+                logger?.LogError(ex, "Failed to create Azure Blob Storage client");
+                Console.WriteLine($"  ❌ Failed to create Azure Blob Storage client: {ex.Message}");
+                return;
+            }
+
             var containerClient = blobServiceClient.GetBlobContainerClient("isochrone");
 
             // Check if container exists
@@ -988,19 +1216,23 @@ out body;";
         {
             logger?.LogInformation("Listing stations for area: {AreaId} with filter: {Filter}", areaId, filter ?? "none");
 
-            // Get Azure Storage connection
-            var connectionString = configuration?.GetConnectionString("AzureStorage");
-            if (string.IsNullOrWhiteSpace(connectionString))
+            // Get Azure Storage connection using Azure AD
+            TableServiceClient tableServiceClient;
+            BlobServiceClient blobServiceClient;
+            try
             {
-                Console.WriteLine("❌ Azure Storage connection string not configured");
+                tableServiceClient = CreateTableServiceClient(configuration);
+                blobServiceClient = CreateBlobServiceClient(configuration);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Failed to create Azure Storage clients: {ex.Message}");
                 Environment.Exit(1);
                 return;
             }
 
             // Connect to Azure Table Storage and Blob Storage
-            var tableServiceClient = new TableServiceClient(connectionString);
             var stationTableClient = tableServiceClient.GetTableClient("station");
-            var blobServiceClient = new BlobServiceClient(connectionString);
             var containerClient = blobServiceClient.GetBlobContainerClient("isochrone");
 
             logger?.LogInformation("Connected to Azure Storage services");
@@ -1101,20 +1333,24 @@ out body;";
             logger?.LogInformation("Processing isochrones for station: {StationId} in area: {AreaId} - Delete mode: {IsDeleteMode}, Duration: {DeleteDuration}", 
                 stationId, areaId, isDeleteMode, deleteDuration?.ToString() ?? "all");
 
-            // Get Azure Storage connection
-            var connectionString = configuration?.GetConnectionString("AzureStorage");
-            if (string.IsNullOrWhiteSpace(connectionString))
+            // Get Azure Storage connection using Azure AD
+            TableServiceClient tableServiceClient;
+            BlobServiceClient blobServiceClient;
+            try
             {
-                Console.WriteLine("❌ Azure Storage connection string not configured");
+                tableServiceClient = CreateTableServiceClient(configuration);
+                blobServiceClient = CreateBlobServiceClient(configuration);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Failed to create Azure Storage clients: {ex.Message}");
                 Environment.Exit(1);
                 return;
             }
 
             // Connect to Azure Table Storage and Blob Storage
-            var tableServiceClient = new TableServiceClient(connectionString);
             var areaTableClient = tableServiceClient.GetTableClient("area");
             var stationTableClient = tableServiceClient.GetTableClient("station");
-            var blobServiceClient = new BlobServiceClient(connectionString);
             var containerClient = blobServiceClient.GetBlobContainerClient("isochrone");
 
             logger?.LogInformation("Connected to Azure Storage services");
@@ -1260,17 +1496,20 @@ out body;";
             logger?.LogInformation("Generating area-wide isochrone for area: {AreaId}, duration: {Duration}min", areaId, duration);
             Console.WriteLine($"  📍 Generating {duration}min area-wide isochrone...");
 
-            // Get Azure Storage connection
-            var connectionString = configuration?.GetConnectionString("AzureStorage");
-            if (string.IsNullOrWhiteSpace(connectionString))
+            // Get Azure Storage connection using Azure AD
+            BlobServiceClient blobServiceClient;
+            try
             {
-                logger?.LogError("Azure Storage connection string not configured");
-                Console.WriteLine("❌ Azure Storage connection string not configured");
+                blobServiceClient = CreateBlobServiceClient(configuration);
+            }
+            catch (Exception ex)
+            {
+                logger?.LogError(ex, "Failed to create Azure Blob Storage client");
+                Console.WriteLine($"❌ Failed to create Azure Blob Storage client: {ex.Message}");
                 return;
             }
 
             // Create blob service client and container
-            var blobServiceClient = new BlobServiceClient(connectionString);
             var containerClient = blobServiceClient.GetBlobContainerClient("isochrone");
 
             // Check if container exists
@@ -1412,17 +1651,20 @@ out body;";
             logger?.LogInformation("Deleting area-wide isochrones for area: {AreaName}", areaName);
             Console.WriteLine($"🗑️  Deleting area-wide isochrones for area: {areaName}");
 
-            // Get Azure Storage connection
-            var connectionString = configuration?.GetConnectionString("AzureStorage");
-            if (string.IsNullOrWhiteSpace(connectionString))
+            // Get Azure Storage connection using Azure AD
+            BlobServiceClient blobServiceClient;
+            try
             {
-                logger?.LogError("Azure Storage connection string not configured");
-                Console.WriteLine("❌ Azure Storage connection string not configured");
+                blobServiceClient = CreateBlobServiceClient(configuration);
+            }
+            catch (Exception ex)
+            {
+                logger?.LogError(ex, "Failed to create Azure Blob Storage client");
+                Console.WriteLine($"❌ Failed to create Azure Blob Storage client: {ex.Message}");
                 return;
             }
 
             // Create blob service client and container
-            var blobServiceClient = new BlobServiceClient(connectionString);
             var containerClient = blobServiceClient.GetBlobContainerClient("isochrone");
 
             // Check if container exists
@@ -1512,20 +1754,24 @@ out body;";
             logger?.LogInformation("Deleting all station isochrones for area: {AreaId}", areaId);
             Console.WriteLine($"🗑️  Deleting all station isochrones for area: {areaId}");
 
-            // Get Azure Storage connection
-            var connectionString = configuration?.GetConnectionString("AzureStorage");
-            if (string.IsNullOrWhiteSpace(connectionString))
+            // Get Azure Storage connection using Azure AD
+            TableServiceClient tableServiceClient;
+            BlobServiceClient blobServiceClient;
+            try
             {
-                Console.WriteLine("❌ Azure Storage connection string not configured");
+                tableServiceClient = CreateTableServiceClient(configuration);
+                blobServiceClient = CreateBlobServiceClient(configuration);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Failed to create Azure Storage clients: {ex.Message}");
                 Environment.Exit(1);
                 return;
             }
 
             // Connect to Azure Table Storage and Blob Storage
-            var tableServiceClient = new TableServiceClient(connectionString);
             var areaTableClient = tableServiceClient.GetTableClient("area");
             var stationTableClient = tableServiceClient.GetTableClient("station");
-            var blobServiceClient = new BlobServiceClient(connectionString);
             var containerClient = blobServiceClient.GetBlobContainerClient("isochrone");
 
             logger?.LogInformation("Connected to Azure Storage services");
@@ -1650,20 +1896,24 @@ out body;";
             logger?.LogInformation("Regenerating all station isochrones for area: {AreaId}", areaId);
             Console.WriteLine($"🔄 Regenerating all station isochrones for area: {areaId}");
 
-            // Get Azure Storage connection
-            var connectionString = configuration?.GetConnectionString("AzureStorage");
-            if (string.IsNullOrWhiteSpace(connectionString))
+            // Get Azure Storage connection using Azure AD
+            TableServiceClient tableServiceClient;
+            BlobServiceClient blobServiceClient;
+            try
             {
-                Console.WriteLine("❌ Azure Storage connection string not configured");
+                tableServiceClient = CreateTableServiceClient(configuration);
+                blobServiceClient = CreateBlobServiceClient(configuration);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Failed to create Azure Storage clients: {ex.Message}");
                 Environment.Exit(1);
                 return;
             }
 
             // Connect to Azure Table Storage and Blob Storage
-            var tableServiceClient = new TableServiceClient(connectionString);
             var areaTableClient = tableServiceClient.GetTableClient("area");
             var stationTableClient = tableServiceClient.GetTableClient("station");
-            var blobServiceClient = new BlobServiceClient(connectionString);
             var containerClient = blobServiceClient.GetBlobContainerClient("isochrone");
 
             logger?.LogInformation("Connected to Azure Storage services");
@@ -1809,17 +2059,20 @@ out body;";
             logger?.LogInformation("Recreating area-wide isochrones for area: {AreaName}", areaName);
             Console.WriteLine($"🔄 Recreating area-wide isochrones for area: {areaName}");
 
-            // Get Azure Storage connection
-            var connectionString = configuration?.GetConnectionString("AzureStorage");
-            if (string.IsNullOrWhiteSpace(connectionString))
+            // Get Azure Storage connection using Azure AD
+            BlobServiceClient blobServiceClient;
+            try
             {
-                logger?.LogError("Azure Storage connection string not configured");
-                Console.WriteLine("❌ Azure Storage connection string not configured");
+                blobServiceClient = CreateBlobServiceClient(configuration);
+            }
+            catch (Exception ex)
+            {
+                logger?.LogError(ex, "Failed to create Azure Blob Storage client");
+                Console.WriteLine($"❌ Failed to create Azure Blob Storage client: {ex.Message}");
                 return;
             }
 
             // Create blob service client and container
-            var blobServiceClient = new BlobServiceClient(connectionString);
             var containerClient = blobServiceClient.GetBlobContainerClient("isochrone");
 
             // Check if container exists
