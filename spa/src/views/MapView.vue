@@ -143,6 +143,7 @@
         ref="mapRef"
         v-model:zoom="zoom"
         :center="initialCenter"
+        :min-zoom="minZoom"
         :use-global-leaflet="false"
         class="leaflet-map"
         @ready="onMapReady"
@@ -396,7 +397,8 @@ const props = withDefaults(defineProps<Props>(), {
 
 // Map setup
 const mapRef = ref<InstanceType<typeof LMap> | null>(null)
-const zoom = ref(13)
+const zoom = ref(7)
+const minZoom = ref<number | undefined>(undefined) // Minimum zoom level when targeting a specific area
 const initialCenter = ref<[number, number]>([41.9028, 12.4964]) // Default to Rome
 const selectedLocation = ref<[number, number] | null>(null)
 const selectedLocationName = ref('')
@@ -1101,14 +1103,17 @@ onMounted(async () => {
       // The diameter is in kilometers, we need to convert to appropriate zoom
       // Zoom calculation: larger diameter needs lower zoom (more zoomed out)
       const diameterKm = targetArea.diameter/1000
-      const zoomLevel = Math.max(8, Math.min(16, 16 - Math.log2(diameterKm)))
-      //const zoomLevel = 16
+      const calculatedZoomLevel = Math.max(8, Math.min(16, 16 - Math.log2(diameterKm)))
+      
+      // Set this as the initial zoom level and minimum zoom constraint
+      zoom.value = calculatedZoomLevel
+      minZoom.value = calculatedZoomLevel // Don't allow zooming out below this level
       
       // Wait a bit for the map to be ready, then set view
       setTimeout(() => {
         if (mapRef.value?.leafletObject) {
-          console.log(`🗺️ Setting area map view: ${targetArea.latitude}, ${targetArea.longitude}, zoom: ${zoomLevel}`)
-          mapRef.value.leafletObject.setView([targetArea.latitude, targetArea.longitude], zoomLevel)
+          console.log(`🗺️ Setting area map view: ${targetArea.latitude}, ${targetArea.longitude}, zoom: ${calculatedZoomLevel}, minZoom: ${calculatedZoomLevel}`)
+          mapRef.value.leafletObject.setView([targetArea.latitude, targetArea.longitude], calculatedZoomLevel)
         }
       }, 100)
       
