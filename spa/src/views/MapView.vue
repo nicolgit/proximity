@@ -137,6 +137,12 @@
       </svg>
     </button>
 
+    <!-- Area bounds indicator -->
+    <div v-if="areaBoundsActive" class="area-bounds-indicator">
+      <div class="bounds-icon">🔒</div>
+      <div class="bounds-text">Map limited to {{ currentAreaName }}</div>
+    </div>
+
     <!-- Map Container -->
     <div class="map-container">
       <l-map
@@ -399,6 +405,8 @@ const props = withDefaults(defineProps<Props>(), {
 const mapRef = ref<InstanceType<typeof LMap> | null>(null)
 const zoom = ref(7)
 const minZoom = ref<number | undefined>(undefined) // Minimum zoom level when targeting a specific area
+const maxBounds = ref<[[number, number], [number, number]] | undefined>(undefined) // Max bounds when targeting a specific area
+const areaBoundsActive = ref(false) // Track if area bounds constraints are currently active
 const initialCenter = ref<[number, number]>([41.9028, 12.4964]) // Default to Rome
 const selectedLocation = ref<[number, number] | null>(null)
 const selectedLocationName = ref('')
@@ -570,6 +578,15 @@ const areaIsochronesWithBorderIndex = computed(() => {
   })
   
   return result
+})
+
+// Computed property for current selected area name
+const currentAreaName = computed(() => {
+  if (props.areaId && areas.value.length > 0) {
+    const currentArea = areas.value.find(area => area.id === props.areaId)
+    return currentArea?.name || 'selected area'
+  }
+  return 'selected area'
 })
 
 // Station toggle functionality
@@ -954,6 +971,11 @@ const selectLocation = (result: SearchResult) => {
   
   // Use map's setView method instead of reactive center
   if (mapRef.value?.leafletObject) {
+    // Remove area constraints when user searches for a new location
+    if (props.areaId) {
+      removeAreaConstraints()
+    }
+
     mapRef.value.leafletObject.setView([lat, lon], 15)
   }
   
@@ -992,6 +1014,11 @@ const goToCurrentLocation = async () => {
       console.log(`🎯 Centering map on: ${lat}, ${lng}`)
       
       if (mapRef.value?.leafletObject) {
+        // Remove area constraints when going to current location (unless we have a specific area target)
+        if (props.areaId) {
+          removeAreaConstraints()
+        }
+
         mapRef.value.leafletObject.setView([lat, lng], 16)
         console.log('✅ Map centered successfully')
       } else {
@@ -999,6 +1026,11 @@ const goToCurrentLocation = async () => {
         // Try again after a short delay
         setTimeout(() => {
           if (mapRef.value?.leafletObject) {
+            // Remove area constraints when going to current location (unless we have a specific area target)
+            if (props.areaId) {
+              removeAreaConstraints()
+            }
+
             mapRef.value.leafletObject.setView([lat, lng], 16)
             console.log('✅ Map centered successfully (delayed)')
           }
@@ -1082,6 +1114,58 @@ const refreshStationIsochrones = async () => {
   }
 }
 
+// Function to calculate bounds for an area
+const calculateAreaBounds = (area: any): [[number, number], [number, number]] => {
+  const radiusKm = area.diameter / 2000 // Convert diameter from meters to radius in km
+  const lat = area.latitude
+  const lng = area.longitude
+  
+  // Calculate approximate bounds using radius
+  // 1 degree latitude ≈ 111 km
+  // 1 degree longitude varies by latitude: ≈ 111 * cos(latitude) km
+  const latDelta = radiusKm / 111
+  const lngDelta = radiusKm / (111 * Math.cos(lat * Math.PI / 180))
+  
+  // Add some padding (20% extra) to prevent hitting the exact bounds
+  const padding = 0.2
+  const paddedLatDelta = latDelta * (1 + padding)
+  const paddedLngDelta = lngDelta * (1 + padding)
+  
+  const southWest: [number, number] = [lat - paddedLatDelta, lng - paddedLngDelta]
+  const northEast: [number, number] = [lat + paddedLatDelta, lng + paddedLngDelta]
+  
+  return [southWest, northEast]
+}
+
+// Function to apply area constraints to the map
+const applyAreaConstraints = (area: any) => {
+  if (mapRef.value?.leafletObject) {
+    const bounds = calculateAreaBounds(area)
+    maxBounds.value = bounds
+    areaBoundsActive.value = true
+    
+    // Set the max bounds on the Leaflet map
+    mapRef.value.leafletObject.setMaxBounds(bounds)
+    
+    console.log(`🔒 Applied bounds constraint for area: ${area.name}`, bounds)
+  }
+}
+
+// Function to remove area constraints from the map
+const removeAreaConstraints = () => {
+  if (mapRef.value?.leafletObject) {
+    maxBounds.value = undefined
+    areaBoundsActive.value = false
+    minZoom.value = undefined // Remove minimum zoom constraint
+    
+    // Remove the max bounds from the Leaflet map completely
+    const leafletMap = mapRef.value.leafletObject as any 
+    leafletMap.setMaxBounds(null)
+    
+    console.log('🔓 Removed bounds and zoom constraints from map')
+  }
+}
+
 // Initialize on mount
 onMounted(async () => {
   console.log('🚀 Component mounted')
@@ -1109,11 +1193,14 @@ onMounted(async () => {
       zoom.value = calculatedZoomLevel
       minZoom.value = calculatedZoomLevel // Don't allow zooming out below this level
       
-      // Wait a bit for the map to be ready, then set view
+      // Wait a bit for the map to be ready, then set view and apply constraints
       setTimeout(() => {
         if (mapRef.value?.leafletObject) {
           console.log(`🗺️ Setting area map view: ${targetArea.latitude}, ${targetArea.longitude}, zoom: ${calculatedZoomLevel}, minZoom: ${calculatedZoomLevel}`)
           mapRef.value.leafletObject.setView([targetArea.latitude, targetArea.longitude], calculatedZoomLevel)
+          
+          // Apply area bounds constraints
+          applyAreaConstraints(targetArea)
         }
       }, 100)
       
@@ -1140,7 +1227,15 @@ onMounted(async () => {
       if (mapRef.value?.leafletObject) {
         console.log('🗺️ Setting initial map view to user location')
         mapRef.value.leafletObject.setView([lat, lng], 13)
+        
+        // Don't apply area constraints when using current location
+        removeAreaConstraints()
       }
+    }, 100)
+  } else {
+    // If no current location and no area ID, ensure no area constraints are applied
+    setTimeout(() => {
+      removeAreaConstraints()
     }, 100)
   }
 })
@@ -1497,6 +1592,45 @@ onUnmounted(() => {
 
 .loading-icon {
   color: #22C55E;
+}
+
+.area-bounds-indicator {
+  position: absolute;
+  top: 80px;
+  right: 20px;
+  z-index: 1000;
+  background: rgba(139, 92, 246, 0.95);
+  color: white;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  animation: fadeInSlide 0.3s ease-out;
+}
+
+.bounds-icon {
+  font-size: 14px;
+}
+
+.bounds-text {
+  white-space: nowrap;
+}
+
+@keyframes fadeInSlide {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .leaflet-map {
