@@ -50,12 +50,13 @@ defineProps<{
 
 const emit = defineEmits<{
   (e: 'close'): void
-  (e: 'open-github'): void
 }>()
 
 const onOverlayClick = () => emit('close')
 const onClose = () => emit('close')
-const onOpenGitHub = () => emit('open-github')
+const onOpenGitHub = () => {
+  window.open('https://github.com/nicolgit/proximity', '_blank')
+}
 </script>
 
 <style scoped>

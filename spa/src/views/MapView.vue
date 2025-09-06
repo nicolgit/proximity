@@ -78,7 +78,6 @@
       :is-areas-loading="isAreasLoading"
       :areas-error="areasError"
       @close="closeWelcomePopup"
-      @open-github="openGitHubProject"
     />
 
     <!-- Area Proximity Level Selector -->
@@ -1015,10 +1014,6 @@ const goToCurrentLocation = async () => {
 // Welcome popup functionality
 const closeWelcomePopup = () => {
   showWelcomePopup.value = false
-}
-
-const openGitHubProject = () => {
-  window.open('https://github.com/nicolgit/metro-proximity', '_blank')
 }
 
 // Area popup functionality
