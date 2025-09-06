@@ -2,7 +2,7 @@
   <div class="welcome-popup-overlay" @click="onOverlayClick">
     <div class="welcome-popup" @click.stop>
       <div class="welcome-header">
-        <h2>🗺️ Welcome to Metro Proximity!</h2>
+        <h2>🗺️ The Proximity project!</h2>
         <button @click="onClose" class="welcome-close-btn" type="button">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="18" y1="6" x2="6" y2="18"></line>
