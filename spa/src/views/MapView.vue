@@ -444,7 +444,7 @@ const {
   isLoading: isAreasLoading,
   error: areasError,
   load: loadAreas
-} = useAreas()
+} = useAreas(props.areaId)
 
 const {
   loadStations,

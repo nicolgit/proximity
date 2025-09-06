@@ -12,7 +12,7 @@
       </div>
 
       <div class="welcome-content">
-        <p>Welcome to metro-proximity!</p>
+        <p>Welcome to the Proximity project!</p>
         <p>a tool that helps you to understand how far you are from a metro/train/tram stop!</p>
 
         <p v-if="isAreasLoading">Loading available areas... ⏳</p>
