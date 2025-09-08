@@ -111,7 +111,7 @@
             class="proximity-level-slider"
           />
           <div class="proximity-level-current">
-             <strong>{{ pendingProximityLevel }}m</strong> proximity zones
+             <strong>{{ pendingProximityLevel }}min</strong> isochrones
           </div>
         </div>
       </div>

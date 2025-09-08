@@ -13,24 +13,26 @@
 
       <div class="welcome-content">
         <p>Welcome to the Proximity project!</p>
-        <p>a tool that helps you to understand how far you are from a metro/train/tram stop!</p>
-
-        <p v-if="isAreasLoading">Loading available areas... ⏳</p>
-        <p v-else-if="areasError">Error loading areas: {{ areasError }}</p>
-        <p v-else-if="areas && areas.length > 0">
-          Following areas are currently available:
-          <span v-for="(area, index) in areas" :key="area.id">
-            📍<b>{{ area.name }}</b><span v-if="index < areas.length - 1">, </span>
-          </span>
+        <p v-if="areas && areas.length === 1">
+          A tool that helps you understand how far you are from a metro, train or tram stop in the <b>{{ areas[0].name }}</b> metro area!
         </p>
+        <p v-else>a tool that helps you understand how far you are from a metro, train or tram stop!<p/>
+          <p v-if="isAreasLoading">Loading available areas... ⏳</p>
+          <p v-else-if="areasError">Error loading areas: {{ areasError }}</p>
+          <p v-else-if="areas && areas.length > 0">
+            Following metro areas are currently available:
+            <span v-for="(area, index) in areas" :key="area.id">
+              📍<b>{{ area.name }}</b><span v-if="index < areas.length - 1">, </span>
+            </span>
+          </p>
         <p v-else>No areas available at the moment</p>
-
+        </p>
         <div class="welcome-actions">
           <button @click="onOpenGitHub" class="welcome-btn welcome-btn--secondary">
-            📱 View on GitHub
+            📱 view on GitHub
           </button>
           <button @click="onClose" class="welcome-btn welcome-btn--primary">
-            🗺️ start explore Map!
+            🗺️ start exploring the Map!
           </button>
         </div>
       </div>
