@@ -33,7 +33,7 @@ access specific metropolitan areas directly using the following URLs:
 
 - 🏢 [Rome](https://proximity.duckiesfarm/rome)
 - 🏢 [Milan](https://proximity.duckiesfarm/milan)
-- 🏢 [Naples](https://proximity.duckiesfarm/milan)
+- 🏢 [Naples](https://proximity.duckiesfarm/naples)
 - 🏢 [Turin](https://proximity.duckiesfarm/turin)
 - 🏢 [Florence](https://proximity.duckiesfarm/florence)
 
