@@ -197,12 +197,11 @@
           <l-popup>
             <div class="area-popup" @click="closeAreaPopupOnOutsideClick($event)">
               <h3>📍 {{ area.name }}</h3>
-              <p><strong>Location:</strong> {{ area.latitude.toFixed(4) }}, {{ area.longitude.toFixed(4) }}</p>
-              <p><strong>Coverage:</strong> {{ area.diameter }}m diameter</p>
-
+              
               <!-- Use reusable AreaControls component -->
               <AreaControls
                 :area-id="area.id"
+                :show-stats="true"
                 :station-visible="visibleStations.has(area.id)"
                 :is-loading-stations="isLoadingForArea(area.id)"
                 :station-count="getStationsForArea(area.id).length"
@@ -246,6 +245,7 @@
               <!-- Area controls reused here -->
               <AreaControls
                 :area-id="isochrone.areaId"
+                :show-stats="false"
                 :station-visible="visibleStations.has(isochrone.areaId)"
                 :is-loading-stations="isLoadingForArea(isochrone.areaId)"
                 :station-count="getStationsForArea(isochrone.areaId).length"
@@ -358,6 +358,7 @@
               <!-- Reuse AreaControls for the station's area -->
               <AreaControls
                 :area-id="station.areaId"
+                :show-stats="false"
                 :station-visible="visibleStations.has(station.areaId)"
                 :is-loading-stations="isLoadingForArea(station.areaId)"
                 :station-count="getStationsForArea(station.areaId).length"

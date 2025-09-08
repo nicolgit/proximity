@@ -26,7 +26,7 @@
       </button>
     </div>
 
-    <div class="controls-row controls-row--proximity-info">
+    <div v-if="showStats" class="controls-row controls-row--proximity-info">
       <div v-if="stationError" class="station-error">Error: {{ stationError }}</div>
       <div v-else-if="stationVisible" class="station-count">{{ stationCount }} stations found</div>
       <div v-if="proximityError" class="proximity-error">Error: {{ proximityError }}</div>
@@ -40,6 +40,7 @@ import { defineProps, defineEmits } from 'vue'
 
 const props = defineProps({
   areaId: { type: [String, Number], required: true },
+  showStats: { type: Boolean, required: true },
   stationVisible: { type: Boolean, default: false },
   proximityVisible: { type: Boolean, default: false },
   stationCount: { type: Number, default: 0 },
