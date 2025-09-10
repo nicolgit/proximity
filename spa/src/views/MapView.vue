@@ -228,8 +228,8 @@
         >
           <l-popup>
             <div class="isochrone-popup" @click="closeAreaPopupOnOutsideClick($event)">
-              <h4>🏙️ {{ isochrone.timeMinutes }} minutes away</h4>
-              from public transport (train/metro/tram)
+              <h4>🏙️ less than {{ isochrone.timeMinutes }} minutes walk</h4>
+              from a train or tram stop
               
               <!-- Reverse geocoding info for clicked location -->
               <div v-if="isochroneClickLocation" class="reverse-geocoding-info">
@@ -277,7 +277,7 @@
         >
           <l-popup>
             <div class="isochrone-popup" @click="closeAreaPopupOnOutsideClick($event)">
-              <h4>🚶‍♂️ {{ circle.timeMinutes }} minutes walk</h4>
+              <h4>🚶‍♂️ less than {{ circle.timeMinutes }} minutes walk</h4>
               <p><strong>Distance:</strong> ~{{ Math.round(circle.radius) }}m radius</p>
               <p><strong>From:</strong> {{ selectedStationForIsochrone?.name }}</p>
               
@@ -305,8 +305,8 @@
         >
           <l-popup>
             <div class="isochrone-popup" @click="closeAreaPopupOnOutsideClick($event)">
-              <h4>🚶‍♂️ {{ isochrone.timeMinutes }} minutes walk</h4>
-              <p><strong>From:</strong> {{ selectedStationForIsochrone?.name }}</p>
+              <h4>🚶‍♂️ less than {{ isochrone.timeMinutes }} minutes walk</h4>
+              <p>from <strong>{{ selectedStationForIsochrone?.name }}</strong></p>
               
               <!-- Reverse geocoding info for clicked location on station isochrone -->
               <div v-if="stationIsochroneClickLocation" class="reverse-geocoding-info">
