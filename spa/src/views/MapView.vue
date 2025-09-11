@@ -395,11 +395,11 @@ import WelcomePopup from '@/components/WelcomePopup.vue'
 
 // Props
 interface Props {
-  areaId?: string
+  areaid?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  areaId: undefined
+  areaid: undefined
 })
 
 // Map setup
@@ -454,7 +454,7 @@ const {
   isLoading: isAreasLoading,
   error: areasError,
   load: loadAreas
-} = useAreas(props.areaId)
+} = useAreas(props.areaid)
 
 const {
   loadStations,
@@ -492,6 +492,80 @@ const pendingProximityLevel = ref(30) // For debounced updates
 
 // Debounced proximity level update
 let proximityLevelDebounceTimer: number | null = null
+
+// Initialize on mount
+onMounted(async () => {
+  console.log('🚀 Component mounted')
+  
+  // Load areas first
+  await loadAreas()
+  
+  // Check if we need to center on a specific area
+  if (props.areaid && areas.value.length > 0) {
+    const targetArea = areas.value.find(area => area.id === props.areaid)
+    
+    if (targetArea) {
+      console.log(`🎯 Centering map on area: ${targetArea.name} (${props.areaid})`)
+      
+      // Set initial center to the area coordinates
+      initialCenter.value = [targetArea.latitude, targetArea.longitude]
+      
+      // Calculate zoom level to show the entire area circle
+      // The diameter is in kilometers, we need to convert to appropriate zoom
+      // Zoom calculation: larger diameter needs lower zoom (more zoomed out)
+      const diameterKm = targetArea.diameter/1000
+      const calculatedZoomLevel = Math.max(8, Math.min(16, 16 - Math.log2(diameterKm)))
+      
+      // Set this as the initial zoom level and minimum zoom constraint
+      zoom.value = calculatedZoomLevel
+      minZoom.value = calculatedZoomLevel // Don't allow zooming out below this level
+      
+      // Wait a bit for the map to be ready, then set view and apply constraints
+      setTimeout(() => {
+        if (mapRef.value?.leafletObject) {
+          console.log(`🗺️ Setting area map view: ${targetArea.latitude}, ${targetArea.longitude}, zoom: ${calculatedZoomLevel}, minZoom: ${calculatedZoomLevel}`)
+          mapRef.value.leafletObject.setView([targetArea.latitude, targetArea.longitude], calculatedZoomLevel)
+          
+          // Apply area bounds constraints
+          applyAreaConstraints(targetArea)
+        }
+      }, 100)
+      
+      return // Skip location-based centering when area is specified
+    } else {
+      console.warn(`⚠️ Area with ID "${props.areaid}" not found`)
+    }
+  }
+  
+  // Try to get user's current location (fallback behavior)
+  await getLocation()
+  
+  console.log('📍 Initial location check:', currentLocation.value)
+  
+  if (currentLocation.value) {
+    const lat = currentLocation.value.lat
+    const lng = currentLocation.value.lng
+    console.log(`🎯 Setting initial center to user location: ${lat}, ${lng}`)
+    
+    initialCenter.value = [lat, lng]
+    
+    // Wait a bit for the map to be ready, then set view
+    setTimeout(() => {
+      if (mapRef.value?.leafletObject) {
+        console.log('🗺️ Setting initial map view to user location')
+        mapRef.value.leafletObject.setView([lat, lng], 13)
+        
+        // Don't apply area constraints when using current location
+        removeAreaConstraints()
+      }
+    }, 100)
+  } else {
+    // If no current location and no area ID, ensure no area constraints are applied
+    setTimeout(() => {
+      removeAreaConstraints()
+    }, 100)
+  }
+})
 
 const debouncedProximityLevelUpdate = (level: number) => {
   // Clear existing timer
@@ -583,8 +657,8 @@ const areaIsochronesWithBorderIndex = computed(() => {
 
 // Computed property for current selected area name
 const currentAreaName = computed(() => {
-  if (props.areaId && areas.value.length > 0) {
-    const currentArea = areas.value.find(area => area.id === props.areaId)
+  if (props.areaid && areas.value.length > 0) {
+    const currentArea = areas.value.find(area => area.id === props.areaid)
     return currentArea?.name || 'selected area'
   }
   return 'selected area'
@@ -973,7 +1047,7 @@ const selectLocation = (result: SearchResult) => {
   // Use map's setView method instead of reactive center
   if (mapRef.value?.leafletObject) {
     // Remove area constraints when user searches for a new location
-    if (props.areaId) {
+    if (props.areaid) {
       removeAreaConstraints()
     }
 
@@ -1016,7 +1090,7 @@ const goToCurrentLocation = async () => {
       
       if (mapRef.value?.leafletObject) {
         // Remove area constraints when going to current location (unless we have a specific area target)
-        if (props.areaId) {
+        if (props.areaid) {
           removeAreaConstraints()
         }
 
@@ -1028,7 +1102,7 @@ const goToCurrentLocation = async () => {
         setTimeout(() => {
           if (mapRef.value?.leafletObject) {
             // Remove area constraints when going to current location (unless we have a specific area target)
-            if (props.areaId) {
+            if (props.areaid) {
               removeAreaConstraints()
             }
 
@@ -1166,80 +1240,6 @@ const removeAreaConstraints = () => {
     console.log('🔓 Removed bounds and zoom constraints from map')
   }
 }
-
-// Initialize on mount
-onMounted(async () => {
-  console.log('🚀 Component mounted')
-  
-  // Load areas first
-  await loadAreas()
-  
-  // Check if we need to center on a specific area
-  if (props.areaId && areas.value.length > 0) {
-    const targetArea = areas.value.find(area => area.id === props.areaId)
-    
-    if (targetArea) {
-      console.log(`🎯 Centering map on area: ${targetArea.name} (${props.areaId})`)
-      
-      // Set initial center to the area coordinates
-      initialCenter.value = [targetArea.latitude, targetArea.longitude]
-      
-      // Calculate zoom level to show the entire area circle
-      // The diameter is in kilometers, we need to convert to appropriate zoom
-      // Zoom calculation: larger diameter needs lower zoom (more zoomed out)
-      const diameterKm = targetArea.diameter/1000
-      const calculatedZoomLevel = Math.max(8, Math.min(16, 16 - Math.log2(diameterKm)))
-      
-      // Set this as the initial zoom level and minimum zoom constraint
-      zoom.value = calculatedZoomLevel
-      minZoom.value = calculatedZoomLevel // Don't allow zooming out below this level
-      
-      // Wait a bit for the map to be ready, then set view and apply constraints
-      setTimeout(() => {
-        if (mapRef.value?.leafletObject) {
-          console.log(`🗺️ Setting area map view: ${targetArea.latitude}, ${targetArea.longitude}, zoom: ${calculatedZoomLevel}, minZoom: ${calculatedZoomLevel}`)
-          mapRef.value.leafletObject.setView([targetArea.latitude, targetArea.longitude], calculatedZoomLevel)
-          
-          // Apply area bounds constraints
-          applyAreaConstraints(targetArea)
-        }
-      }, 100)
-      
-      return // Skip location-based centering when area is specified
-    } else {
-      console.warn(`⚠️ Area with ID "${props.areaId}" not found`)
-    }
-  }
-  
-  // Try to get user's current location (fallback behavior)
-  await getLocation()
-  
-  console.log('📍 Initial location check:', currentLocation.value)
-  
-  if (currentLocation.value) {
-    const lat = currentLocation.value.lat
-    const lng = currentLocation.value.lng
-    console.log(`🎯 Setting initial center to user location: ${lat}, ${lng}`)
-    
-    initialCenter.value = [lat, lng]
-    
-    // Wait a bit for the map to be ready, then set view
-    setTimeout(() => {
-      if (mapRef.value?.leafletObject) {
-        console.log('🗺️ Setting initial map view to user location')
-        mapRef.value.leafletObject.setView([lat, lng], 13)
-        
-        // Don't apply area constraints when using current location
-        removeAreaConstraints()
-      }
-    }, 100)
-  } else {
-    // If no current location and no area ID, ensure no area constraints are applied
-    setTimeout(() => {
-      removeAreaConstraints()
-    }, 100)
-  }
-})
 
 // Cleanup debounce timer on unmount
 onUnmounted(() => {
