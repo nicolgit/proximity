@@ -138,9 +138,10 @@
     </button>
 
     <!-- Area bounds indicator -->
-    <div v-if="areaBoundsActive" class="area-bounds-indicator">
-      <div class="bounds-icon">🔒</div>
-      <div class="bounds-text">Map limited to {{ currentAreaName }}</div>
+    <div v-if="props.areaid" class="area-bounds-indicator" @click="toggleAreaBounds">
+      <div v-if="areaBoundsActive" class="bounds-icon">🔒</div>
+      <div v-else class="bounds-icon">🔓</div>
+      <div class="bounds-text">map limited to {{ currentAreaName }}</div>
     </div>
 
     <!-- Map Container -->
@@ -1266,6 +1267,22 @@ const removeAreaConstraints = () => {
   }
 }
 
+// Function to toggle area bounds constraints
+const toggleAreaBounds = () => {
+  if (areaBoundsActive.value) {
+    // Currently active, remove constraints
+    removeAreaConstraints()
+  } else {
+    // Currently inactive, apply constraints if we have a target area
+    if (props.areaid && areas.value.length > 0) {
+      const targetArea = areas.value.find(area => area.id === props.areaid)
+      if (targetArea) {
+        applyAreaConstraints(targetArea)
+      }
+    }
+  }
+}
+
 // Cleanup debounce timer on unmount
 onUnmounted(() => {
   if (proximityLevelDebounceTimer) {
@@ -1638,6 +1655,20 @@ onUnmounted(() => {
   backdrop-filter: blur(4px);
   border: 1px solid rgba(255, 255, 255, 0.2);
   animation: fadeInSlide 0.3s ease-out;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.area-bounds-indicator:hover {
+  background: rgba(139, 92, 246, 1);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.area-bounds-indicator:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
 .bounds-icon {
