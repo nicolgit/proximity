@@ -389,7 +389,8 @@ import type { SearchResult, Station } from '@/types'
 import { searchLocationIconSvg, userLocationIconSvg, stationIconSvg, tramStopIconSvg } from '@/utils/mapIcons'
 import { getApiUrl } from '@/config/env'
 import { LCircle, LMap, LMarker, LPopup, LTileLayer, LGeoJson } from '@vue-leaflet/vue-leaflet'
-import { onMounted, ref, computed, onUnmounted } from 'vue'
+import { onMounted, ref, computed, onUnmounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import AreaControls from '@/components/AreaControls.vue'
 import WelcomePopup from '@/components/WelcomePopup.vue'
 
@@ -401,6 +402,9 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   areaid: undefined
 })
+
+// Route setup
+const route = useRoute()
 
 // Map setup
 const mapRef = ref<InstanceType<typeof LMap> | null>(null)
@@ -493,78 +497,99 @@ const pendingProximityLevel = ref(30) // For debounced updates
 // Debounced proximity level update
 let proximityLevelDebounceTimer: number | null = null
 
+// Function to initialize map for a specific area
+const initializeMapForArea = async (areaId: string | undefined) => {
+  // Load areas if not already loaded
+  if (areas.value.length === 0) {
+    await loadAreas()
+  }
+
+  if (!areaId) {
+    // No area specified, use current location or default
+    await getLocation()
+    
+    if (currentLocation.value) {
+      const lat = currentLocation.value.lat
+      const lng = currentLocation.value.lng
+      console.log(`🎯 Setting initial center to user location: ${lat}, ${lng}`)
+      
+      initialCenter.value = [lat, lng]
+      
+      setTimeout(() => {
+        if (mapRef.value?.leafletObject) {
+          console.log('🗺️ Setting initial map view to user location')
+          mapRef.value.leafletObject.setView([lat, lng], 13)
+          removeAreaConstraints()
+        }
+      }, 100)
+    } else {
+      setTimeout(() => {
+        removeAreaConstraints()
+      }, 100)
+    }
+    return
+  }
+
+  const targetArea = areas.value.find(area => area.id === areaId)
+  
+  if (targetArea) {
+    console.log(`🎯 Centering map on area: ${targetArea.name} (${areaId})`)
+    
+    // Set initial center to the area coordinates
+    initialCenter.value = [targetArea.latitude, targetArea.longitude]
+    
+    // Calculate zoom level to show the entire area circle
+    const diameterKm = targetArea.diameter/1000
+    const calculatedZoomLevel = Math.max(8, Math.min(16, 16 - Math.log2(diameterKm)))
+    
+    // Set this as the initial zoom level and minimum zoom constraint
+    zoom.value = calculatedZoomLevel
+    minZoom.value = calculatedZoomLevel
+    
+    // Wait a bit for the map to be ready, then set view and apply constraints
+    setTimeout(() => {
+      if (mapRef.value?.leafletObject) {
+        console.log(`🗺️ Setting area map view: ${targetArea.latitude}, ${targetArea.longitude}, zoom: ${calculatedZoomLevel}, minZoom: ${calculatedZoomLevel}`)
+        mapRef.value.leafletObject.setView([targetArea.latitude, targetArea.longitude], calculatedZoomLevel)
+        applyAreaConstraints(targetArea)
+      }
+    }, 100)
+  } else {
+    console.warn(`⚠️ Area with ID "${areaId}" not found`)
+    // Fallback to user location
+    await getLocation()
+    if (currentLocation.value) {
+      const lat = currentLocation.value.lat
+      const lng = currentLocation.value.lng
+      initialCenter.value = [lat, lng]
+      
+      setTimeout(() => {
+        if (mapRef.value?.leafletObject) {
+          mapRef.value.leafletObject.setView([lat, lng], 13)
+          removeAreaConstraints()
+        }
+      }, 100)
+    }
+  }
+}
+
+// Watch for route parameter changes
+watch(
+  () => route.params.areaid as string | undefined,
+  async (newAreaId, oldAreaId) => {
+    if (newAreaId !== oldAreaId) {
+      console.log(`🔄 Route changed from area "${oldAreaId}" to "${newAreaId}"`)
+      await initializeMapForArea(newAreaId)
+    }
+  }
+)
+
 // Initialize on mount
 onMounted(async () => {
   console.log('🚀 Component mounted')
   
-  // Load areas first
-  await loadAreas()
-  
-  // Check if we need to center on a specific area
-  if (props.areaid && areas.value.length > 0) {
-    const targetArea = areas.value.find(area => area.id === props.areaid)
-    
-    if (targetArea) {
-      console.log(`🎯 Centering map on area: ${targetArea.name} (${props.areaid})`)
-      
-      // Set initial center to the area coordinates
-      initialCenter.value = [targetArea.latitude, targetArea.longitude]
-      
-      // Calculate zoom level to show the entire area circle
-      // The diameter is in kilometers, we need to convert to appropriate zoom
-      // Zoom calculation: larger diameter needs lower zoom (more zoomed out)
-      const diameterKm = targetArea.diameter/1000
-      const calculatedZoomLevel = Math.max(8, Math.min(16, 16 - Math.log2(diameterKm)))
-      
-      // Set this as the initial zoom level and minimum zoom constraint
-      zoom.value = calculatedZoomLevel
-      minZoom.value = calculatedZoomLevel // Don't allow zooming out below this level
-      
-      // Wait a bit for the map to be ready, then set view and apply constraints
-      setTimeout(() => {
-        if (mapRef.value?.leafletObject) {
-          console.log(`🗺️ Setting area map view: ${targetArea.latitude}, ${targetArea.longitude}, zoom: ${calculatedZoomLevel}, minZoom: ${calculatedZoomLevel}`)
-          mapRef.value.leafletObject.setView([targetArea.latitude, targetArea.longitude], calculatedZoomLevel)
-          
-          // Apply area bounds constraints
-          applyAreaConstraints(targetArea)
-        }
-      }, 100)
-      
-      return // Skip location-based centering when area is specified
-    } else {
-      console.warn(`⚠️ Area with ID "${props.areaid}" not found`)
-    }
-  }
-  
-  // Try to get user's current location (fallback behavior)
-  await getLocation()
-  
-  console.log('📍 Initial location check:', currentLocation.value)
-  
-  if (currentLocation.value) {
-    const lat = currentLocation.value.lat
-    const lng = currentLocation.value.lng
-    console.log(`🎯 Setting initial center to user location: ${lat}, ${lng}`)
-    
-    initialCenter.value = [lat, lng]
-    
-    // Wait a bit for the map to be ready, then set view
-    setTimeout(() => {
-      if (mapRef.value?.leafletObject) {
-        console.log('🗺️ Setting initial map view to user location')
-        mapRef.value.leafletObject.setView([lat, lng], 13)
-        
-        // Don't apply area constraints when using current location
-        removeAreaConstraints()
-      }
-    }, 100)
-  } else {
-    // If no current location and no area ID, ensure no area constraints are applied
-    setTimeout(() => {
-      removeAreaConstraints()
-    }, 100)
-  }
+  // Use the shared initialization function
+  await initializeMapForArea(props.areaid)
 })
 
 const debouncedProximityLevelUpdate = (level: number) => {
@@ -1664,125 +1689,7 @@ onUnmounted(() => {
   color: #333;
 }
 
-/* Station Toggle Button Styles */
-.station-toggle-section {
-  margin-top: 15px;
-  padding-top: 10px;
-  border-top: 1px solid #eee;
-}
 
-.station-toggle-btn {
-  /* grey when stations are not shown */
-  background: #6f7583; /* gray-500 */
-  color: white;
-  border: none;
-  border-radius: 6px;
-  padding: 8px 12px;
-  font-size: 13px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  min-height: 32px;
-}
-
-.station-toggle-btn:hover:not(:disabled) {
-  background: #4b5563; /* darker gray on hover */
-  transform: translateY(-1px);
-}
-
-.station-toggle-btn--active {
-  /* green when stations are shown */
-  background: #22C55E; /* success green */
-}
-
-.station-toggle-btn--active:hover:not(:disabled) {
-  background: #16a34a; /* darker green */
-}
-
-.station-toggle-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.station-count {
-  margin-top: 6px;
-  font-size: 12px;
-  color: #666;
-  font-style: italic;
-}
-
-.station-error {
-  margin-top: 6px;
-  font-size: 12px;
-  color: #dc3545;
-  background: #f8d7da;
-  padding: 4px 6px;
-  border-radius: 3px;
-  border: 1px solid #f5c6cb;
-}
-
-/* Proximity Toggle Button Styles */
-.proximity-toggle-section {
-  margin-top: 15px;
-  padding-top: 10px;
-  border-top: 1px solid #eee;
-}
-
-.proximity-toggle-btn {
-  /* grey when proximity is not shown */
-  background: #6f7583; /* gray-500 */
-  color: white;
-  border: none;
-  border-radius: 6px;
-  padding: 8px 12px;
-  font-size: 13px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  min-height: 32px;
-}
-
-.proximity-toggle-btn:hover:not(:disabled) {
-  background: #4b5563; /* darker gray on hover */
-  transform: translateY(-1px);
-}
-
-.proximity-toggle-btn--active {
-  /* purple when proximity is shown */
-  background: #8b5cf6; /* current purple */
-}
-
-.proximity-toggle-btn--active:hover:not(:disabled) {
-  background: #7c3aed; /* darker purple */
-}
-
-.proximity-toggle-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.proximity-count {
-  margin-top: 6px;
-  font-size: 12px;
-  color: #666;
-  font-style: italic;
-}
-
-.proximity-error {
-  margin-top: 6px;
-  font-size: 12px;
-  color: #dc3545;
-  background: #f8d7da;
-  padding: 4px 6px;
-  border-radius: 3px;
-  border: 1px solid #f5c6cb;
-}
 
 /* Station Popup Styles */
 .station-popup {
@@ -1886,15 +1793,10 @@ onUnmounted(() => {
   font-size: 11px;
 }
 
-/* Welcome Popup Styles */
-/* moved to components/WelcomePopup.vue */
 
 /* Area Controls Layout */
 .area-controls {
   margin-top: 12px;
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 8px;
 }
 
 .controls-row--buttons {
@@ -1903,21 +1805,10 @@ onUnmounted(() => {
   align-items: center;
 }
 
-.controls-row--buttons .station-toggle-btn,
-.controls-row--buttons .proximity-toggle-btn {
-  flex: 1 1 auto;
-  min-width: 120px;
-}
-
 .controls-row--station-info,
 .controls-row--proximity-info {
   font-size: 13px;
   color: #666;
-}
-
-/* ensure errors keep their styling */
-.controls-row--station-info .station-error,
-.controls-row--proximity-info .proximity-error {
-  margin: 0;
+  margin-top: 8px;
 }
 </style>
