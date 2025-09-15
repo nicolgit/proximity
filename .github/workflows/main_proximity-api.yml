@@ -11,7 +11,7 @@ on:
 
 env:
   AZURE_FUNCTIONAPP_PACKAGE_PATH: '.' # set this to the path to your web app project, defaults to the repository root
-  DOTNET_VERSION: '8' # set this to the dotnet version to use
+  DOTNET_VERSION: '8.*' # set this to the dotnet version to use
 
 jobs:
   build-and-deploy:
@@ -40,6 +40,7 @@ jobs:
           app-name: 'proximity-api'
           slot-name: 'Production'
           package: '${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}/output'
+
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_A7FE39CDAD4D400DBD3371FA10041C2A }}
           sku: 'flexconsumption'
         
