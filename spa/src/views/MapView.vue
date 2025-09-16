@@ -155,13 +155,8 @@
         class="leaflet-map"
         @ready="onMapReady"
       >
-        <l-tile-layer
-          :url="tileLayerUrl"
-          :attribution="attribution"
-        />
-        
-        <!-- Marker for selected location -->
-        <l-marker
+         <!-- Marker for selected location -->
+         <l-marker
           v-if="selectedLocation"
           :lat-lng="selectedLocation"
           :icon="searchLocationIconSvg as any"
@@ -389,7 +384,11 @@ import { LocationSearchService } from '@/services/LocationSearchService'
 import type { SearchResult, Station } from '@/types'
 import { searchLocationIconSvg, userLocationIconSvg, stationIconSvg, tramStopIconSvg } from '@/utils/mapIcons'
 import { getApiUrl } from '@/config/env'
-import { LCircle, LMap, LMarker, LPopup, LTileLayer, LGeoJson } from '@vue-leaflet/vue-leaflet'
+import { LCircle, LMap, LMarker, LPopup, LGeoJson } from '@vue-leaflet/vue-leaflet'
+import maplibregl from 'maplibre-gl'
+import 'maplibre-gl/dist/maplibre-gl.css'
+import '@maplibre/maplibre-gl-leaflet'
+import * as L from 'leaflet'
 import { onMounted, ref, computed, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import AreaControls from '@/components/AreaControls.vue'
@@ -433,8 +432,12 @@ const stationIsochroneClickAddress = ref('')
 const isLoadingStationIsochroneAddress = ref(false)
 
 // Map configuration
-const tileLayerUrl = 'https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png'
-const attribution = '© <a href="http://github.com/nicolgit">Nicola Delfino</a>, © <a href="https://stadiamaps.com/">Stadia Maps</a>, © <a href="https://openmaptiles.org/">OpenMapTiles</a> © <a href="http://openstreetmap.org">OpenStreetMap</a>'
+// Use OpenFreeMap style (MapLibre GL) instead of raster tiles
+const openFreeMapStyleUrl = 'https://tiles.openfreemap.org/styles/positron'
+const attribution = '© <a href="https://openfreemap.org/">OpenFreeMap</a>, © <a href="http://openstreetmap.org">OpenStreetMap</a>'
+
+// Reference for the added MapLibre GL layer so we can remove it on unmount
+const maplibreLayerRef = ref<any | null>(null)
 
 // Use composables
 const {
@@ -988,6 +991,23 @@ const onSearchKeydown = (event: KeyboardEvent) => {
 // Map event handlers
 const onMapReady = () => {
   console.log('🗺️ Map is ready!', mapRef.value?.leafletObject)
+  // Add a MapLibre GL layer (OpenFreeMap) to the Leaflet map using maplibre-gl-leaflet
+  try {
+    if (mapRef.value?.leafletObject) {
+      // @ts-ignore - maplibreGL is injected into Leaflet by the maplibre-leaflet package
+      const maplibreLayer = (L as any).maplibreGL({
+        style: openFreeMapStyleUrl,
+        interactive: true
+      })
+
+      // Add to the Leaflet map
+      maplibreLayer.addTo(mapRef.value.leafletObject)
+      maplibreLayerRef.value = maplibreLayer
+      console.log('✅ MapLibre GL layer added (OpenFreeMap style)')
+    }
+  } catch (e) {
+    console.warn('⚠️ Could not add MapLibre GL layer:', e)
+  }
 }
 
 const onIsochroneClick = async (event: any) => {
@@ -1288,6 +1308,17 @@ onUnmounted(() => {
   if (proximityLevelDebounceTimer) {
     clearTimeout(proximityLevelDebounceTimer)
     proximityLevelDebounceTimer = null
+  }
+
+  // Remove MapLibre GL layer if present
+  try {
+    if (maplibreLayerRef.value && mapRef.value?.leafletObject) {
+      mapRef.value.leafletObject.removeLayer(maplibreLayerRef.value)
+      maplibreLayerRef.value = null
+      console.log('🧹 Removed MapLibre GL layer on unmount')
+    }
+  } catch (e) {
+    console.warn('Error removing MapLibre GL layer on unmount', e)
   }
 })
 </script>
