@@ -385,7 +385,6 @@ import type { SearchResult, Station } from '@/types'
 import { searchLocationIconSvg, userLocationIconSvg, stationIconSvg, tramStopIconSvg } from '@/utils/mapIcons'
 import { getApiUrl } from '@/config/env'
 import { LCircle, LMap, LMarker, LPopup, LGeoJson } from '@vue-leaflet/vue-leaflet'
-import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import '@maplibre/maplibre-gl-leaflet'
 import * as L from 'leaflet'
@@ -434,7 +433,6 @@ const isLoadingStationIsochroneAddress = ref(false)
 // Map configuration
 // Use OpenFreeMap style (MapLibre GL) instead of raster tiles
 const openFreeMapStyleUrl = 'https://tiles.openfreemap.org/styles/positron'
-const attribution = '© <a href="https://openfreemap.org/">OpenFreeMap</a>, © <a href="http://openstreetmap.org">OpenStreetMap</a>'
 
 // Reference for the added MapLibre GL layer so we can remove it on unmount
 const maplibreLayerRef = ref<any | null>(null)
