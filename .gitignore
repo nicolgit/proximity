@@ -38,3 +38,6 @@ Thumbs.db
 #
 *.local.ps1
 
+# backup files
+*.bak
+*.bkp
