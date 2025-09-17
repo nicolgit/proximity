@@ -4,7 +4,6 @@
 
 ![into](video/welcome.gif)
 
-
 ## 🌍 Why This Project?
 
 In many parts of Italy—and often elsewhere—rail-based public transport (trains and trams) is significantly more reliable and punctual than road-based alternatives. This is largely due to the absence of traffic-related delays.
@@ -56,3 +55,4 @@ Maintaining and improving this project takes time, effort, and resources. Your c
 # 📄 License
 
 This project is licensed under the [MIT License](LICENSE).
+
