@@ -1,6 +1,6 @@
 <mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/28.1.2 Chrome/138.0.7204.243 Electron/37.4.0 Safari/537.36" version="28.1.2">
   <diagram name="Page-1" id="o_94vid7xFebRi_YSR5-">
-    <mxGraphModel dx="1758" dy="683" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+    <mxGraphModel dx="2177" dy="990" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -23,7 +23,7 @@
           <mxGeometry x="350" y="80" width="142" height="293" as="geometry" />
         </mxCell>
         <mxCell id="TZj7A_iM_BkXJGJBP_RB-5" value="" style="group;fontFamily=Helvetica;" parent="1" vertex="1" connectable="0">
-          <mxGeometry x="30" y="50" width="142" height="133" as="geometry" />
+          <mxGeometry x="1020" y="320" width="142" height="133" as="geometry" />
         </mxCell>
         <mxCell id="TZj7A_iM_BkXJGJBP_RB-6" value="default&lt;br&gt;10.13.1.0/26" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=3;strokeColor=none;fillColor=#E6E6E6;fontColor=#333333;align=left;verticalAlign=top;fontFamily=Helvetica;" parent="TZj7A_iM_BkXJGJBP_RB-5" vertex="1">
           <mxGeometry width="142" height="133" as="geometry" />
@@ -182,7 +182,7 @@
         <mxCell id="GV5Pj42Ep5QnTts1L2Bw-17" value="Azure DNS magic number&lt;div&gt;168.63.129.16&lt;/div&gt;" style="html=1;strokeWidth=1;shadow=0;dashed=0;shape=mxgraph.ios7.misc.settings;fillColor=#8F8E94;strokeColor=none;buttonText=;strokeColor2=#222222;fontColor=#222222;fontSize=8;verticalLabelPosition=middle;verticalAlign=middle;align=left;sketch=0;labelPosition=right;whiteSpace=wrap;" vertex="1" parent="1">
           <mxGeometry x="360" y="680" width="30" height="30" as="geometry" />
         </mxCell>
-        <mxCell id="GV5Pj42Ep5QnTts1L2Bw-18" value="privatelink.table..core.windows.net" style="image;sketch=0;aspect=fixed;html=1;points=[];align=left;fontSize=12;image=img/lib/mscae/DNS_Private_Zones.svg;labelPosition=right;verticalLabelPosition=middle;verticalAlign=middle;" vertex="1" parent="1">
+        <mxCell id="GV5Pj42Ep5QnTts1L2Bw-18" value="privatelink.table.core.windows.net" style="image;sketch=0;aspect=fixed;html=1;points=[];align=left;fontSize=12;image=img/lib/mscae/DNS_Private_Zones.svg;labelPosition=right;verticalLabelPosition=middle;verticalAlign=middle;" vertex="1" parent="1">
           <mxGeometry x="404" y="750" width="20" height="20" as="geometry" />
         </mxCell>
         <mxCell id="GV5Pj42Ep5QnTts1L2Bw-19" value="privatelink.queue.core.windows.net" style="image;sketch=0;aspect=fixed;html=1;points=[];align=left;fontSize=12;image=img/lib/mscae/DNS_Private_Zones.svg;labelPosition=right;verticalLabelPosition=middle;verticalAlign=middle;" vertex="1" parent="1">
