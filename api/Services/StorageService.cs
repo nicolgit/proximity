@@ -251,27 +251,6 @@ namespace api.Services
         }
 
         /// <summary>
-        /// Creates a table if it doesn't exist
-        /// </summary>
-        /// <param name="tableName">The name of the table to create</param>
-        /// <returns>True if table was created or already exists</returns>
-        public async Task<bool> EnsureTableExistsAsync(string tableName)
-        {
-            try
-            {
-                var tableClient = GetTableClient(tableName);
-                await tableClient.CreateIfNotExistsAsync();
-                _logger.LogInformation("Table '{TableName}' ensured to exist", tableName);
-                return true;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to ensure table '{TableName}' exists", tableName);
-                return false;
-            }
-        }
-
-        /// <summary>
         /// Gets the TableServiceClient for advanced operations
         /// </summary>
         public TableServiceClient TableServiceClient => _tableServiceClient;

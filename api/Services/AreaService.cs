@@ -34,9 +34,6 @@ public class AreaService
         {
             _logger.LogInformation("Retrieving all areas from table storage");
 
-            // Ensure table exists
-            await _storageService.EnsureTableExistsAsync(_tableName);
-
             var tableClient = _storageService.GetTableClient(_tableName);
 
             // Query all entities with partition key "area"
@@ -82,9 +79,6 @@ public class AreaService
                 throw new ArgumentException("Area ID cannot be null or empty", nameof(id));
 
             _logger.LogInformation("Retrieving area with ID: {AreaId}", id);
-
-            // Ensure table exists
-            await _storageService.EnsureTableExistsAsync(_tableName);
 
             var tableClient = _storageService.GetTableClient(_tableName);
 
