@@ -1,7 +1,11 @@
 name: Deploy SPA
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - develop
+    paths:
+      - ".github/workflows/*"
 
 jobs:
   build_and_deploy_job:
