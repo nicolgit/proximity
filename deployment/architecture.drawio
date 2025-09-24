@@ -118,80 +118,80 @@
         <mxCell id="iYKLwUi34a5PwU0SG7X0-10" value="&lt;div&gt;&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;https://github.com/nicolgit/proximity&lt;/span&gt;&lt;/div&gt;" style="verticalLabelPosition=bottom;html=1;verticalAlign=top;align=center;strokeColor=none;fillColor=#00BEF2;shape=mxgraph.azure.github_code;pointerEvents=1;labelPosition=center;" parent="1" vertex="1">
           <mxGeometry x="80.99999999999997" y="232" width="40" height="40" as="geometry" />
         </mxCell>
-        <mxCell id="GV5Pj42Ep5QnTts1L2Bw-1" value="" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=3;strokeColor=none;fillColor=#E6E6E6;align=left;verticalAlign=top;fontColor=#333333;fontFamily=Helvetica;" vertex="1" parent="1">
+        <mxCell id="GV5Pj42Ep5QnTts1L2Bw-1" value="" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=3;strokeColor=none;fillColor=#E6E6E6;align=left;verticalAlign=top;fontColor=#333333;fontFamily=Helvetica;" parent="1" vertex="1">
           <mxGeometry x="533.19" y="80" width="100" height="293" as="geometry" />
         </mxCell>
-        <mxCell id="GV5Pj42Ep5QnTts1L2Bw-2" value="table" style="verticalLabelPosition=bottom;html=1;verticalAlign=top;align=center;strokeColor=none;fillColor=#00BEF2;shape=mxgraph.azure.storage;pointerEvents=1;labelBackgroundColor=default;" vertex="1" parent="1">
+        <mxCell id="GV5Pj42Ep5QnTts1L2Bw-2" value="table" style="verticalLabelPosition=bottom;html=1;verticalAlign=top;align=center;strokeColor=none;fillColor=#00BEF2;shape=mxgraph.azure.storage;pointerEvents=1;labelBackgroundColor=default;" parent="1" vertex="1">
           <mxGeometry x="570" y="310" width="26.25" height="21" as="geometry" />
         </mxCell>
-        <mxCell id="GV5Pj42Ep5QnTts1L2Bw-3" value="storage" style="verticalLabelPosition=bottom;html=1;verticalAlign=top;align=center;strokeColor=none;fillColor=#00BEF2;shape=mxgraph.azure.storage_blob;labelBackgroundColor=default;" vertex="1" parent="1">
+        <mxCell id="GV5Pj42Ep5QnTts1L2Bw-3" value="storage" style="verticalLabelPosition=bottom;html=1;verticalAlign=top;align=center;strokeColor=none;fillColor=#00BEF2;shape=mxgraph.azure.storage_blob;labelBackgroundColor=default;" parent="1" vertex="1">
           <mxGeometry x="570" y="248" width="30" height="24" as="geometry" />
         </mxCell>
-        <mxCell id="GV5Pj42Ep5QnTts1L2Bw-4" value="proxdata&amp;lt;####&amp;gt;" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/storage/Storage_Accounts.svg;" vertex="1" parent="1">
+        <mxCell id="GV5Pj42Ep5QnTts1L2Bw-4" value="proxdata&amp;lt;####&amp;gt;" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/storage/Storage_Accounts.svg;" parent="1" vertex="1">
           <mxGeometry x="566.3100000000001" y="63.1" width="33.62" height="26.9" as="geometry" />
         </mxCell>
-        <mxCell id="GV5Pj42Ep5QnTts1L2Bw-5" value="&lt;div&gt;proxfnstorage-blob-pep&lt;/div&gt;&lt;div&gt;10.10.1.14&lt;/div&gt;" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/networking/Private_Endpoint.svg;" vertex="1" parent="1">
+        <mxCell id="GV5Pj42Ep5QnTts1L2Bw-5" value="&lt;div&gt;proxfnstorage-blob-pep&lt;/div&gt;&lt;div&gt;10.10.1.14&lt;/div&gt;" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/networking/Private_Endpoint.svg;" parent="1" vertex="1">
           <mxGeometry x="410.73" y="248" width="18.54" height="17" as="geometry" />
         </mxCell>
-        <mxCell id="GV5Pj42Ep5QnTts1L2Bw-6" value="" style="endArrow=none;html=1;rounded=1;curved=0;strokeColor=#7EA6E0;exitX=0.493;exitY=0.451;exitDx=0;exitDy=0;endFill=0;exitPerimeter=0;" edge="1" parent="1">
+        <mxCell id="GV5Pj42Ep5QnTts1L2Bw-6" value="" style="endArrow=none;html=1;rounded=1;curved=0;strokeColor=#7EA6E0;exitX=0.493;exitY=0.451;exitDx=0;exitDy=0;endFill=0;exitPerimeter=0;" parent="1" edge="1">
           <mxGeometry width="50" height="50" relative="1" as="geometry">
             <mxPoint x="429.99599999999987" y="260.273" as="sourcePoint" />
             <mxPoint x="566" y="260" as="targetPoint" />
             <Array as="points" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="GV5Pj42Ep5QnTts1L2Bw-7" value="&lt;div&gt;&lt;span style=&quot;background-color: light-dark(#ffffff, var(--ge-dark-color, #121212)); color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;proxfnstorage-table-pep&lt;/span&gt;&lt;/div&gt;&lt;div&gt;10.10.1.15&lt;/div&gt;" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/networking/Private_Endpoint.svg;" vertex="1" parent="1">
+        <mxCell id="GV5Pj42Ep5QnTts1L2Bw-7" value="&lt;div&gt;&lt;span style=&quot;background-color: light-dark(#ffffff, var(--ge-dark-color, #121212)); color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;proxfnstorage-table-pep&lt;/span&gt;&lt;/div&gt;&lt;div&gt;10.10.1.15&lt;/div&gt;" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/networking/Private_Endpoint.svg;" parent="1" vertex="1">
           <mxGeometry x="410.73" y="307.55999999999995" width="18.54" height="17" as="geometry" />
         </mxCell>
-        <mxCell id="GV5Pj42Ep5QnTts1L2Bw-8" value="" style="endArrow=none;html=1;rounded=1;curved=0;strokeColor=#7EA6E0;exitX=0.493;exitY=0.451;exitDx=0;exitDy=0;endFill=0;exitPerimeter=0;" edge="1" parent="1">
+        <mxCell id="GV5Pj42Ep5QnTts1L2Bw-8" value="" style="endArrow=none;html=1;rounded=1;curved=0;strokeColor=#7EA6E0;exitX=0.493;exitY=0.451;exitDx=0;exitDy=0;endFill=0;exitPerimeter=0;" parent="1" edge="1">
           <mxGeometry width="50" height="50" relative="1" as="geometry">
             <mxPoint x="429.99599999999987" y="319.8330000000001" as="sourcePoint" />
             <mxPoint x="566" y="319.55999999999995" as="targetPoint" />
             <Array as="points" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="GV5Pj42Ep5QnTts1L2Bw-9" value="queue" style="verticalLabelPosition=bottom;html=1;verticalAlign=top;align=center;strokeColor=none;fillColor=#00BEF2;shape=mxgraph.azure.storage_queue;labelBackgroundColor=default;" vertex="1" parent="1">
+        <mxCell id="GV5Pj42Ep5QnTts1L2Bw-9" value="queue" style="verticalLabelPosition=bottom;html=1;verticalAlign=top;align=center;strokeColor=none;fillColor=#00BEF2;shape=mxgraph.azure.storage_queue;labelBackgroundColor=default;" parent="1" vertex="1">
           <mxGeometry x="570" y="189" width="27" height="24" as="geometry" />
         </mxCell>
-        <mxCell id="GV5Pj42Ep5QnTts1L2Bw-10" value="files" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/general/Storage_Azure_Files.svg;" vertex="1" parent="1">
+        <mxCell id="GV5Pj42Ep5QnTts1L2Bw-10" value="files" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/general/Storage_Azure_Files.svg;" parent="1" vertex="1">
           <mxGeometry x="569.38" y="129" width="27.62" height="22.44" as="geometry" />
         </mxCell>
-        <mxCell id="GV5Pj42Ep5QnTts1L2Bw-12" value="&lt;div&gt;proxfnstorage-file-pep&lt;/div&gt;&lt;div&gt;10.10.1.14&lt;/div&gt;" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/networking/Private_Endpoint.svg;" vertex="1" parent="1">
+        <mxCell id="GV5Pj42Ep5QnTts1L2Bw-12" value="&lt;div&gt;proxfnstorage-file-pep&lt;/div&gt;&lt;div&gt;10.10.1.14&lt;/div&gt;" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/networking/Private_Endpoint.svg;" parent="1" vertex="1">
           <mxGeometry x="411" y="129" width="18.54" height="17" as="geometry" />
         </mxCell>
-        <mxCell id="GV5Pj42Ep5QnTts1L2Bw-13" value="" style="endArrow=none;html=1;rounded=1;curved=0;strokeColor=#7EA6E0;exitX=0.493;exitY=0.451;exitDx=0;exitDy=0;endFill=0;exitPerimeter=0;" edge="1" parent="1">
+        <mxCell id="GV5Pj42Ep5QnTts1L2Bw-13" value="" style="endArrow=none;html=1;rounded=1;curved=0;strokeColor=#7EA6E0;exitX=0.493;exitY=0.451;exitDx=0;exitDy=0;endFill=0;exitPerimeter=0;" parent="1" edge="1">
           <mxGeometry width="50" height="50" relative="1" as="geometry">
             <mxPoint x="430.26599999999985" y="141.27300000000002" as="sourcePoint" />
             <mxPoint x="566.27" y="141" as="targetPoint" />
             <Array as="points" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="GV5Pj42Ep5QnTts1L2Bw-14" value="&lt;div&gt;&lt;span style=&quot;background-color: light-dark(#ffffff, var(--ge-dark-color, #121212)); color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;proxfnstorage-queue-pep&lt;/span&gt;&lt;/div&gt;&lt;div&gt;10.10.1.13&lt;/div&gt;" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/networking/Private_Endpoint.svg;" vertex="1" parent="1">
+        <mxCell id="GV5Pj42Ep5QnTts1L2Bw-14" value="&lt;div&gt;&lt;span style=&quot;background-color: light-dark(#ffffff, var(--ge-dark-color, #121212)); color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;proxfnstorage-queue-pep&lt;/span&gt;&lt;/div&gt;&lt;div&gt;10.10.1.13&lt;/div&gt;" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/networking/Private_Endpoint.svg;" parent="1" vertex="1">
           <mxGeometry x="411" y="188.55999999999995" width="18.54" height="17" as="geometry" />
         </mxCell>
-        <mxCell id="GV5Pj42Ep5QnTts1L2Bw-15" value="" style="endArrow=none;html=1;rounded=1;curved=0;strokeColor=#7EA6E0;exitX=0.493;exitY=0.451;exitDx=0;exitDy=0;endFill=0;exitPerimeter=0;" edge="1" parent="1">
+        <mxCell id="GV5Pj42Ep5QnTts1L2Bw-15" value="" style="endArrow=none;html=1;rounded=1;curved=0;strokeColor=#7EA6E0;exitX=0.493;exitY=0.451;exitDx=0;exitDy=0;endFill=0;exitPerimeter=0;" parent="1" edge="1">
           <mxGeometry width="50" height="50" relative="1" as="geometry">
             <mxPoint x="430.26599999999985" y="200.83300000000008" as="sourcePoint" />
             <mxPoint x="566.27" y="200.55999999999995" as="targetPoint" />
             <Array as="points" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="GV5Pj42Ep5QnTts1L2Bw-16" value="privatelink.blob.core.windows.net" style="image;sketch=0;aspect=fixed;html=1;points=[];align=left;fontSize=12;image=img/lib/mscae/DNS_Private_Zones.svg;labelPosition=right;verticalLabelPosition=middle;verticalAlign=middle;" vertex="1" parent="1">
+        <mxCell id="GV5Pj42Ep5QnTts1L2Bw-16" value="privatelink.blob.core.windows.net" style="image;sketch=0;aspect=fixed;html=1;points=[];align=left;fontSize=12;image=img/lib/mscae/DNS_Private_Zones.svg;labelPosition=right;verticalLabelPosition=middle;verticalAlign=middle;" parent="1" vertex="1">
           <mxGeometry x="404" y="730" width="20" height="20" as="geometry" />
         </mxCell>
-        <mxCell id="GV5Pj42Ep5QnTts1L2Bw-17" value="Azure DNS magic number&lt;div&gt;168.63.129.16&lt;/div&gt;" style="html=1;strokeWidth=1;shadow=0;dashed=0;shape=mxgraph.ios7.misc.settings;fillColor=#8F8E94;strokeColor=none;buttonText=;strokeColor2=#222222;fontColor=#222222;fontSize=8;verticalLabelPosition=middle;verticalAlign=middle;align=left;sketch=0;labelPosition=right;whiteSpace=wrap;" vertex="1" parent="1">
+        <mxCell id="GV5Pj42Ep5QnTts1L2Bw-17" value="Azure DNS magic number&lt;div&gt;168.63.129.16&lt;/div&gt;" style="html=1;strokeWidth=1;shadow=0;dashed=0;shape=mxgraph.ios7.misc.settings;fillColor=#8F8E94;strokeColor=none;buttonText=;strokeColor2=#222222;fontColor=#222222;fontSize=8;verticalLabelPosition=middle;verticalAlign=middle;align=left;sketch=0;labelPosition=right;whiteSpace=wrap;" parent="1" vertex="1">
           <mxGeometry x="360" y="680" width="30" height="30" as="geometry" />
         </mxCell>
-        <mxCell id="GV5Pj42Ep5QnTts1L2Bw-18" value="privatelink.table.core.windows.net" style="image;sketch=0;aspect=fixed;html=1;points=[];align=left;fontSize=12;image=img/lib/mscae/DNS_Private_Zones.svg;labelPosition=right;verticalLabelPosition=middle;verticalAlign=middle;" vertex="1" parent="1">
+        <mxCell id="GV5Pj42Ep5QnTts1L2Bw-18" value="privatelink.table.core.windows.net" style="image;sketch=0;aspect=fixed;html=1;points=[];align=left;fontSize=12;image=img/lib/mscae/DNS_Private_Zones.svg;labelPosition=right;verticalLabelPosition=middle;verticalAlign=middle;" parent="1" vertex="1">
           <mxGeometry x="404" y="750" width="20" height="20" as="geometry" />
         </mxCell>
-        <mxCell id="GV5Pj42Ep5QnTts1L2Bw-19" value="privatelink.queue.core.windows.net" style="image;sketch=0;aspect=fixed;html=1;points=[];align=left;fontSize=12;image=img/lib/mscae/DNS_Private_Zones.svg;labelPosition=right;verticalLabelPosition=middle;verticalAlign=middle;" vertex="1" parent="1">
+        <mxCell id="GV5Pj42Ep5QnTts1L2Bw-19" value="privatelink.queue.core.windows.net" style="image;sketch=0;aspect=fixed;html=1;points=[];align=left;fontSize=12;image=img/lib/mscae/DNS_Private_Zones.svg;labelPosition=right;verticalLabelPosition=middle;verticalAlign=middle;" parent="1" vertex="1">
           <mxGeometry x="404" y="770" width="20" height="20" as="geometry" />
         </mxCell>
-        <mxCell id="GV5Pj42Ep5QnTts1L2Bw-20" value="privatelink.file.core.windows.net" style="image;sketch=0;aspect=fixed;html=1;points=[];align=left;fontSize=12;image=img/lib/mscae/DNS_Private_Zones.svg;labelPosition=right;verticalLabelPosition=middle;verticalAlign=middle;" vertex="1" parent="1">
+        <mxCell id="GV5Pj42Ep5QnTts1L2Bw-20" value="privatelink.file.core.windows.net" style="image;sketch=0;aspect=fixed;html=1;points=[];align=left;fontSize=12;image=img/lib/mscae/DNS_Private_Zones.svg;labelPosition=right;verticalLabelPosition=middle;verticalAlign=middle;" parent="1" vertex="1">
           <mxGeometry x="404" y="790" width="20" height="20" as="geometry" />
         </mxCell>
-        <mxCell id="GV5Pj42Ep5QnTts1L2Bw-21" value="" style="endArrow=classic;html=1;rounded=1;curved=0;strokeColor=#7EA6E0;exitX=0.48;exitY=1.031;exitDx=0;exitDy=0;exitPerimeter=0;entryX=-0.002;entryY=0.491;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="GV5Pj42Ep5QnTts1L2Bw-17" target="GV5Pj42Ep5QnTts1L2Bw-16">
+        <mxCell id="GV5Pj42Ep5QnTts1L2Bw-21" value="" style="endArrow=classic;html=1;rounded=1;curved=0;strokeColor=#7EA6E0;exitX=0.48;exitY=1.031;exitDx=0;exitDy=0;exitPerimeter=0;entryX=-0.002;entryY=0.491;entryDx=0;entryDy=0;entryPerimeter=0;" parent="1" source="GV5Pj42Ep5QnTts1L2Bw-17" target="GV5Pj42Ep5QnTts1L2Bw-16" edge="1">
           <mxGeometry width="50" height="50" relative="1" as="geometry">
             <mxPoint x="478" y="874" as="sourcePoint" />
             <mxPoint x="400" y="740" as="targetPoint" />
@@ -200,7 +200,7 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="GV5Pj42Ep5QnTts1L2Bw-22" value="" style="endArrow=classic;html=1;rounded=1;curved=0;strokeColor=#7EA6E0;exitX=0.48;exitY=1.031;exitDx=0;exitDy=0;exitPerimeter=0;entryX=-0.011;entryY=0.475;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" target="GV5Pj42Ep5QnTts1L2Bw-18">
+        <mxCell id="GV5Pj42Ep5QnTts1L2Bw-22" value="" style="endArrow=classic;html=1;rounded=1;curved=0;strokeColor=#7EA6E0;exitX=0.48;exitY=1.031;exitDx=0;exitDy=0;exitPerimeter=0;entryX=-0.011;entryY=0.475;entryDx=0;entryDy=0;entryPerimeter=0;" parent="1" target="GV5Pj42Ep5QnTts1L2Bw-18" edge="1">
           <mxGeometry width="50" height="50" relative="1" as="geometry">
             <mxPoint x="374" y="710" as="sourcePoint" />
             <mxPoint x="400" y="740" as="targetPoint" />
@@ -209,7 +209,7 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="GV5Pj42Ep5QnTts1L2Bw-25" value="" style="endArrow=classic;html=1;rounded=1;curved=0;strokeColor=#7EA6E0;exitX=0.48;exitY=1.031;exitDx=0;exitDy=0;exitPerimeter=0;entryX=-0.002;entryY=0.477;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" target="GV5Pj42Ep5QnTts1L2Bw-19">
+        <mxCell id="GV5Pj42Ep5QnTts1L2Bw-25" value="" style="endArrow=classic;html=1;rounded=1;curved=0;strokeColor=#7EA6E0;exitX=0.48;exitY=1.031;exitDx=0;exitDy=0;exitPerimeter=0;entryX=-0.002;entryY=0.477;entryDx=0;entryDy=0;entryPerimeter=0;" parent="1" target="GV5Pj42Ep5QnTts1L2Bw-19" edge="1">
           <mxGeometry width="50" height="50" relative="1" as="geometry">
             <mxPoint x="374" y="710" as="sourcePoint" />
             <mxPoint x="404" y="759" as="targetPoint" />
@@ -218,13 +218,46 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="GV5Pj42Ep5QnTts1L2Bw-26" value="" style="endArrow=classic;html=1;rounded=1;curved=0;strokeColor=#7EA6E0;entryX=-0.048;entryY=0.443;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" target="GV5Pj42Ep5QnTts1L2Bw-20">
+        <mxCell id="GV5Pj42Ep5QnTts1L2Bw-26" value="" style="endArrow=classic;html=1;rounded=1;curved=0;strokeColor=#7EA6E0;entryX=-0.048;entryY=0.443;entryDx=0;entryDy=0;entryPerimeter=0;" parent="1" target="GV5Pj42Ep5QnTts1L2Bw-20" edge="1">
           <mxGeometry width="50" height="50" relative="1" as="geometry">
             <mxPoint x="374" y="710" as="sourcePoint" />
             <mxPoint x="404" y="780" as="targetPoint" />
             <Array as="points">
               <mxPoint x="374" y="800" />
             </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="W8SiI3sBRh_1nAEU11s2-1" value="proximity-storage-reader" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/other/Entra_Identity.svg;" vertex="1" parent="1">
+          <mxGeometry x="827" y="512.56" width="34.25" height="30.44" as="geometry" />
+        </mxCell>
+        <mxCell id="W8SiI3sBRh_1nAEU11s2-2" value="proximity-storage-writer" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/other/Entra_Identity.svg;" vertex="1" parent="1">
+          <mxGeometry x="827" y="578.56" width="34.25" height="30.44" as="geometry" />
+        </mxCell>
+        <mxCell id="W8SiI3sBRh_1nAEU11s2-3" value="proximity-storage-contributor&lt;div&gt;&lt;br&gt;&lt;/div&gt;" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/other/Entra_Identity.svg;" vertex="1" parent="1">
+          <mxGeometry x="827" y="649.56" width="34.25" height="30.44" as="geometry" />
+        </mxCell>
+        <mxCell id="W8SiI3sBRh_1nAEU11s2-4" value="Table Data Reader&lt;div&gt;Blob Data reader&lt;/div&gt;" style="endArrow=none;html=1;rounded=1;curved=0;strokeColor=#7EA6E0;exitX=0.493;exitY=0.451;exitDx=0;exitDy=0;endFill=0;exitPerimeter=0;startArrow=classic;startFill=1;" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="640" y="531.5530000000001" as="sourcePoint" />
+            <mxPoint x="810" y="530" as="targetPoint" />
+            <Array as="points" />
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="W8SiI3sBRh_1nAEU11s2-5" value="Blob Data Contributor&lt;div&gt;Blob Data Contributor&lt;/div&gt;" style="endArrow=none;html=1;rounded=1;curved=0;strokeColor=#7EA6E0;exitX=0.493;exitY=0.451;exitDx=0;exitDy=0;endFill=0;exitPerimeter=0;startArrow=classic;startFill=1;" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="640" y="597.113" as="sourcePoint" />
+            <mxPoint x="810" y="595.56" as="targetPoint" />
+            <Array as="points" />
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="W8SiI3sBRh_1nAEU11s2-6" value="contributor" style="endArrow=none;html=1;rounded=1;curved=0;strokeColor=#7EA6E0;exitX=0.493;exitY=0.451;exitDx=0;exitDy=0;endFill=0;exitPerimeter=0;startArrow=classic;startFill=1;" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="640" y="662.0030000000002" as="sourcePoint" />
+            <mxPoint x="810" y="660.45" as="targetPoint" />
+            <Array as="points" />
+            <mxPoint as="offset" />
           </mxGeometry>
         </mxCell>
       </root>
