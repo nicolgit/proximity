@@ -63,9 +63,6 @@ module staticWebApp 'modules/staticwebapp.bicep' = {
   name: 'staticwebapp-deployment'
   params: {
     location: location
-    staticWebAppName: staticWebAppName
-    repositoryUrl: repositoryUrl
-    branch: branch
   }
 }
 
