@@ -5,7 +5,8 @@ on:
     branches:
       - develop
     paths:
-      - ".github/workflows/*"
+      - ".github/workflows/deploy-spa.yml"
+# workflow triggered on change to this file only
 
 jobs:
   build_and_deploy_job:
