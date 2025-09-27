@@ -55,6 +55,8 @@ module functionApp 'modules/functionapp.bicep' = {
     integrationSubnetId: networking.outputs.integrationSubnetId
     functionAppStorageAccountName: storage.outputs.functionAppStorageAccountName
     functionAppStorageAccountId: storage.outputs.functionAppStorageAccountId
+    mainStorageAccountName: storage.outputs.storageAccountName
+    mainStorageAccountId: storage.outputs.storageAccountId
   }
 }
 
@@ -66,24 +68,9 @@ module staticWebApp 'modules/staticwebapp.bicep' = {
   }
 }
 
-// Deploy Entra ID Applications (Managed Identities)
-module entraManagedIdentities 'modules/entra-apps.bicep' = {
-  name: 'entra-managedidentities-deployment'
-  params: {
-    applicationNamePrefix: 'proximity'
-  }
-}
 
-// Deploy RBAC Assignments for Storage Account
-module storageRbacAssignments 'modules/rbac-assignments.bicep' = {
-  name: 'storage-rbac-assignments'
-  params: {
-    storageAccountId: storage.outputs.storageAccountId
-    readerPrincipalId: entraManagedIdentities.outputs.readerManagedIdentityPrincipalId
-    writerPrincipalId: entraManagedIdentities.outputs.writerManagedIdentityPrincipalId
-    contributorPrincipalId: entraManagedIdentities.outputs.contributorManagedIdentityPrincipalId
-  }
-}
+
+
 
 // Outputs
 output vnetId string = networking.outputs.vnetId
@@ -119,25 +106,6 @@ output queuePrivateDnsZoneName string = privateDns.outputs.queuePrivateDnsZoneNa
 output filePrivateDnsZoneId string = privateDns.outputs.filePrivateDnsZoneId
 output filePrivateDnsZoneName string = privateDns.outputs.filePrivateDnsZoneName
 
-// Managed Identity Outputs
-output readerManagedIdentityId string = entraManagedIdentities.outputs.readerManagedIdentityId
-output readerManagedIdentityClientId string = entraManagedIdentities.outputs.readerManagedIdentityClientId
-output readerManagedIdentityPrincipalId string = entraManagedIdentities.outputs.readerManagedIdentityPrincipalId
-output readerManagedIdentityName string = entraManagedIdentities.outputs.readerManagedIdentityName
 
-output writerManagedIdentityId string = entraManagedIdentities.outputs.writerManagedIdentityId
-output writerManagedIdentityClientId string = entraManagedIdentities.outputs.writerManagedIdentityClientId
-output writerManagedIdentityPrincipalId string = entraManagedIdentities.outputs.writerManagedIdentityPrincipalId
-output writerManagedIdentityName string = entraManagedIdentities.outputs.writerManagedIdentityName
 
-output contributorManagedIdentityId string = entraManagedIdentities.outputs.contributorManagedIdentityId
-output contributorManagedIdentityClientId string = entraManagedIdentities.outputs.contributorManagedIdentityClientId
-output contributorManagedIdentityPrincipalId string = entraManagedIdentities.outputs.contributorManagedIdentityPrincipalId
-output contributorManagedIdentityName string = entraManagedIdentities.outputs.contributorManagedIdentityName
 
-// RBAC Assignment Outputs
-output readerTableRoleAssignmentId string = storageRbacAssignments.outputs.readerTableRoleAssignmentId
-output readerBlobRoleAssignmentId string = storageRbacAssignments.outputs.readerBlobRoleAssignmentId
-output writerTableRoleAssignmentId string = storageRbacAssignments.outputs.writerTableRoleAssignmentId
-output writerBlobRoleAssignmentId string = storageRbacAssignments.outputs.writerBlobRoleAssignmentId
-output contributorRoleAssignmentId string = storageRbacAssignments.outputs.contributorRoleAssignmentId

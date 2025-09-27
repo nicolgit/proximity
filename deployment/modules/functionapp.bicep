@@ -4,6 +4,8 @@ param uniqueSuffix string
 param integrationSubnetId string
 param functionAppStorageAccountName string
 param functionAppStorageAccountId string
+param mainStorageAccountName string
+param mainStorageAccountId string
 
 // Generate function app name
 var functionAppName = 'api-backend-${take(uniqueSuffix, 6)}'
@@ -116,6 +118,39 @@ resource functionAppStorageAccountContributorRoleAssignment 'Microsoft.Authoriza
       'Microsoft.Authorization/roleDefinitions',
       '17d1049b-9a84-46fb-8f53-869881c3d3ab'
     ) // Storage Account Contributor
+    principalId: functionApp.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// Get reference to the main storage account for role assignments
+resource mainStorageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' existing = {
+  name: mainStorageAccountName
+}
+
+// Role assignment: Storage Blob Data Contributor for Function App managed identity on main storage account
+resource mainStorageBlobDataContributorRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(mainStorageAccountId, functionApp.id, 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')
+  scope: mainStorageAccount
+  properties: {
+    roleDefinitionId: subscriptionResourceId(
+      'Microsoft.Authorization/roleDefinitions',
+      'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
+    ) // Storage Blob Data Contributor
+    principalId: functionApp.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// Role assignment: Storage Table Data Contributor for Function App managed identity on main storage account
+resource mainStorageTableDataContributorRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(mainStorageAccountId, functionApp.id, '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3')
+  scope: mainStorageAccount
+  properties: {
+    roleDefinitionId: subscriptionResourceId(
+      'Microsoft.Authorization/roleDefinitions',
+      '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3'
+    ) // Storage Table Data Contributor
     principalId: functionApp.identity.principalId
     principalType: 'ServicePrincipal'
   }
