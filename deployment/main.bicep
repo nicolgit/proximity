@@ -68,6 +68,7 @@ module functionApp 'modules/functionapp.bicep' = {
     mainStorageAccountId: storage.outputs.storageAccountId
     applicationInsightsConnectionString: applicationInsights.outputs.applicationInsightsConnectionString
     applicationInsightsInstrumentationKey: applicationInsights.outputs.applicationInsightsInstrumentationKey
+    logAnalyticsWorkspaceId: applicationInsights.outputs.logAnalyticsWorkspaceId
   }
 }
 

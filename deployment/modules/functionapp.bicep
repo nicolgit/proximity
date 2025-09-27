@@ -8,6 +8,7 @@ param mainStorageAccountName string
 param mainStorageAccountId string
 param applicationInsightsConnectionString string
 param applicationInsightsInstrumentationKey string
+param logAnalyticsWorkspaceId string
 
 // Generate function app name
 var functionAppName = 'api-backend-${take(uniqueSuffix, 6)}'
@@ -185,8 +186,28 @@ resource mainStorageTableDataContributorRoleAssignment 'Microsoft.Authorization/
   }
 }
 
+// Diagnostic Settings for Function App to send logs to Log Analytics
+resource functionAppDiagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
+  name: 'functionapp-diagnostics'
+  scope: functionApp
+  properties: {
+    workspaceId: logAnalyticsWorkspaceId
+    logs: [
+      {
+        categoryGroup: 'allLogs'
+        enabled: true
+        retentionPolicy: {
+          enabled: false
+          days: 0
+        }
+      }
+    ]
+  }
+}
+
 // Outputs
 output functionAppId string = functionApp.id
 output functionAppName string = functionApp.name
 output functionAppServicePlanId string = functionAppServicePlan.id
 output functionAppServicePlanName string = functionAppServicePlan.name
+output functionAppDiagnosticSettingsId string = functionAppDiagnosticSettings.id
