@@ -80,10 +80,6 @@ module staticWebApp 'modules/staticwebapp.bicep' = {
   }
 }
 
-
-
-
-
 // Outputs
 output vnetId string = networking.outputs.vnetId
 output vnetName string = networking.outputs.vnetName

@@ -100,6 +100,18 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
           name: 'ApplicationInsightsAgent_EXTENSION_VERSION'
           value: '~3'
         }
+        {
+          name: 'authentication'
+          value: 'identity'
+        }
+        {
+          name: 'blobUri'
+          value: 'https://${mainStorageAccountName}.blob.${environment().suffixes.storage}/'
+        }
+        {
+          name: 'tableUri'
+          value: 'https://${mainStorageAccountName}.table.${environment().suffixes.storage}/'
+        }
       ]
     }
   }
