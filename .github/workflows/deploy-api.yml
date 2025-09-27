@@ -6,7 +6,7 @@ on:
             - develop
         paths:
             - ".github/workflows/deploy-api.yml"
-# workflow triggered on change to this file only
+# workflow triggered on change to this file only.
 
 env:
     AZURE_FUNCTIONAPP_NAME: "api-backend-ygoxls" # set this to your function app name on Azure
