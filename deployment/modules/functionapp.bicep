@@ -37,7 +37,7 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
       deployment: {
         storage: {
           type: 'blobContainer'
-          value: '${functionAppStorageAccount.properties.primaryEndpoints.blob}deployments'
+          value: '${functionAppStorageAccount.properties.primaryEndpoints.blob}${deploymentsContainer.name}'
           authentication: {
             type: 'SystemAssignedIdentity'
           }
@@ -93,6 +93,21 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
 // Get reference to the function app storage account for role assignments
 resource functionAppStorageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' existing = {
   name: functionAppStorageAccountName
+}
+
+// Create blob services for the function app storage account
+resource functionAppBlobServices 'Microsoft.Storage/storageAccounts/blobServices@2023-01-01' = {
+  name: 'default'
+  parent: functionAppStorageAccount
+}
+
+// Create deployments container in function app storage account
+resource deploymentsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
+  name: 'deployments'
+  parent: functionAppBlobServices
+  properties: {
+    publicAccess: 'None'
+  }
 }
 
 // Role assignment: Storage Blob Data Owner for Function App managed identity
