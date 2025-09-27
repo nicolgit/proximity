@@ -19,18 +19,13 @@ public class Hello
     }
 
     [Function("Hello")]
-    public async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Anonymous, "get", "post")] HttpRequest req)
+    public IActionResult Run([HttpTrigger(AuthorizationLevel.Anonymous, "get", "post")] HttpRequest req)
     {
         _logger.LogInformation("C# HTTP trigger function processed a request.");
 
-        // Test storage connection as part of the function execution
-        var storageHealthy = await _storageService.TestConnectionAsync();
-
         var response = new
         {
-            Message = "Welcome to Azure Functions!",
-            StorageConnection = storageHealthy ? "Healthy" : "Unhealthy",
-            Timestamp = System.DateTime.UtcNow
+            message = "Hello World!"
         };
 
         return new OkObjectResult(response);

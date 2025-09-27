@@ -24,9 +24,6 @@ namespace api.Services
             _logger = logger;
             var blobUri = configuration["blobUri"];
             var tableUri = configuration["tableUri"];
-            var tenantId = configuration["tenantId"];
-            var clientId = configuration["clientId"];
-            var clientSecret = configuration["clientSecret"];
 
             try
             {
@@ -35,17 +32,39 @@ namespace api.Services
                     throw new ArgumentException("blobUri configuration is required");
                 if (string.IsNullOrWhiteSpace(tableUri))
                     throw new ArgumentException("tableUri configuration is required");
-                if (string.IsNullOrWhiteSpace(tenantId))
-                    throw new ArgumentException("tenantId configuration is required");
-                if (string.IsNullOrWhiteSpace(clientId))
-                    throw new ArgumentException("clientId configuration is required");
-                if (string.IsNullOrWhiteSpace(clientSecret))
-                    throw new ArgumentException("clientSecret configuration is required");
 
-                var credential = new ClientSecretCredential(tenantId, clientId, clientSecret);
+                // Check if running on Azure by looking for the WEBSITE_INSTANCE_ID environment variable
+                var isRunningOnAzure = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WEBSITE_INSTANCE_ID"));
+                
+                Azure.Core.TokenCredential credential;
+
+                if (isRunningOnAzure)
+                {
+                    // Running on Azure - use system-assigned managed identity
+                    credential = new DefaultAzureCredential();
+                    _logger.LogInformation("Running on Azure - using system-assigned managed identity for authentication");
+                }
+                else
+                {
+                    // Running locally - use client credentials
+                    var tenantId = configuration["tenantId"];
+                    var clientId = configuration["clientId"];
+                    var clientSecret = configuration["clientSecret"];
+
+                    if (string.IsNullOrWhiteSpace(tenantId))
+                        throw new ArgumentException("tenantId configuration is required for local development");
+                    if (string.IsNullOrWhiteSpace(clientId))
+                        throw new ArgumentException("clientId configuration is required for local development");
+                    if (string.IsNullOrWhiteSpace(clientSecret))
+                        throw new ArgumentException("clientSecret configuration is required for local development");
+
+                    credential = new ClientSecretCredential(tenantId, clientId, clientSecret);
+                    _logger.LogInformation("Running locally - using client credentials for authentication");
+                }
+
                 _blobServiceClient = new BlobServiceClient(new Uri(blobUri), credential);
                 _tableServiceClient = new TableServiceClient(new Uri(tableUri), credential);
-                _logger.LogInformation("Initialized BlobServiceClient and TableServiceClient with Azure AD credentials");
+                _logger.LogInformation("Successfully initialized BlobServiceClient and TableServiceClient");
             }
             catch (Exception ex)
             {
@@ -248,6 +267,27 @@ namespace api.Services
                 throw new ArgumentException("Table name cannot be null or empty", nameof(tableName));
 
             return _tableServiceClient.GetTableClient(tableName);
+        }
+
+        /// <summary>
+        /// Creates a table if it doesn't exist
+        /// </summary>
+        /// <param name="tableName">The name of the table to create</param>
+        /// <returns>True if table was created or already exists</returns>
+        public async Task<bool> EnsureTableExistsAsync(string tableName)
+        {
+            try
+            {
+                var tableClient = GetTableClient(tableName);
+                await tableClient.CreateIfNotExistsAsync();
+                _logger.LogInformation("Table '{TableName}' ensured to exist", tableName);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to ensure table '{TableName}' exists", tableName);
+                return false;
+            }
         }
 
         /// <summary>
