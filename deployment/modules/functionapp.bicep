@@ -6,6 +6,8 @@ param functionAppStorageAccountName string
 param functionAppStorageAccountId string
 param mainStorageAccountName string
 param mainStorageAccountId string
+param applicationInsightsConnectionString string
+param applicationInsightsInstrumentationKey string
 
 // Generate function app name
 var functionAppName = 'api-backend-${take(uniqueSuffix, 6)}'
@@ -84,6 +86,18 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
         {
           name: 'DEPLOYMENT_STORAGE_CONNECTION_STRING__credential'
           value: 'managedidentity'
+        }
+        {
+          name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+          value: applicationInsightsConnectionString
+        }
+        {
+          name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
+          value: applicationInsightsInstrumentationKey
+        }
+        {
+          name: 'ApplicationInsightsAgent_EXTENSION_VERSION'
+          value: '~3'
         }
       ]
     }

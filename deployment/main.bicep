@@ -46,6 +46,15 @@ module storage 'modules/storage.bicep' = {
   }
 }
 
+// Deploy Application Insights
+module applicationInsights 'modules/applicationinsights.bicep' = {
+  name: 'applicationinsights-deployment'
+  params: {
+    location: location
+    uniqueSuffix: uniqueSuffix
+  }
+}
+
 // Deploy Function App
 module functionApp 'modules/functionapp.bicep' = {
   name: 'functionapp-deployment'
@@ -57,6 +66,8 @@ module functionApp 'modules/functionapp.bicep' = {
     functionAppStorageAccountId: storage.outputs.functionAppStorageAccountId
     mainStorageAccountName: storage.outputs.storageAccountName
     mainStorageAccountId: storage.outputs.storageAccountId
+    applicationInsightsConnectionString: applicationInsights.outputs.applicationInsightsConnectionString
+    applicationInsightsInstrumentationKey: applicationInsights.outputs.applicationInsightsInstrumentationKey
   }
 }
 
@@ -105,6 +116,14 @@ output queuePrivateDnsZoneId string = privateDns.outputs.queuePrivateDnsZoneId
 output queuePrivateDnsZoneName string = privateDns.outputs.queuePrivateDnsZoneName
 output filePrivateDnsZoneId string = privateDns.outputs.filePrivateDnsZoneId
 output filePrivateDnsZoneName string = privateDns.outputs.filePrivateDnsZoneName
+
+// Application Insights Outputs
+output applicationInsightsId string = applicationInsights.outputs.applicationInsightsId
+output applicationInsightsName string = applicationInsights.outputs.applicationInsightsName
+output applicationInsightsConnectionString string = applicationInsights.outputs.applicationInsightsConnectionString
+output applicationInsightsInstrumentationKey string = applicationInsights.outputs.applicationInsightsInstrumentationKey
+output logAnalyticsWorkspaceId string = applicationInsights.outputs.logAnalyticsWorkspaceId
+output logAnalyticsWorkspaceName string = applicationInsights.outputs.logAnalyticsWorkspaceName
 
 
 
