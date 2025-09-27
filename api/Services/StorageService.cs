@@ -33,33 +33,44 @@ namespace api.Services
                 if (string.IsNullOrWhiteSpace(tableUri))
                     throw new ArgumentException("tableUri configuration is required");
 
-                // Check if running on Azure by looking for the WEBSITE_INSTANCE_ID environment variable
-                var isRunningOnAzure = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WEBSITE_INSTANCE_ID"));
+                // Check authentication configuration to determine credential type
+                var authenticationMode = configuration["authentication"];
                 
                 Azure.Core.TokenCredential credential;
 
-                if (isRunningOnAzure)
+                switch (authenticationMode?.ToLowerInvariant())
                 {
-                    // Running on Azure - use system-assigned managed identity
-                    credential = new DefaultAzureCredential();
-                    _logger.LogInformation("Running on Azure - using system-assigned managed identity for authentication");
-                }
-                else
-                {
-                    // Running locally - use client credentials
-                    var tenantId = configuration["tenantId"];
-                    var clientId = configuration["clientId"];
-                    var clientSecret = configuration["clientSecret"];
+                    case "identity":
+                        // Use DefaultAzureCredential (managed identity, Azure CLI, etc.)
+                        credential = new DefaultAzureCredential();
+                        _logger.LogInformation("Using DefaultAzureCredential for authentication (identity mode)");
+                        break;
+                        
+                    case "secret":
+                        // Use client secret authentication
+                        var tenantId = configuration["tenantId"];
+                        var clientId = configuration["clientId"];
+                        var clientSecret = configuration["clientSecret"];
 
-                    if (string.IsNullOrWhiteSpace(tenantId))
-                        throw new ArgumentException("tenantId configuration is required for local development");
-                    if (string.IsNullOrWhiteSpace(clientId))
-                        throw new ArgumentException("clientId configuration is required for local development");
-                    if (string.IsNullOrWhiteSpace(clientSecret))
-                        throw new ArgumentException("clientSecret configuration is required for local development");
+                        if (string.IsNullOrWhiteSpace(tenantId))
+                            throw new ArgumentException("tenantId configuration is required when using 'secret' authentication mode");
+                        if (string.IsNullOrWhiteSpace(clientId))
+                            throw new ArgumentException("clientId configuration is required when using 'secret' authentication mode");
+                        if (string.IsNullOrWhiteSpace(clientSecret))
+                            throw new ArgumentException("clientSecret configuration is required when using 'secret' authentication mode");
 
-                    credential = new ClientSecretCredential(tenantId, clientId, clientSecret);
-                    _logger.LogInformation("Running locally - using client credentials for authentication");
+                        credential = new ClientSecretCredential(tenantId, clientId, clientSecret);
+                        _logger.LogInformation("Using ClientSecretCredential for authentication (secret mode)");
+                        break;
+                        
+                    default:
+                        var errorMessage = $"Invalid authentication mode: '{authenticationMode}'. " +
+                                         "Valid values are 'identity' or 'secret'. " +
+                                         "Solution: Set the 'authentication' configuration value to either:\n" +
+                                         "- 'identity': Uses DefaultAzureCredential (managed identity, Azure CLI, etc.)\n" +
+                                         "- 'secret': Uses client secret authentication (requires tenantId, clientId, and clientSecret)";
+                        _logger.LogError(errorMessage);
+                        throw new ArgumentException(errorMessage);
                 }
 
                 _blobServiceClient = new BlobServiceClient(new Uri(blobUri), credential);

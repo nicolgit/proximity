@@ -3,9 +3,10 @@
     "Values": {
         "AzureWebJobsStorage": "UseDevelopmentStorage=true",
         "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
-        "tenantId": "<your-tenant-id>",
-        "clientId": "<your-client-id>",
-        "clientSecret": "<your-client-secret>",
+        "authentication": "identity|secret",
+        "tenantId": "<your-tenant-id>",            // required for clientSecret auth
+        "clientId": "<your-client-id>",            // required for clientSecret auth
+        "clientSecret": "<your-client-secret>",    // required for clientSecret auth
         "blobUri": "https://<your-storage-account>.blob.core.windows.net/",
         "tableUri": "https://<your-storage-account>.table.core.windows.net/"
     },
