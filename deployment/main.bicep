@@ -1,17 +1,16 @@
 // Main template - Proximity application infrastructure
 // Parameters
 param location string = resourceGroup().location
-param vnetName string = 'proximity-net'
-param staticWebAppName string = 'ppp-duckiesfarm-com'
-param repositoryUrl string = 'https://github.com/CaledosLab/aaa003'
-param branch string = 'develop'
 
 // NOTE: For Flex Consumption plans with VNet integration, ensure that the 
 // Microsoft.App resource provider is registered in your subscription.
 // Run: az provider register --namespace Microsoft.App
 
+var vnetName string = 'proximity-net'
+
 // Generate unique suffix for storage account name (must be globally unique)
 var uniqueSuffix = uniqueString(resourceGroup().id)
+
 
 // Deploy networking infrastructure
 module networking 'modules/networking.bicep' = {
@@ -77,6 +76,8 @@ module staticWebApp 'modules/staticwebapp.bicep' = {
   name: 'staticwebapp-deployment'
   params: {
     location: location
+    functionAppId: functionApp.outputs.functionAppId
+    uniqueSuffix: uniqueSuffix
   }
 }
 
@@ -93,6 +94,7 @@ output storageBlobPrivateEndpointId string = storage.outputs.storageBlobPrivateE
 output staticWebAppId string = staticWebApp.outputs.staticWebAppId
 output staticWebAppName string = staticWebApp.outputs.staticWebAppName
 output staticWebAppUrl string = staticWebApp.outputs.staticWebAppUrl
+output staticWebAppApiBackendId string = staticWebApp.outputs.staticWebAppApiBackendId
 output functionAppId string = functionApp.outputs.functionAppId
 output functionAppName string = functionApp.outputs.functionAppName
 output functionAppServicePlanId string = functionApp.outputs.functionAppServicePlanId

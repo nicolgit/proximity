@@ -1,9 +1,11 @@
 // Static Web App module - Azure Static Web Apps configuration
 param location string
+param functionAppId string
+param uniqueSuffix string
 
 // Static Web App
 resource staticWebApp 'Microsoft.Web/staticSites@2023-01-01' = {
-  name: 'swa-${uniqueString(resourceGroup().id)}'
+  name: 'proximity-spa-${uniqueSuffix}'
   location: location
   sku: {
     name: 'Standard'
@@ -14,7 +16,18 @@ resource staticWebApp 'Microsoft.Web/staticSites@2023-01-01' = {
   }
 }
 
+// Link the Function App as the API backend for the Static Web App
+resource staticWebAppApiBackend 'Microsoft.Web/staticSites/linkedBackends@2023-01-01' = {
+  name: 'production'
+  parent: staticWebApp
+  properties: {
+    backendResourceId: functionAppId
+    region: location
+  }
+}
+
 // Outputs
 output staticWebAppId string = staticWebApp.id
 output staticWebAppName string = staticWebApp.name
 output staticWebAppUrl string = staticWebApp.properties.defaultHostname
+output staticWebAppApiBackendId string = staticWebAppApiBackend.id

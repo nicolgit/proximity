@@ -5,6 +5,8 @@
 !.vscode/launch.json
 !.vscode/extensions.json
 
+# bicep parameters files
+*.bicepparam
 
 # .NET Core build output
 */bin/
