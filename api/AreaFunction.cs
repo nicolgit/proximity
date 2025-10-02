@@ -50,7 +50,7 @@ public class AreaFunction
                 _logger.LogInformation("Areas data not modified, returning 304");
                 CdnResponseService.ConfigureCacheableResponse(req.HttpContext.Response, areas);
                 CdnResponseService.ConfigureCorsHeaders(req.HttpContext.Response);
-                return new StatusCodeResult(304);
+                return CdnResponseService.CreateNotModifiedResponse(etag);
             }
 
             // Configure CDN-friendly headers for cacheable area data
