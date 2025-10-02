@@ -169,6 +169,16 @@ public class AreaFunction
 
             var stations = await _stationService.GetStationsByAreaIdAsync(id);
 
+            // Generate ETag and check for conditional requests
+            var etag = CdnResponseService.GenerateETag(stations);
+            if (CdnResponseService.IsNotModified(req, etag))
+            {
+                _logger.LogInformation("Stations data not modified, returning 304 for area ID: {AreaId}", id);
+                CdnResponseService.ConfigureCacheableResponse(req.HttpContext.Response, stations);
+                CdnResponseService.ConfigureCorsHeaders(req.HttpContext.Response);
+                return CdnResponseService.CreateNotModifiedResponse(etag);
+            }
+
             // Configure CDN-friendly headers for cacheable station data
             CdnResponseService.ConfigureCacheableResponse(req.HttpContext.Response, stations);
             CdnResponseService.ConfigureCorsHeaders(req.HttpContext.Response);
@@ -264,7 +274,7 @@ public class AreaFunction
                 _logger.LogInformation("Isochrone data not modified, returning 304");
                 CdnResponseService.ConfigureIsochroneResponse(req.HttpContext.Response, blobContent);
                 CdnResponseService.ConfigureCorsHeaders(req.HttpContext.Response);
-                return new StatusCodeResult(304);
+                return CdnResponseService.CreateNotModifiedResponse(etag);
             }
 
             // Configure CDN-friendly headers for isochrone data (long cache)
@@ -353,7 +363,7 @@ public class AreaFunction
                 _logger.LogInformation("Area isochrone data not modified, returning 304");
                 CdnResponseService.ConfigureIsochroneResponse(req.HttpContext.Response, areaIsochroneData);
                 CdnResponseService.ConfigureCorsHeaders(req.HttpContext.Response);
-                return new StatusCodeResult(304);
+                return CdnResponseService.CreateNotModifiedResponse(etag);
             }
 
             // Configure CDN-friendly headers for area isochrone data
@@ -373,22 +383,26 @@ public class AreaFunction
         catch (FileNotFoundException ex)
         {
             _logger.LogWarning(ex, "Area isochrone file not found for area: {AreaId}, time: {Time}", id, time);
+            CdnResponseService.ConfigureNoCacheResponse(req.HttpContext.Response);
             return new NotFoundObjectResult(new { error = ex.Message });
         }
         catch (ArgumentException ex)
         {
             _logger.LogWarning(ex, "Bad request for get area isochrone data: {Message}", ex.Message);
+            CdnResponseService.ConfigureNoCacheResponse(req.HttpContext.Response);
             return new BadRequestObjectResult(new { error = ex.Message });
         }
         catch (InvalidOperationException ex)
         {
             _logger.LogError(ex, "Storage operation failed for get area isochrone data: {Message}", ex.Message);
+            CdnResponseService.ConfigureNoCacheResponse(req.HttpContext.Response);
             return new StatusCodeResult(503); // Service Unavailable
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unexpected error occurred while getting area isochrone data for area: {AreaId}, time: {Time}", 
                 id, time);
+            CdnResponseService.ConfigureNoCacheResponse(req.HttpContext.Response);
             return new StatusCodeResult(500); // Internal Server Error
         }
     }
