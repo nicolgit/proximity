@@ -37,9 +37,6 @@ public class StationService
 
             _logger.LogInformation("Retrieving stations for area ID: {AreaId} from table storage", areaId);
 
-            // Ensure table exists
-            await _storageService.EnsureTableExistsAsync(_tableName);
-
             var tableClient = _storageService.GetTableClient(_tableName);
 
             // Query all entities with partition key matching the area ID
@@ -90,9 +87,6 @@ public class StationService
                 throw new ArgumentException("Station ID cannot be null or empty", nameof(stationId));
 
             _logger.LogInformation("Retrieving station with Area ID: {AreaId}, Station ID: {StationId}", areaId, stationId);
-
-            // Ensure table exists
-            await _storageService.EnsureTableExistsAsync(_tableName);
 
             var tableClient = _storageService.GetTableClient(_tableName);
 

@@ -24,9 +24,6 @@ namespace api.Services
             _logger = logger;
             var blobUri = configuration["blobUri"];
             var tableUri = configuration["tableUri"];
-            var tenantId = configuration["tenantId"];
-            var clientId = configuration["clientId"];
-            var clientSecret = configuration["clientSecret"];
 
             try
             {
@@ -35,17 +32,50 @@ namespace api.Services
                     throw new ArgumentException("blobUri configuration is required");
                 if (string.IsNullOrWhiteSpace(tableUri))
                     throw new ArgumentException("tableUri configuration is required");
-                if (string.IsNullOrWhiteSpace(tenantId))
-                    throw new ArgumentException("tenantId configuration is required");
-                if (string.IsNullOrWhiteSpace(clientId))
-                    throw new ArgumentException("clientId configuration is required");
-                if (string.IsNullOrWhiteSpace(clientSecret))
-                    throw new ArgumentException("clientSecret configuration is required");
 
-                var credential = new ClientSecretCredential(tenantId, clientId, clientSecret);
+                // Check authentication configuration to determine credential type
+                var authenticationMode = configuration["authentication"];
+                
+                Azure.Core.TokenCredential credential;
+
+                switch (authenticationMode?.ToLowerInvariant())
+                {
+                    case "identity":
+                        // Use DefaultAzureCredential (managed identity, Azure CLI, etc.)
+                        credential = new DefaultAzureCredential();
+                        _logger.LogInformation("Using DefaultAzureCredential for authentication (identity mode)");
+                        break;
+                        
+                    case "secret":
+                        // Use client secret authentication
+                        var tenantId = configuration["tenantId"];
+                        var clientId = configuration["clientId"];
+                        var clientSecret = configuration["clientSecret"];
+
+                        if (string.IsNullOrWhiteSpace(tenantId))
+                            throw new ArgumentException("tenantId configuration is required when using 'secret' authentication mode");
+                        if (string.IsNullOrWhiteSpace(clientId))
+                            throw new ArgumentException("clientId configuration is required when using 'secret' authentication mode");
+                        if (string.IsNullOrWhiteSpace(clientSecret))
+                            throw new ArgumentException("clientSecret configuration is required when using 'secret' authentication mode");
+
+                        credential = new ClientSecretCredential(tenantId, clientId, clientSecret);
+                        _logger.LogInformation("Using ClientSecretCredential for authentication (secret mode)");
+                        break;
+                        
+                    default:
+                        var errorMessage = $"Invalid authentication mode: '{authenticationMode}'. " +
+                                         "Valid values are 'identity' or 'secret'. " +
+                                         "Solution: Set the 'authentication' configuration value to either:\n" +
+                                         "- 'identity': Uses DefaultAzureCredential (managed identity, Azure CLI, etc.)\n" +
+                                         "- 'secret': Uses client secret authentication (requires tenantId, clientId, and clientSecret)";
+                        _logger.LogError(errorMessage);
+                        throw new ArgumentException(errorMessage);
+                }
+
                 _blobServiceClient = new BlobServiceClient(new Uri(blobUri), credential);
                 _tableServiceClient = new TableServiceClient(new Uri(tableUri), credential);
-                _logger.LogInformation("Initialized BlobServiceClient and TableServiceClient with Azure AD credentials");
+                _logger.LogInformation("Successfully initialized BlobServiceClient and TableServiceClient");
             }
             catch (Exception ex)
             {
