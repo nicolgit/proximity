@@ -109,6 +109,16 @@ public class AreaFunction
                 return new NotFoundObjectResult(new { error = $"Area with ID '{id}' not found" });
             }
 
+            // Generate ETag and check for conditional requests
+            var etag = CdnResponseService.GenerateETag(area);
+            if (CdnResponseService.IsNotModified(req, etag))
+            {
+                _logger.LogInformation("Area data not modified, returning 304 for ID: {AreaId}", id);
+                CdnResponseService.ConfigureCacheableResponse(req.HttpContext.Response, area);
+                CdnResponseService.ConfigureCorsHeaders(req.HttpContext.Response);
+                return CdnResponseService.CreateNotModifiedResponse(etag);
+            }
+
             // Configure CDN-friendly headers for cacheable area data
             CdnResponseService.ConfigureCacheableResponse(req.HttpContext.Response, area);
             CdnResponseService.ConfigureCorsHeaders(req.HttpContext.Response);
