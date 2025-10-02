@@ -2,7 +2,6 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using api.Services;
 using System.Threading.Tasks;
 
 namespace api;
@@ -10,12 +9,10 @@ namespace api;
 public class Hello
 {
     private readonly ILogger<Hello> _logger;
-    private readonly StorageService _storageService;
 
-    public Hello(ILogger<Hello> logger, StorageService storageService)
+    public Hello(ILogger<Hello> logger)
     {
         _logger = logger;
-        _storageService = storageService;
     }
 
     [Function("Hello")]
@@ -25,7 +22,9 @@ public class Hello
 
         var response = new
         {
-            message = "Hello World!"
+            message = "Hello World!",
+            timestamp = System.DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+            version = "1.0.0"
         };
 
         return new OkObjectResult(response);

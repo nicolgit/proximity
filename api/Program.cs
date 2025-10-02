@@ -18,8 +18,9 @@ builder.Services
 builder.Services.AddSingleton<StorageService>();
 builder.Services.AddSingleton<AreaService>();
 builder.Services.AddSingleton<StationService>();
+builder.Services.AddSingleton<CdnResponseService>();
 
 // Register hosted services for startup health checks
-builder.Services.AddHostedService<StartupHealthCheckService>();
+//builder.Services.AddHostedService<StartupHealthCheckService>();
 
 builder.Build().Run();
