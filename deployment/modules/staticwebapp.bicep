@@ -13,6 +13,8 @@ resource staticWebApp 'Microsoft.Web/staticSites@2023-01-01' = {
   }
   properties: {
     // Repository configuration will be set up manually after deployment
+    enterpriseGradeCdnStatus: 'Enabled' // Enable CDN for both static content and API routes
+    publicNetworkAccess: 'Enabled'
   }
 }
 
