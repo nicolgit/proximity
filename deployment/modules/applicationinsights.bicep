@@ -16,13 +16,13 @@ resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2023-09
     features: {
       enableLogAccessUsingOnlyResourcePermissions: true
     }
-    workspaceCapping: {
-      dailyQuotaGb: 1
-    }
   }
 }
 
 // Application Insights instance
+// Note: Daily cap must be configured manually after deployment via Azure Portal
+// Go to Application Insights > Usage and estimated costs > Daily cap
+// Recommended: Set to 100MB daily cap with 90% warning threshold
 resource applicationInsights 'Microsoft.Insights/components@2020-02-02' = {
   name: applicationInsightsName
   location: location
@@ -35,6 +35,7 @@ resource applicationInsights 'Microsoft.Insights/components@2020-02-02' = {
     IngestionMode: 'LogAnalytics'
     publicNetworkAccessForIngestion: 'Enabled'
     publicNetworkAccessForQuery: 'Enabled'
+    SamplingPercentage: 10 // 10% data sampling to reduce data volume
   }
 }
 
