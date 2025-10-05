@@ -706,7 +706,7 @@ const toggleStationsForArea = async (areaId: string) => {
 }
 
 // Helper function to get icon for station type
-const getStationIcon = (type: 'station' | 'tram_stop') => {
+const getStationIcon = (type: string) => {
   return type === 'station' ? stationIconSvg : tramStopIconSvg
 }
 
