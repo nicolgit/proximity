@@ -339,7 +339,7 @@
                 </span>
                 <span v-else class="station-name">{{ station.name }}</span>
               </h4>
-              <p>type: <strong>{{ station.type === 'station' ? 'Train/Metro Station' : 'Tram Stop' }}</strong></p>
+              <p>type: <strong>{{ (station.type === 'station' || station.type === 'halt') ? 'Train/Metro Station' : 'Tram Stop' }}</strong></p>
               <p>coords: <strong>{{ station.latitude.toFixed(4) }}, {{ station.longitude.toFixed(4) }}</strong> </p>
               <div class="station-actions">
                 <button 

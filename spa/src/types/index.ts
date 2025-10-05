@@ -51,6 +51,6 @@ export interface Station {
     name: string
     latitude: number
     longitude: number
-    type: 'tram_stop' | 'station'
+    type: 'tram_stop' | 'station' | 'halt'
     wikipediaLink: string | null
 }
