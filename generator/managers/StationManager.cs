@@ -6,10 +6,6 @@ using Microsoft.Extensions.Logging;
 using System.Globalization;
 using System.Text.Json;
 using Generator.Types;
-using NetTopologySuite.Geometries;
-using NetTopologySuite.IO;
-using NetTopologySuite.Features;
-using Azure.Identity;
 
 namespace Generator.Managers;
 
@@ -33,6 +29,7 @@ public static class StationManager
             var overpassQuery = $@"[out:json][timeout:25];
 (
   node[""railway""=""station""](around:{radiusMeters},{latitude.ToString(CultureInfo.InvariantCulture)},{longitude.ToString(CultureInfo.InvariantCulture)});
+  node[""railway""=""halt""](around:{radiusMeters},{latitude.ToString(CultureInfo.InvariantCulture)},{longitude.ToString(CultureInfo.InvariantCulture)});
   node[""railway""=""tram_stop""](around:{radiusMeters},{latitude.ToString(CultureInfo.InvariantCulture)},{longitude.ToString(CultureInfo.InvariantCulture)});
 );
 out body;";
