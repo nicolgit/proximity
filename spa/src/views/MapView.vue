@@ -834,7 +834,7 @@ const onStationClick = async (station: Station, areaId: string) => {
 const loadIsochronesForStation = async (station: Station, areaId: string) => {
   // Only load time intervals up to the selected proximity level
   const timeIntervals = proximityLevelOptions.value.filter(level => level <= selectedProximityLevel.value)
-  const baseColor = station.type === 'station' ? '#22c55e' : '#eab308' // green for metro, yellow for tram
+  const baseColor = (station.type === 'station' || station.type === 'halt') ? '#22c55e' : '#eab308' // green for metro/train, yellow for tram
   
   // Clear existing isochrones
   isochroneCircles.value = []
