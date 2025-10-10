@@ -1,0 +1,72 @@
+name: Deploy API
+
+on:
+    push:
+        branches:
+            - develop
+        paths:
+            - ".github/workflows/deploy-api.yml"
+    workflow_dispatch:
+        inputs:
+            environment:
+                description: "Deployment environment"
+                required: false
+                default: "develop"
+                type: choice
+                options:
+                    - develop
+                    - staging
+                    - production
+            deploy_reason:
+                description: "Reason for deployment"
+                required: false
+                default: "Manual deployment"
+                type: string
+
+env:
+    AZURE_FUNCTIONAPP_NAME: "proximity-backend-api" # set this to your function app name on Azure
+    AZURE_FUNCTIONAPP_PACKAGE_PATH: "./api" # set this to the path to your function app project, defaults to the repository root
+    DOTNET_VERSION: "8.*" # set this to the dotnet version to use (e.g. '2.1.x', '3.1.x', '5.0.x').
+
+jobs:
+    build-and-deploy:
+        runs-on: ubuntu-latest
+        environment: ${{ github.event.inputs.environment || 'develop' }}
+        steps:
+            - name: "Checkout GitHub Action"
+              uses: actions/checkout@v4
+
+            - name: "Log deployment details"
+              run: |
+                  echo "🚀 Manual deployment triggered"
+                  echo "Environment: ${{ github.event.inputs.environment || 'develop' }}"
+                  echo "Reason: ${{ github.event.inputs.deploy_reason || 'Manual deployment' }}"
+                  echo "Triggered by: ${{ github.actor }}"
+                  echo "Branch: ${{ github.ref_name }}"
+
+            - name: Setup DotNet ${{ env.DOTNET_VERSION }} Environment
+              uses: actions/setup-dotnet@v4
+              with:
+                  dotnet-version: ${{ env.DOTNET_VERSION }}
+
+            - name: "Resolve Project Dependencies Using Dotnet"
+              shell: bash
+              run: |
+                  pushd './${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}'
+                  dotnet build --configuration Release --output ./output
+                  popd
+
+            - name: "Run Azure Functions Action"
+              uses: Azure/functions-action@v1
+              id: fa
+              with:
+                  app-name: ${{ env.AZURE_FUNCTIONAPP_NAME }}
+                  package: "${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}/output"
+                  publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
+                  sku: flexconsumption
+
+            - name: "Deployment Summary"
+              run: |
+                  echo "✅ Deployment completed successfully"
+                  echo "Function App: ${{ env.AZURE_FUNCTIONAPP_NAME }}"
+                  echo "Environment: ${{ github.event.inputs.environment || 'develop' }}"

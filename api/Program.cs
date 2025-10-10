@@ -3,7 +3,6 @@ using Microsoft.Azure.Functions.Worker.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using api.Services;
-using api.HostedServices;
 
 var builder = FunctionsApplication.CreateBuilder(args);
 
@@ -18,8 +17,6 @@ builder.Services
 builder.Services.AddSingleton<StorageService>();
 builder.Services.AddSingleton<AreaService>();
 builder.Services.AddSingleton<StationService>();
-
-// Register hosted services for startup health checks
-builder.Services.AddHostedService<StartupHealthCheckService>();
+builder.Services.AddSingleton<CdnResponseService>();
 
 builder.Build().Run();

@@ -138,9 +138,10 @@
     </button>
 
     <!-- Area bounds indicator -->
-    <div v-if="areaBoundsActive" class="area-bounds-indicator">
-      <div class="bounds-icon">🔒</div>
-      <div class="bounds-text">Map limited to {{ currentAreaName }}</div>
+    <div v-if="props.areaid" class="area-bounds-indicator" @click="toggleAreaBounds">
+      <div v-if="areaBoundsActive" class="bounds-icon">🔒</div>
+      <div v-else class="bounds-icon">🔓</div>
+      <div class="bounds-text">map limited to {{ currentAreaName }}</div>
     </div>
 
     <!-- Map Container -->
@@ -154,13 +155,8 @@
         class="leaflet-map"
         @ready="onMapReady"
       >
-        <l-tile-layer
-          :url="tileLayerUrl"
-          :attribution="attribution"
-        />
-        
-        <!-- Marker for selected location -->
-        <l-marker
+         <!-- Marker for selected location -->
+         <l-marker
           v-if="selectedLocation"
           :lat-lng="selectedLocation"
           :icon="searchLocationIconSvg as any"
@@ -228,8 +224,8 @@
         >
           <l-popup>
             <div class="isochrone-popup" @click="closeAreaPopupOnOutsideClick($event)">
-              <h4>🏙️ {{ isochrone.timeMinutes }} minutes away</h4>
-              from public transport (train/metro/tram)
+              <h4>🏙️ less than {{ isochrone.timeMinutes }} minutes walk</h4>
+              from a train or tram stop
               
               <!-- Reverse geocoding info for clicked location -->
               <div v-if="isochroneClickLocation" class="reverse-geocoding-info">
@@ -277,7 +273,7 @@
         >
           <l-popup>
             <div class="isochrone-popup" @click="closeAreaPopupOnOutsideClick($event)">
-              <h4>🚶‍♂️ {{ circle.timeMinutes }} minutes walk</h4>
+              <h4>🚶‍♂️ less than {{ circle.timeMinutes }} minutes walk</h4>
               <p><strong>Distance:</strong> ~{{ Math.round(circle.radius) }}m radius</p>
               <p><strong>From:</strong> {{ selectedStationForIsochrone?.name }}</p>
               
@@ -305,8 +301,8 @@
         >
           <l-popup>
             <div class="isochrone-popup" @click="closeAreaPopupOnOutsideClick($event)">
-              <h4>🚶‍♂️ {{ isochrone.timeMinutes }} minutes walk</h4>
-              <p><strong>From:</strong> {{ selectedStationForIsochrone?.name }}</p>
+              <h4>🚶‍♂️ less than {{ isochrone.timeMinutes }} minutes walk</h4>
+              <p>from <strong>{{ selectedStationForIsochrone?.name }}</strong></p>
               
               <!-- Reverse geocoding info for clicked location on station isochrone -->
               <div v-if="stationIsochroneClickLocation" class="reverse-geocoding-info">
@@ -343,7 +339,7 @@
                 </span>
                 <span v-else class="station-name">{{ station.name }}</span>
               </h4>
-              <p>type: <strong>{{ station.type === 'station' ? 'Train/Metro Station' : 'Tram Stop' }}</strong></p>
+              <p>type: <strong>{{ (station.type === 'station' || station.type === 'halt') ? 'Train/Metro Station' : 'Tram Stop' }}</strong></p>
               <p>coords: <strong>{{ station.latitude.toFixed(4) }}, {{ station.longitude.toFixed(4) }}</strong> </p>
               <div class="station-actions">
                 <button 
@@ -388,19 +384,26 @@ import { LocationSearchService } from '@/services/LocationSearchService'
 import type { SearchResult, Station } from '@/types'
 import { searchLocationIconSvg, userLocationIconSvg, stationIconSvg, tramStopIconSvg } from '@/utils/mapIcons'
 import { getApiUrl } from '@/config/env'
-import { LCircle, LMap, LMarker, LPopup, LTileLayer, LGeoJson } from '@vue-leaflet/vue-leaflet'
-import { onMounted, ref, computed, onUnmounted } from 'vue'
+import { LCircle, LMap, LMarker, LPopup, LGeoJson } from '@vue-leaflet/vue-leaflet'
+import 'maplibre-gl/dist/maplibre-gl.css'
+import '@maplibre/maplibre-gl-leaflet'
+import * as L from 'leaflet'
+import { onMounted, ref, computed, onUnmounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import AreaControls from '@/components/AreaControls.vue'
 import WelcomePopup from '@/components/WelcomePopup.vue'
 
 // Props
 interface Props {
-  areaId?: string
+  areaid?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  areaId: undefined
+  areaid: undefined
 })
+
+// Route setup
+const route = useRoute()
 
 // Map setup
 const mapRef = ref<InstanceType<typeof LMap> | null>(null)
@@ -428,8 +431,11 @@ const stationIsochroneClickAddress = ref('')
 const isLoadingStationIsochroneAddress = ref(false)
 
 // Map configuration
-const tileLayerUrl = 'https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png'
-const attribution = '© <a href="http://github.com/nicolgit">Nicola Delfino</a>, © <a href="https://stadiamaps.com/">Stadia Maps</a>, © <a href="https://openmaptiles.org/">OpenMapTiles</a> © <a href="http://openstreetmap.org">OpenStreetMap</a>'
+// Use OpenFreeMap style (MapLibre GL) instead of raster tiles
+const openFreeMapStyleUrl = 'https://tiles.openfreemap.org/styles/positron'
+
+// Reference for the added MapLibre GL layer so we can remove it on unmount
+const maplibreLayerRef = ref<any | null>(null)
 
 // Use composables
 const {
@@ -454,7 +460,7 @@ const {
   isLoading: isAreasLoading,
   error: areasError,
   load: loadAreas
-} = useAreas(props.areaId)
+} = useAreas(props.areaid)
 
 const {
   loadStations,
@@ -492,6 +498,101 @@ const pendingProximityLevel = ref(30) // For debounced updates
 
 // Debounced proximity level update
 let proximityLevelDebounceTimer: number | null = null
+
+// Function to initialize map for a specific area
+const initializeMapForArea = async (areaId: string | undefined) => {
+  // Load areas if not already loaded
+  if (areas.value.length === 0) {
+    await loadAreas()
+  }
+
+  if (!areaId) {
+    // No area specified, use current location or default
+    await getLocation()
+    
+    if (currentLocation.value) {
+      const lat = currentLocation.value.lat
+      const lng = currentLocation.value.lng
+      console.log(`🎯 Setting initial center to user location: ${lat}, ${lng}`)
+      
+      initialCenter.value = [lat, lng]
+      
+      setTimeout(() => {
+        if (mapRef.value?.leafletObject) {
+          console.log('🗺️ Setting initial map view to user location')
+          mapRef.value.leafletObject.setView([lat, lng], 13)
+          removeAreaConstraints()
+        }
+      }, 100)
+    } else {
+      setTimeout(() => {
+        removeAreaConstraints()
+      }, 100)
+    }
+    return
+  }
+
+  const targetArea = areas.value.find(area => area.id === areaId)
+  
+  if (targetArea) {
+    console.log(`🎯 Centering map on area: ${targetArea.name} (${areaId})`)
+    
+    // Set initial center to the area coordinates
+    initialCenter.value = [targetArea.latitude, targetArea.longitude]
+    
+    // Calculate zoom level to show the entire area circle
+    const diameterKm = targetArea.diameter/1000
+    const calculatedZoomLevel = Math.max(8, Math.min(16, 16 - Math.log2(diameterKm)))
+    
+    // Set this as the initial zoom level and minimum zoom constraint
+    zoom.value = calculatedZoomLevel
+    minZoom.value = calculatedZoomLevel
+    
+    // Wait a bit for the map to be ready, then set view and apply constraints
+    setTimeout(() => {
+      if (mapRef.value?.leafletObject) {
+        console.log(`🗺️ Setting area map view: ${targetArea.latitude}, ${targetArea.longitude}, zoom: ${calculatedZoomLevel}, minZoom: ${calculatedZoomLevel}`)
+        mapRef.value.leafletObject.setView([targetArea.latitude, targetArea.longitude], calculatedZoomLevel)
+        applyAreaConstraints(targetArea)
+      }
+    }, 100)
+  } else {
+    console.warn(`⚠️ Area with ID "${areaId}" not found`)
+    // Fallback to user location
+    await getLocation()
+    if (currentLocation.value) {
+      const lat = currentLocation.value.lat
+      const lng = currentLocation.value.lng
+      initialCenter.value = [lat, lng]
+      
+      setTimeout(() => {
+        if (mapRef.value?.leafletObject) {
+          mapRef.value.leafletObject.setView([lat, lng], 13)
+          removeAreaConstraints()
+        }
+      }, 100)
+    }
+  }
+}
+
+// Watch for route parameter changes
+watch(
+  () => route.params.areaid as string | undefined,
+  async (newAreaId, oldAreaId) => {
+    if (newAreaId !== oldAreaId) {
+      console.log(`🔄 Route changed from area "${oldAreaId}" to "${newAreaId}"`)
+      await initializeMapForArea(newAreaId)
+    }
+  }
+)
+
+// Initialize on mount
+onMounted(async () => {
+  console.log('🚀 Component mounted')
+  
+  // Use the shared initialization function
+  await initializeMapForArea(props.areaid)
+})
 
 const debouncedProximityLevelUpdate = (level: number) => {
   // Clear existing timer
@@ -583,8 +684,8 @@ const areaIsochronesWithBorderIndex = computed(() => {
 
 // Computed property for current selected area name
 const currentAreaName = computed(() => {
-  if (props.areaId && areas.value.length > 0) {
-    const currentArea = areas.value.find(area => area.id === props.areaId)
+  if (props.areaid && areas.value.length > 0) {
+    const currentArea = areas.value.find(area => area.id === props.areaid)
     return currentArea?.name || 'selected area'
   }
   return 'selected area'
@@ -605,7 +706,7 @@ const toggleStationsForArea = async (areaId: string) => {
 }
 
 // Helper function to get icon for station type
-const getStationIcon = (type: 'station' | 'tram_stop') => {
+const getStationIcon = (type: string) => {
   return type === 'station' ? stationIconSvg : tramStopIconSvg
 }
 
@@ -733,7 +834,7 @@ const onStationClick = async (station: Station, areaId: string) => {
 const loadIsochronesForStation = async (station: Station, areaId: string) => {
   // Only load time intervals up to the selected proximity level
   const timeIntervals = proximityLevelOptions.value.filter(level => level <= selectedProximityLevel.value)
-  const baseColor = station.type === 'station' ? '#22c55e' : '#eab308' // green for metro, yellow for tram
+  const baseColor = (station.type === 'station' || station.type === 'halt') ? '#22c55e' : '#eab308' // green for metro/train, yellow for tram
   
   // Clear existing isochrones
   isochroneCircles.value = []
@@ -888,6 +989,23 @@ const onSearchKeydown = (event: KeyboardEvent) => {
 // Map event handlers
 const onMapReady = () => {
   console.log('🗺️ Map is ready!', mapRef.value?.leafletObject)
+  // Add a MapLibre GL layer (OpenFreeMap) to the Leaflet map using maplibre-gl-leaflet
+  try {
+    if (mapRef.value?.leafletObject) {
+      // @ts-ignore - maplibreGL is injected into Leaflet by the maplibre-leaflet package
+      const maplibreLayer = (L as any).maplibreGL({
+        style: openFreeMapStyleUrl,
+        interactive: true
+      })
+
+      // Add to the Leaflet map
+      maplibreLayer.addTo(mapRef.value.leafletObject)
+      maplibreLayerRef.value = maplibreLayer
+      console.log('✅ MapLibre GL layer added (OpenFreeMap style)')
+    }
+  } catch (e) {
+    console.warn('⚠️ Could not add MapLibre GL layer:', e)
+  }
 }
 
 const onIsochroneClick = async (event: any) => {
@@ -973,7 +1091,7 @@ const selectLocation = (result: SearchResult) => {
   // Use map's setView method instead of reactive center
   if (mapRef.value?.leafletObject) {
     // Remove area constraints when user searches for a new location
-    if (props.areaId) {
+    if (props.areaid) {
       removeAreaConstraints()
     }
 
@@ -1016,7 +1134,7 @@ const goToCurrentLocation = async () => {
       
       if (mapRef.value?.leafletObject) {
         // Remove area constraints when going to current location (unless we have a specific area target)
-        if (props.areaId) {
+        if (props.areaid) {
           removeAreaConstraints()
         }
 
@@ -1028,7 +1146,7 @@ const goToCurrentLocation = async () => {
         setTimeout(() => {
           if (mapRef.value?.leafletObject) {
             // Remove area constraints when going to current location (unless we have a specific area target)
-            if (props.areaId) {
+            if (props.areaid) {
               removeAreaConstraints()
             }
 
@@ -1167,85 +1285,38 @@ const removeAreaConstraints = () => {
   }
 }
 
-// Initialize on mount
-onMounted(async () => {
-  console.log('🚀 Component mounted')
-  
-  // Load areas first
-  await loadAreas()
-  
-  // Check if we need to center on a specific area
-  if (props.areaId && areas.value.length > 0) {
-    const targetArea = areas.value.find(area => area.id === props.areaId)
-    
-    if (targetArea) {
-      console.log(`🎯 Centering map on area: ${targetArea.name} (${props.areaId})`)
-      
-      // Set initial center to the area coordinates
-      initialCenter.value = [targetArea.latitude, targetArea.longitude]
-      
-      // Calculate zoom level to show the entire area circle
-      // The diameter is in kilometers, we need to convert to appropriate zoom
-      // Zoom calculation: larger diameter needs lower zoom (more zoomed out)
-      const diameterKm = targetArea.diameter/1000
-      const calculatedZoomLevel = Math.max(8, Math.min(16, 16 - Math.log2(diameterKm)))
-      
-      // Set this as the initial zoom level and minimum zoom constraint
-      zoom.value = calculatedZoomLevel
-      minZoom.value = calculatedZoomLevel // Don't allow zooming out below this level
-      
-      // Wait a bit for the map to be ready, then set view and apply constraints
-      setTimeout(() => {
-        if (mapRef.value?.leafletObject) {
-          console.log(`🗺️ Setting area map view: ${targetArea.latitude}, ${targetArea.longitude}, zoom: ${calculatedZoomLevel}, minZoom: ${calculatedZoomLevel}`)
-          mapRef.value.leafletObject.setView([targetArea.latitude, targetArea.longitude], calculatedZoomLevel)
-          
-          // Apply area bounds constraints
-          applyAreaConstraints(targetArea)
-        }
-      }, 100)
-      
-      return // Skip location-based centering when area is specified
-    } else {
-      console.warn(`⚠️ Area with ID "${props.areaId}" not found`)
+// Function to toggle area bounds constraints
+const toggleAreaBounds = () => {
+  if (areaBoundsActive.value) {
+    // Currently active, remove constraints
+    removeAreaConstraints()
+  } else {
+    // Currently inactive, apply constraints if we have a target area
+    if (props.areaid && areas.value.length > 0) {
+      const targetArea = areas.value.find(area => area.id === props.areaid)
+      if (targetArea) {
+        applyAreaConstraints(targetArea)
+      }
     }
   }
-  
-  // Try to get user's current location (fallback behavior)
-  await getLocation()
-  
-  console.log('📍 Initial location check:', currentLocation.value)
-  
-  if (currentLocation.value) {
-    const lat = currentLocation.value.lat
-    const lng = currentLocation.value.lng
-    console.log(`🎯 Setting initial center to user location: ${lat}, ${lng}`)
-    
-    initialCenter.value = [lat, lng]
-    
-    // Wait a bit for the map to be ready, then set view
-    setTimeout(() => {
-      if (mapRef.value?.leafletObject) {
-        console.log('🗺️ Setting initial map view to user location')
-        mapRef.value.leafletObject.setView([lat, lng], 13)
-        
-        // Don't apply area constraints when using current location
-        removeAreaConstraints()
-      }
-    }, 100)
-  } else {
-    // If no current location and no area ID, ensure no area constraints are applied
-    setTimeout(() => {
-      removeAreaConstraints()
-    }, 100)
-  }
-})
+}
 
 // Cleanup debounce timer on unmount
 onUnmounted(() => {
   if (proximityLevelDebounceTimer) {
     clearTimeout(proximityLevelDebounceTimer)
     proximityLevelDebounceTimer = null
+  }
+
+  // Remove MapLibre GL layer if present
+  try {
+    if (maplibreLayerRef.value && mapRef.value?.leafletObject) {
+      mapRef.value.leafletObject.removeLayer(maplibreLayerRef.value)
+      maplibreLayerRef.value = null
+      console.log('🧹 Removed MapLibre GL layer on unmount')
+    }
+  } catch (e) {
+    console.warn('Error removing MapLibre GL layer on unmount', e)
   }
 })
 </script>
@@ -1613,6 +1684,20 @@ onUnmounted(() => {
   backdrop-filter: blur(4px);
   border: 1px solid rgba(255, 255, 255, 0.2);
   animation: fadeInSlide 0.3s ease-out;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.area-bounds-indicator:hover {
+  background: rgba(139, 92, 246, 1);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.area-bounds-indicator:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
 .bounds-icon {
@@ -1664,125 +1749,7 @@ onUnmounted(() => {
   color: #333;
 }
 
-/* Station Toggle Button Styles */
-.station-toggle-section {
-  margin-top: 15px;
-  padding-top: 10px;
-  border-top: 1px solid #eee;
-}
 
-.station-toggle-btn {
-  /* grey when stations are not shown */
-  background: #6f7583; /* gray-500 */
-  color: white;
-  border: none;
-  border-radius: 6px;
-  padding: 8px 12px;
-  font-size: 13px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  min-height: 32px;
-}
-
-.station-toggle-btn:hover:not(:disabled) {
-  background: #4b5563; /* darker gray on hover */
-  transform: translateY(-1px);
-}
-
-.station-toggle-btn--active {
-  /* green when stations are shown */
-  background: #22C55E; /* success green */
-}
-
-.station-toggle-btn--active:hover:not(:disabled) {
-  background: #16a34a; /* darker green */
-}
-
-.station-toggle-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.station-count {
-  margin-top: 6px;
-  font-size: 12px;
-  color: #666;
-  font-style: italic;
-}
-
-.station-error {
-  margin-top: 6px;
-  font-size: 12px;
-  color: #dc3545;
-  background: #f8d7da;
-  padding: 4px 6px;
-  border-radius: 3px;
-  border: 1px solid #f5c6cb;
-}
-
-/* Proximity Toggle Button Styles */
-.proximity-toggle-section {
-  margin-top: 15px;
-  padding-top: 10px;
-  border-top: 1px solid #eee;
-}
-
-.proximity-toggle-btn {
-  /* grey when proximity is not shown */
-  background: #6f7583; /* gray-500 */
-  color: white;
-  border: none;
-  border-radius: 6px;
-  padding: 8px 12px;
-  font-size: 13px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  min-height: 32px;
-}
-
-.proximity-toggle-btn:hover:not(:disabled) {
-  background: #4b5563; /* darker gray on hover */
-  transform: translateY(-1px);
-}
-
-.proximity-toggle-btn--active {
-  /* purple when proximity is shown */
-  background: #8b5cf6; /* current purple */
-}
-
-.proximity-toggle-btn--active:hover:not(:disabled) {
-  background: #7c3aed; /* darker purple */
-}
-
-.proximity-toggle-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.proximity-count {
-  margin-top: 6px;
-  font-size: 12px;
-  color: #666;
-  font-style: italic;
-}
-
-.proximity-error {
-  margin-top: 6px;
-  font-size: 12px;
-  color: #dc3545;
-  background: #f8d7da;
-  padding: 4px 6px;
-  border-radius: 3px;
-  border: 1px solid #f5c6cb;
-}
 
 /* Station Popup Styles */
 .station-popup {
@@ -1886,15 +1853,10 @@ onUnmounted(() => {
   font-size: 11px;
 }
 
-/* Welcome Popup Styles */
-/* moved to components/WelcomePopup.vue */
 
 /* Area Controls Layout */
 .area-controls {
   margin-top: 12px;
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 8px;
 }
 
 .controls-row--buttons {
@@ -1903,21 +1865,10 @@ onUnmounted(() => {
   align-items: center;
 }
 
-.controls-row--buttons .station-toggle-btn,
-.controls-row--buttons .proximity-toggle-btn {
-  flex: 1 1 auto;
-  min-width: 120px;
-}
-
 .controls-row--station-info,
 .controls-row--proximity-info {
   font-size: 13px;
   color: #666;
-}
-
-/* ensure errors keep their styling */
-.controls-row--station-info .station-error,
-.controls-row--proximity-info .proximity-error {
-  margin: 0;
+  margin-top: 8px;
 }
 </style>

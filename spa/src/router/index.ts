@@ -10,7 +10,7 @@ const router = createRouter({
             component: MapView
         },
         {
-            path: '/:areaId',
+            path: '/italy/:areaid',
             name: 'map-area',
             component: MapView,
             props: true

@@ -16,17 +16,22 @@
         <p v-if="areas && areas.length === 1">
           A tool that helps you understand how far you are from a metro, train or tram stop in the <b>{{ areas[0].name }}</b> metro area!
         </p>
-        <p v-else>a tool that helps you understand how far you are from a metro, train or tram stop!<p/>
+        <p v-else>a tool that helps you understand how far you are from a metro, train or tram stop!</p>
           <p v-if="isAreasLoading">Loading available areas... ⏳</p>
           <p v-else-if="areasError">Error loading areas: {{ areasError }}</p>
           <p v-else-if="areas && areas.length > 0">
             Following metro areas are currently available:
             <span v-for="(area, index) in areas" :key="area.id">
-              📍<b>{{ area.name }}</b><span v-if="index < areas.length - 1">, </span>
+              📍<b 
+                v-if="areas.length > 1" 
+                @click="navigateToArea(area.id)"
+                class="clickable-area"
+              >{{ area.name }}</b>
+              <b v-else>{{ area.name }}</b>
+              <span v-if="index < areas.length - 1">, </span>
             </span>
           </p>
         <p v-else>No areas available at the moment</p>
-        </p>
         <div class="welcome-actions">
           <button @click="onOpenGitHub" class="welcome-btn welcome-btn--secondary">
             📱 view on GitHub
@@ -42,10 +47,14 @@
 
 <script setup lang="ts">
 import { defineProps, defineEmits } from 'vue'
+import { useRouter } from 'vue-router'
+import type { Area } from '@/types'
+
+const router = useRouter()
 
 // defineProps used to declare the component props for the template; avoid assigning to an unused variable
 defineProps<{
-  areas?: Array<any>
+  areas?: Array<Area>
   isAreasLoading?: boolean
   areasError?: string | null
 }>()
@@ -58,6 +67,11 @@ const onOverlayClick = () => emit('close')
 const onClose = () => emit('close')
 const onOpenGitHub = () => {
   window.open('https://github.com/nicolgit/proximity', '_blank')
+}
+
+const navigateToArea = (areaId: string) => {
+  router.push(`/italy/${areaId}`)
+  emit('close') // Close the popup after navigation
 }
 </script>
 
@@ -131,6 +145,17 @@ const onOpenGitHub = () => {
   font-size: 16px;
   color: #666;
   line-height: 1.5;
+}
+
+.clickable-area {
+  cursor: pointer;
+  color: #007bff;
+  transition: color 0.2s ease;
+}
+
+.clickable-area:hover {
+  color: #0056b3;
+  text-decoration: underline;
 }
 
 .welcome-actions {

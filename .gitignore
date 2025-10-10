@@ -5,6 +5,8 @@
 !.vscode/launch.json
 !.vscode/extensions.json
 
+# bicep parameters files
+*.bicepparam
 
 # .NET Core build output
 */bin/
@@ -38,3 +40,7 @@ Thumbs.db
 #
 *.local.ps1
 
+# backup files
+*.bak
+*.bkp
+*.dtmp

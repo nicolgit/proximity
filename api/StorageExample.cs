@@ -26,6 +26,11 @@ public class StorageTester
     {
         _logger.LogInformation("Storage health check requested.");
 
+        // Explicitly disable caching for health check endpoints
+        req.HttpContext.Response.Headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
+        req.HttpContext.Response.Headers["Pragma"] = "no-cache";
+        req.HttpContext.Response.Headers["Expires"] = "0";
+
         try
         {
             var isHealthy = await _storageService.TestConnectionAsync();

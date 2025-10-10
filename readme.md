@@ -31,11 +31,12 @@ You can explore **The Proximity Project** directly at:
 
 access specific metropolitan areas directly using the following URLs:
 
-- 🏢 [Rome](https://proximity.duckiesfarm/rome)
-- 🏢 [Milan](https://proximity.duckiesfarm/milan)
-- 🏢 [Naples](https://proximity.duckiesfarm/naples)
-- 🏢 [Turin](https://proximity.duckiesfarm/turin)
-- 🏢 [Florence](https://proximity.duckiesfarm/florence)
+- 🏢 [Rome](https://proximity.duckiesfarm/italy/rome)
+- 🏢 [Milan](https://proximity.duckiesfarm/italy/milan)
+- 🏢 [Naples](https://proximity.duckiesfarm/italy/naples)
+- 🏢 [Turin](https://proximity.duckiesfarm/italy/turin)
+- 🏢 [Bologna](https://proximity.duckiesfarm/italy/bologna)
+- 🏢 [Florence](https://proximity.duckiesfarm/italy/florence)
 
 
 ## 🛠️ Technologies Used
