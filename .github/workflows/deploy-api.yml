@@ -8,6 +8,11 @@ on:
             - ".github/workflows/deploy-api.yml"
     workflow_dispatch:
         inputs:
+            branch:
+                description: "Branch to deploy"
+                required: true
+                default: "develop"
+                type: string
             environment:
                 description: "Deployment environment"
                 required: false
@@ -35,14 +40,16 @@ jobs:
         steps:
             - name: "Checkout GitHub Action"
               uses: actions/checkout@v4
+              with:
+                  ref: ${{ github.event.inputs.branch || github.ref }}
 
             - name: "Log deployment details"
               run: |
-                  echo "🚀 Manual deployment triggered"
+                  echo "🚀 Deployment triggered"
+                  echo "Branch: ${{ github.event.inputs.branch || github.ref_name }}"
                   echo "Environment: ${{ github.event.inputs.environment || 'develop' }}"
                   echo "Reason: ${{ github.event.inputs.deploy_reason || 'Manual deployment' }}"
                   echo "Triggered by: ${{ github.actor }}"
-                  echo "Branch: ${{ github.ref_name }}"
 
             - name: Setup DotNet ${{ env.DOTNET_VERSION }} Environment
               uses: actions/setup-dotnet@v4
@@ -69,4 +76,5 @@ jobs:
               run: |
                   echo "✅ Deployment completed successfully"
                   echo "Function App: ${{ env.AZURE_FUNCTIONAPP_NAME }}"
+                  echo "Branch: ${{ github.event.inputs.branch || github.ref_name }}"
                   echo "Environment: ${{ github.event.inputs.environment || 'develop' }}"
