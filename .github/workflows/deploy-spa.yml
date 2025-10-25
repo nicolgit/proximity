@@ -6,15 +6,46 @@ on:
       - develop
     paths:
       - ".github/workflows/deploy-spa.yml"
-# workflow triggered on change to this file only...
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch to deploy"
+        required: true
+        default: "main"
+        type: string
+      environment:
+        description: "Deployment environment"
+        required: false
+        default: "production"
+        type: choice
+        options:
+          - develop
+          - staging
+          - production
+      deploy_reason:
+        description: "Reason for deployment"
+        required: false
+        default: "Manual deployment"
+        type: string
+# workflow triggered on change to this file only or manual dispatch...
 
 jobs:
   build_and_deploy_job:
     runs-on: ubuntu-latest
     name: Build and Deploy Job
+    environment: ${{ github.event.inputs.environment || 'develop' }}
     steps:
+      - name: "Log deployment details"
+        run: |
+          echo "🚀 SPA deployment triggered"
+          echo "Branch: ${{ github.event.inputs.branch || github.ref_name }}"
+          echo "Environment: ${{ github.event.inputs.environment || 'develop' }}"
+          echo "Reason: ${{ github.event.inputs.deploy_reason || 'Manual deployment' }}"
+          echo "Triggered by: ${{ github.actor }}"
+
       - uses: actions/checkout@v3
         with:
+          ref: ${{ github.event.inputs.branch || github.ref }}
           submodules: true
           lfs: false
       - name: Build And Deploy
@@ -31,3 +62,10 @@ jobs:
           output_location: "dist" # Built app content directory - optional
           app_build_command: "npm run build" # Custom build command for app content - optional
           ###### End of Repository/Build Configurations ######
+
+      - name: "Deployment Summary"
+        run: |
+          echo "✅ SPA deployment completed successfully"
+          echo "Branch: ${{ github.event.inputs.branch || github.ref_name }}"
+          echo "Environment: ${{ github.event.inputs.environment || 'develop' }}"
+          echo "App Location: /spa"
