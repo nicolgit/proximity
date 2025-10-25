@@ -1324,8 +1324,24 @@ onUnmounted(() => {
 <style scoped>
 .map-view {
   height: 100vh;
+  height: 100dvh; /* Dynamic viewport height for better mobile support */
   width: 100vw;
   position: relative;
+}
+
+/* Mobile-specific adjustments */
+@supports (height: 100dvh) {
+  .map-view {
+    height: 100dvh;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .map-view {
+    height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    min-height: -webkit-fill-available;
+    min-height: fill-available;
+  }
 }
 
 .search-container {
@@ -1341,6 +1357,19 @@ onUnmounted(() => {
   min-width: 300px;
   max-width: 90vw;
   transition: box-shadow 0.2s ease;
+}
+
+/* Mobile adjustments for search container */
+@media screen and (max-width: 768px) {
+  .search-container {
+    top: calc(env(safe-area-inset-top, 0px) + 10px);
+    left: 10px;
+    right: 10px;
+    transform: none;
+    min-width: unset;
+    max-width: unset;
+    width: calc(100vw - 20px);
+  }
 }
 
 .search-container:focus-within {
@@ -1509,6 +1538,16 @@ onUnmounted(() => {
   color: #6b7280;
 }
 
+/* Mobile adjustments for location button */
+@media screen and (max-width: 768px) {
+  .location-btn {
+    top: calc(env(safe-area-inset-top, 0px) + 80px);
+    right: 15px;
+    width: 45px;
+    height: 45px;
+  }
+}
+
 .proximity-level-toolbar {
   position: absolute;
   bottom: 20px;
@@ -1520,6 +1559,18 @@ onUnmounted(() => {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   border: 1px solid #e5e7eb;
   min-width: 200px;
+}
+
+/* Mobile adjustments for proximity toolbar */
+@media screen and (max-width: 768px) {
+  .proximity-level-toolbar {
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 15px);
+    left: 10px;
+    right: 10px;
+    transform: none;
+    min-width: unset;
+    width: calc(100vw - 20px);
+  }
 }
 
 .proximity-level-header {
@@ -1689,6 +1740,16 @@ onUnmounted(() => {
   user-select: none;
 }
 
+/* Mobile adjustments for area bounds indicator */
+@media screen and (max-width: 768px) {
+  .area-bounds-indicator {
+    top: calc(env(safe-area-inset-top, 0px) + 140px);
+    right: 15px;
+    font-size: 11px;
+    padding: 6px 10px;
+  }
+}
+
 .area-bounds-indicator:hover {
   background: rgba(139, 92, 246, 1);
   transform: translateY(-1px);
@@ -1722,6 +1783,28 @@ onUnmounted(() => {
 .leaflet-map {
   height: 100%;
   width: 100%;
+}
+
+/* Ensure map container uses full viewport on mobile */
+.map-container {
+  height: 100vh;
+  height: 100dvh;
+  width: 100vw;
+  position: relative;
+}
+
+@supports (height: 100dvh) {
+  .map-container {
+    height: 100dvh;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .map-container {
+    height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    min-height: -webkit-fill-available;
+    min-height: fill-available;
+  }
 }
 
 .user-location-popup {
