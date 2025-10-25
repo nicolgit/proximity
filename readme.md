@@ -53,6 +53,10 @@ Maintaining and improving this project takes time, effort, and resources. Your c
 
 👉 [Buy me a coffee](https://buymeacoffee.com/nicolcoffee) – every little bit helps!
 
+# 👀 Similar projects around the world
+* London  [Public Transport Access Level (PTAL)](https://experience.arcgis.com/experience/4c88d5310df34e21bcb3a50ae9c0a159/page/PTAL-Query?block_id=layout_303_block_10&intcmp=26162)
+* Paris [metro and train isochronous curves](https://www.atelier01.net/metro/paris/isochrone/)
+
 # 📄 License
 
 This project is licensed under the [MIT License](LICENSE).

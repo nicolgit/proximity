@@ -14,8 +14,25 @@ body {
 
 #app {
     height: 100vh;
+    height: 100dvh; /* Dynamic viewport height for better mobile support */
     width: 100vw;
     position: relative;
+}
+
+/* Mobile-specific adjustments */
+@supports (height: 100dvh) {
+    #app {
+        height: 100dvh;
+    }
+}
+
+/* Fallback for older browsers that don't support dvh */
+@media screen and (max-width: 768px) {
+    #app {
+        height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+        min-height: -webkit-fill-available;
+        min-height: fill-available;
+    }
 }
 
 .search-container {
@@ -70,7 +87,23 @@ body {
 
 .map-container {
     height: 100vh;
+    height: 100dvh; /* Dynamic viewport height for better mobile support */
     width: 100vw;
+}
+
+/* Mobile-specific map container adjustments */
+@supports (height: 100dvh) {
+    .map-container {
+        height: 100dvh;
+    }
+}
+
+@media screen and (max-width: 768px) {
+    .map-container {
+        height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+        min-height: -webkit-fill-available;
+        min-height: fill-available;
+    }
 }
 
 .leaflet-container {
