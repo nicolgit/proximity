@@ -11,12 +11,12 @@ on:
             branch:
                 description: "Branch to deploy"
                 required: true
-                default: "develop"
+                default: "main"
                 type: string
             environment:
                 description: "Deployment environment"
                 required: false
-                default: "develop"
+                default: "production"
                 type: choice
                 options:
                     - develop
