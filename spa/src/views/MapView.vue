@@ -329,7 +329,7 @@
           <l-popup>
             <div class="station-popup" @click="closeAreaPopupOnOutsideClick($event)">
               <h4>
-                <span v-if="station.type === 'station'">🚇</span>
+                <span v-if="station.type === 'station' ">🚇</span>
                 <span v-else>🚊</span>
                 <span 
                   v-if="station.wikipediaLink"
@@ -728,7 +728,7 @@ const toggleStationsForArea = async (areaId: string) => {
 
 // Helper function to get icon for station type
 const getStationIcon = (type: string) => {
-  return type === 'station' ? stationIconSvg : tramStopIconSvg
+  return type === 'station'  || type === 'halt' ? stationIconSvg : tramStopIconSvg
 }
 
 // Helper function to open Wikipedia link
