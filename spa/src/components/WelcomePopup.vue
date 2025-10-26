@@ -15,7 +15,7 @@
           <p v-else-if="areasError">Error loading areas: {{ areasError }}</p>
           <p v-else-if="areas && areas.length > 1">
             Following metro areas are currently available:
-            <span v-for="(area, index) in areas" :key="area.id" class="area-item">
+            <span v-for="(area) in areas" :key="area.id" class="area-item">
               &nbsp;<button 
                 @click="toggleAreaSelection(area.id)"
                 :class="['area-toggle-btn', { selected: selectedAreas.includes(area.id), disabled: !canSelectArea(area.id) }]"
