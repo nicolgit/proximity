@@ -12,7 +12,10 @@ on:
         description: "Branch to deploy"
         required: true
         default: "main"
-        type: string
+        type: choice
+        options:
+          - main
+          - develop
       environment:
         description: "Deployment environment"
         required: false
@@ -20,7 +23,6 @@ on:
         type: choice
         options:
           - develop
-          - staging
           - production
       deploy_reason:
         description: "Reason for deployment"
@@ -33,13 +35,13 @@ jobs:
   build_and_deploy_job:
     runs-on: ubuntu-latest
     name: Build and Deploy Job
-    environment: ${{ github.event.inputs.environment || 'develop' }}
+    environment: ${{ github.event.inputs.environment }}
     steps:
       - name: "Log deployment details"
         run: |
           echo "🚀 SPA deployment triggered"
           echo "Branch: ${{ github.event.inputs.branch || github.ref_name }}"
-          echo "Environment: ${{ github.event.inputs.environment || 'develop' }}"
+          echo "Environment: ${{ github.event.inputs.environment }}"
           echo "Reason: ${{ github.event.inputs.deploy_reason || 'Manual deployment' }}"
           echo "Triggered by: ${{ github.actor }}"
 
@@ -67,5 +69,5 @@ jobs:
         run: |
           echo "✅ SPA deployment completed successfully"
           echo "Branch: ${{ github.event.inputs.branch || github.ref_name }}"
-          echo "Environment: ${{ github.event.inputs.environment || 'develop' }}"
+          echo "Environment: ${{ github.event.inputs.environment }}"
           echo "App Location: /spa"
