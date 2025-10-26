@@ -16,10 +16,10 @@
         <p v-if="areas && areas.length === 1">
           A tool that helps you understand how far you are from a metro, train or tram stop in the <b>{{ areas[0].name }}</b> metro area!
         </p>
-        <p v-else>a tool that helps you understand how far you are from a metro, train or tram stop!</p>
+        <p v-else-if="areas && areas.length !== 1">a tool that helps you understand how far you are from a metro, train or tram stop!</p>
           <p v-if="isAreasLoading">Loading available areas... ⏳</p>
           <p v-else-if="areasError">Error loading areas: {{ areasError }}</p>
-          <p v-else-if="areas && areas.length > 0">
+          <p v-else-if="areas && areas.length > 1">
             Following metro areas are currently available:
             <span v-for="(area, index) in areas" :key="area.id">
               📍<b 
@@ -30,8 +30,9 @@
               <b v-else>{{ area.name }}</b>
               <span v-if="index < areas.length - 1">, </span>
             </span>
+            <br /><br />select an area or click the 'Start Exploring' button to see them all!
           </p>
-        <p v-else>No areas available at the moment</p>
+        <p v-else-if="areas && areas.length === 0" >No areas available at the moment</p>
         <div class="welcome-actions">
           <button @click="onOpenGitHub" class="welcome-btn welcome-btn--secondary">
             📱 view on GitHub
