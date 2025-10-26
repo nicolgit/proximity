@@ -381,7 +381,7 @@ import { useGeolocation } from '@/composables/useGeolocation'
 import { useLocationSearch } from '@/composables/useLocationSearch'
 import { useStations } from '@/composables/useStations'
 import { LocationSearchService } from '@/services/LocationSearchService'
-import type { SearchResult, Station } from '@/types'
+import type { Area, SearchResult, Station } from '@/types'
 import { searchLocationIconSvg, userLocationIconSvg, stationIconSvg, tramStopIconSvg } from '@/utils/mapIcons'
 import { getApiUrl } from '@/config/env'
 import { LCircle, LMap, LMarker, LPopup, LGeoJson } from '@vue-leaflet/vue-leaflet'
@@ -1165,7 +1165,14 @@ const goToCurrentLocation = async () => {
 }
 
 // Welcome popup functionality
-const closeWelcomePopup = () => {
+const closeWelcomePopup = (filteredAreas: Area[]) => {
+  console.log('🎉 Welcome popup closed with filtered areas:', filteredAreas)
+  
+  // Update the areas array with filtered areas if provided
+  if (filteredAreas && filteredAreas.length > 0) {
+    areas.value = filteredAreas
+  } 
+  
   showWelcomePopup.value = false
 }
 
