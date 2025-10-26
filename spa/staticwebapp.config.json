@@ -6,7 +6,8 @@
   "mimeTypes": {
     ".json": "application/json",
     ".js": "application/javascript",
-    ".css": "text/css"
+    ".css": "text/css",
+    ".svg": "image/svg+xml"
   },
   "routes": [
     {
