@@ -77,7 +77,8 @@
       :areas="areas"
       :is-areas-loading="isAreasLoading"
       :areas-error="areasError"
-      @close="closeWelcomePopup"
+      @close="moreAreasSelected"
+      @areaSelected="handleAreaSelected"
     />
 
     <!-- Area Proximity Level Selector -->
@@ -1158,14 +1159,14 @@ const goToCurrentLocation = async () => {
     } else {
       console.error('❌ Current location not available')
       console.error('🔍 Is loading:', isLocationLoading.value)
-    }
+    } 
   } catch (error) {
     console.error('❌ Error in goToCurrentLocation:', error)
   }
 }
 
 // Welcome popup functionality
-const closeWelcomePopup = (filteredAreas: Area[]) => {
+const moreAreasSelected = (filteredAreas: Area[]) => {
   console.log('🎉 Welcome popup closed with filtered areas:', filteredAreas)
   
   // Update the areas array with filtered areas if provided
@@ -1173,6 +1174,12 @@ const closeWelcomePopup = (filteredAreas: Area[]) => {
     areas.value = filteredAreas
   } 
   
+  showWelcomePopup.value = false
+}
+
+const handleAreaSelected = (areaId: string) => {
+  console.log('🎯 Area selected for navigation:', areaId)
+  // Just close the popup when an area is selected for navigation
   showWelcomePopup.value = false
 }
 

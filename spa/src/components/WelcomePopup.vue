@@ -72,15 +72,17 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  (e: 'close'): void
   (e: 'close', filteredAreas: Area[]): void
+  (e: 'areaSelected', areaId: string): void
 }>()
 
 // Reactive variable to store selected areas (max 3)
 const selectedAreas = ref<string[]>([])
 
-// Computed property to check if we can start exploring (has selected areas)
-const canStartExploring = computed(() => selectedAreas.value.length > 0)
+// Computed property to check if we can start exploring (has selected areas or only 1 area available)
+const canStartExploring = computed(() => 
+  selectedAreas.value.length > 0 || (props.areas && props.areas.length === 1)
+)
 
 // Function to toggle area selection (max 3 areas)
 const toggleAreaSelection = (areaId: string) => {
@@ -100,11 +102,15 @@ const canSelectArea = (areaId: string) => {
 }
 
 const onClose = () => {
-  // Only allow closing if areas are selected
+  // Allow closing if areas are selected OR if there's only 1 area available
   if (props.areas && selectedAreas.value.length > 0) {
     const filteredAreas = props.areas.filter(area => selectedAreas.value.includes(area.id))
     console.log('Filtered areas to selected only:', filteredAreas)
     emit('close', filteredAreas)
+  } else if (props.areas && props.areas.length === 1) {
+    // Auto-select the single available area
+    console.log('Auto-selecting single available area:', props.areas[0])
+    emit('close', props.areas)
   } else {
     console.log('Cannot close: No areas selected')
     // Do nothing - require selection before allowing close
@@ -116,8 +122,8 @@ const onOpenGitHub = () => {
 
 const navigateToArea = (areaId: string) => {
   router.push(`/italy/${areaId}`)
-  // When navigating directly to an area, don't filter - just close
-  emit('close') // Close the popup after navigation
+  // Emit areaSelected event to notify parent
+  emit('areaSelected', areaId)
 }
 </script>
 
