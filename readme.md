@@ -1,4 +1,4 @@
-# 📡 The Proximity Project 📡
+# 🗺️ The Proximity Project 🗺️
 
 **The Proximity Project** is a browser-based single-page application (SPA) that visualizes a map with isochrones—areas reachable within a certain distance or time—from the nearest railway or tram station. Currently focused on selected metropolitan areas in Italy, the project aims to help users understand how well-connected a location is via reliable rail-based public transport.
 

@@ -77,7 +77,8 @@
       :areas="areas"
       :is-areas-loading="isAreasLoading"
       :areas-error="areasError"
-      @close="closeWelcomePopup"
+      @close="moreAreasSelected"
+      @areaSelected="handleAreaSelected"
     />
 
     <!-- Area Proximity Level Selector -->
@@ -381,7 +382,7 @@ import { useGeolocation } from '@/composables/useGeolocation'
 import { useLocationSearch } from '@/composables/useLocationSearch'
 import { useStations } from '@/composables/useStations'
 import { LocationSearchService } from '@/services/LocationSearchService'
-import type { SearchResult, Station } from '@/types'
+import type { Area, SearchResult, Station } from '@/types'
 import { searchLocationIconSvg, userLocationIconSvg, stationIconSvg, tramStopIconSvg } from '@/utils/mapIcons'
 import { getApiUrl } from '@/config/env'
 import { LCircle, LMap, LMarker, LPopup, LGeoJson } from '@vue-leaflet/vue-leaflet'
@@ -556,6 +557,26 @@ const initializeMapForArea = async (areaId: string | undefined) => {
         applyAreaConstraints(targetArea)
       }
     }, 100)
+
+    // Automatically show stations and isochrones for the target area
+    setTimeout(async () => {
+      console.log(`🚇 Automatically loading stations and isochrones for area: ${targetArea.name}`)
+      
+      // Load stations if not already visible
+      if (!visibleStations.value.has(areaId)) {
+        if (getStationsForArea(areaId).length === 0) {
+          await loadStations(areaId)
+        }
+        visibleStations.value.add(areaId)
+        console.log(`✅ Stations loaded for area: ${targetArea.name}`)
+      }
+      
+      // Load area isochrones if not already visible
+      if (!visibleAreaIsochrones.value.has(areaId)) {
+        await loadAreaIsochrones(areaId)
+        console.log(`✅ Isochrones loaded for area: ${targetArea.name}`)
+      }
+    }, 200) // Slight delay to ensure map is ready
   } else {
     console.warn(`⚠️ Area with ID "${areaId}" not found`)
     // Fallback to user location
@@ -1158,14 +1179,27 @@ const goToCurrentLocation = async () => {
     } else {
       console.error('❌ Current location not available')
       console.error('🔍 Is loading:', isLocationLoading.value)
-    }
+    } 
   } catch (error) {
     console.error('❌ Error in goToCurrentLocation:', error)
   }
 }
 
 // Welcome popup functionality
-const closeWelcomePopup = () => {
+const moreAreasSelected = (filteredAreas: Area[]) => {
+  console.log('🎉 Welcome popup closed with filtered areas:', filteredAreas)
+  
+  // Update the areas array with filtered areas if provided
+  if (filteredAreas && filteredAreas.length > 0) {
+    areas.value = filteredAreas
+  } 
+  
+  showWelcomePopup.value = false
+}
+
+const handleAreaSelected = (areaId: string) => {
+  console.log('🎯 Area selected for navigation:', areaId)
+  // Just close the popup when an area is selected for navigation
   showWelcomePopup.value = false
 }
 

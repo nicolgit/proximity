@@ -1,14 +1,8 @@
 <template>
-  <div class="welcome-popup-overlay" @click="onOverlayClick">
-    <div class="welcome-popup" @click.stop>
+  <div class="welcome-popup-overlay">
+    <div class="welcome-popup">
       <div class="welcome-header">
         <h2>🗺️ The Proximity project!</h2>
-        <button @click="onClose" class="welcome-close-btn" type="button">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </button>
       </div>
 
       <div class="welcome-content">
@@ -16,27 +10,39 @@
         <p v-if="areas && areas.length === 1">
           A tool that helps you understand how far you are from a metro, train or tram stop in the <b>{{ areas[0].name }}</b> metro area!
         </p>
-        <p v-else>a tool that helps you understand how far you are from a metro, train or tram stop!</p>
+        <p v-else-if="areas && areas.length !== 1">a tool that helps you understand how far you are from a metro, train or tram stop!</p>
           <p v-if="isAreasLoading">Loading available areas... ⏳</p>
           <p v-else-if="areasError">Error loading areas: {{ areasError }}</p>
-          <p v-else-if="areas && areas.length > 0">
+          <p v-else-if="areas && areas.length > 1">
             Following metro areas are currently available:
-            <span v-for="(area, index) in areas" :key="area.id">
-              📍<b 
+            <span v-for="(area, index) in areas" :key="area.id" class="area-item">
+              &nbsp;<button 
+                @click="toggleAreaSelection(area.id)"
+                :class="['area-toggle-btn', { selected: selectedAreas.includes(area.id), disabled: !canSelectArea(area.id) }]"
+                :disabled="!canSelectArea(area.id)"
+                type="button"
+              >
+                {{ selectedAreas.includes(area.id) ? '✓' : '○' }}
+              </button>
+              <b 
                 v-if="areas.length > 1" 
                 @click="navigateToArea(area.id)"
                 class="clickable-area"
               >{{ area.name }}</b>
               <b v-else>{{ area.name }}</b>
-              <span v-if="index < areas.length - 1">, </span>
             </span>
+            <br /><br />Select up to 3 areas ({{ selectedAreas.length }}/3) or click on area names to navigate directly. You must select at least one area to start exploring!
           </p>
-        <p v-else>No areas available at the moment</p>
+        <p v-else-if="areas && areas.length === 0" >No areas available at the moment</p>
         <div class="welcome-actions">
           <button @click="onOpenGitHub" class="welcome-btn welcome-btn--secondary">
             📱 view on GitHub
           </button>
-          <button @click="onClose" class="welcome-btn welcome-btn--primary">
+          <button 
+            @click="onClose" 
+            :class="['welcome-btn', 'welcome-btn--primary', { 'disabled': !canStartExploring }]"
+            :disabled="!canStartExploring"
+          >
             🗺️ start exploring the Map!
           </button>
         </div>
@@ -46,32 +52,72 @@
 </template>
 
 <script setup lang="ts">
-import { defineProps, defineEmits } from 'vue'
+import { defineProps, defineEmits, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import type { Area } from '@/types'
 
 const router = useRouter()
 
 // defineProps used to declare the component props for the template; avoid assigning to an unused variable
-defineProps<{
+const props = defineProps<{
   areas?: Array<Area>
   isAreasLoading?: boolean
   areasError?: string | null
 }>()
 
 const emit = defineEmits<{
-  (e: 'close'): void
+  (e: 'close', filteredAreas: Area[]): void
+  (e: 'areaSelected', areaId: string): void
 }>()
 
-const onOverlayClick = () => emit('close')
-const onClose = () => emit('close')
+// Reactive variable to store selected areas (max 3)
+const selectedAreas = ref<string[]>([])
+
+// Computed property to check if we can start exploring (has selected areas or only 1 area available)
+const canStartExploring = computed(() => 
+  selectedAreas.value.length > 0 || (props.areas && props.areas.length === 1)
+)
+
+// Function to toggle area selection (max 3 areas)
+const toggleAreaSelection = (areaId: string) => {
+  const index = selectedAreas.value.indexOf(areaId)
+  if (index > -1) {
+    // Remove area from selection
+    selectedAreas.value.splice(index, 1)
+  } else if (selectedAreas.value.length < 3) {
+    // Add area to selection only if less than 3 are selected
+    selectedAreas.value.push(areaId)
+  }
+}
+
+// Check if an area can be selected (not selected and under limit)
+const canSelectArea = (areaId: string) => {
+  return selectedAreas.value.includes(areaId) || selectedAreas.value.length < 3
+}
+
+const onClose = () => {
+  // Allow closing if areas are selected OR if there's only 1 area available
+  if (props.areas && selectedAreas.value.length > 0) {
+    const filteredAreas = props.areas.filter(area => selectedAreas.value.includes(area.id))
+    console.log('Filtered areas to selected only:', filteredAreas)
+    emit('close', filteredAreas)
+  } else if (props.areas && props.areas.length === 1) {
+    // Auto-select the single available area
+    console.log('Auto-selecting single available area:', props.areas[0])
+    emit('close', props.areas)
+  } else {
+    console.log('Cannot close: No areas selected')
+    // Do nothing - require selection before allowing close
+  }
+}
 const onOpenGitHub = () => {
   window.open('https://github.com/nicolgit/proximity', '_blank')
 }
 
 const navigateToArea = (areaId: string) => {
   router.push(`/italy/${areaId}`)
-  emit('close') // Close the popup after navigation
+  // Emit areaSelected event to notify parent
+  emit('areaSelected', areaId)
 }
 </script>
 
@@ -118,24 +164,6 @@ const navigateToArea = (areaId: string) => {
   color: #333;
 }
 
-.welcome-close-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 8px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #666;
-  transition: all 0.2s ease;
-}
-
-.welcome-close-btn:hover {
-  background-color: #f0f0f0;
-  color: #333;
-}
-
 .welcome-content {
   padding: 24px;
 }
@@ -145,6 +173,48 @@ const navigateToArea = (areaId: string) => {
   font-size: 16px;
   color: #666;
   line-height: 1.5;
+}
+
+.area-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.area-toggle-btn {
+  background: none;
+  border: 1px solid #ddd;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 10px;
+  transition: all 0.2s ease;
+  color: #666;
+}
+
+.area-toggle-btn:hover {
+  border-color: #007bff;
+  color: #007bff;
+}
+
+.area-toggle-btn.selected {
+  background-color: #007bff;
+  border-color: #007bff;
+  color: white;
+}
+
+.area-toggle-btn.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.area-toggle-btn.disabled:hover {
+  border-color: #ddd;
+  color: #666;
 }
 
 .clickable-area {
@@ -190,15 +260,27 @@ const navigateToArea = (areaId: string) => {
   transform: translateY(-1px);
 }
 
-.welcome-btn--secondary {
-  background-color: #f8f9fa;
+.welcome-btn--primary.disabled {
+  background-color: #ccc;
   color: #666;
-  border: 1px solid #e9ecef;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.welcome-btn--primary.disabled:hover {
+  background-color: #ccc;
+  transform: none;
+}
+
+.welcome-btn--secondary {
+  background-color: #ffd700;
+  color: #333;
+  border: 1px solid #ffcc00;
 }
 
 .welcome-btn--secondary:hover {
-  background-color: #e9ecef;
-  color: #333;
+  background-color: #ffcc00;
+  color: #000;
   transform: translateY(-1px);
 }
 
