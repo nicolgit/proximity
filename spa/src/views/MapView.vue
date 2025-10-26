@@ -557,6 +557,26 @@ const initializeMapForArea = async (areaId: string | undefined) => {
         applyAreaConstraints(targetArea)
       }
     }, 100)
+
+    // Automatically show stations and isochrones for the target area
+    setTimeout(async () => {
+      console.log(`🚇 Automatically loading stations and isochrones for area: ${targetArea.name}`)
+      
+      // Load stations if not already visible
+      if (!visibleStations.value.has(areaId)) {
+        if (getStationsForArea(areaId).length === 0) {
+          await loadStations(areaId)
+        }
+        visibleStations.value.add(areaId)
+        console.log(`✅ Stations loaded for area: ${targetArea.name}`)
+      }
+      
+      // Load area isochrones if not already visible
+      if (!visibleAreaIsochrones.value.has(areaId)) {
+        await loadAreaIsochrones(areaId)
+        console.log(`✅ Isochrones loaded for area: ${targetArea.name}`)
+      }
+    }, 200) // Slight delay to ensure map is ready
   } else {
     console.warn(`⚠️ Area with ID "${areaId}" not found`)
     // Fallback to user location

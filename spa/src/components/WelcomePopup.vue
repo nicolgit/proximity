@@ -3,12 +3,6 @@
     <div class="welcome-popup">
       <div class="welcome-header">
         <h2>🗺️ The Proximity project!</h2>
-        <button @click="onClose" class="welcome-close-btn" type="button">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </button>
       </div>
 
       <div class="welcome-content">
@@ -167,24 +161,6 @@ const navigateToArea = (areaId: string) => {
   margin: 0;
   font-size: 24px;
   font-weight: 600;
-  color: #333;
-}
-
-.welcome-close-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 8px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #666;
-  transition: all 0.2s ease;
-}
-
-.welcome-close-btn:hover {
-  background-color: #f0f0f0;
   color: #333;
 }
 
