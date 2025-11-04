@@ -93,10 +93,15 @@ public static class AreaManager
                 await CleanupExistingAreaIsochroneAsync(name, configuration, logger);
             }
 
+            // populate partition and row key from name 'partition/row'
+            var partitionKey = name.Contains('-') ? name.Split('-')[0] : "area";
+            var rowKey = name.Contains('-') ? name.Split('-')[1] : name;
+
             // Create or update area entity
             var area = new AreaEntity
             {
-                RowKey = name.ToLowerInvariant(),
+                PartitionKey = partitionKey.ToLowerInvariant(),
+                RowKey = rowKey.ToLowerInvariant(),
                 Name = name,
                 DisplayName = displayName,
                 Latitude = latitude,

@@ -17,7 +17,7 @@ dotnet run -- area create rome --center "40,40" --diameter 1000 --displayname "T
 dotnet run -- area create "stations-only" --center "41.9028,12.4964" --diameter 1000 --displayname "Stations Only" --noisochrone
 dotnet run -- area isochrone rome
 dotnet run -- area isochrone rome --delete
-dotnet run -- area delete "rome-center"
+dotnet run -- area delete "rome"
 dotnet run -- area list
 
 # Station Management  
@@ -33,6 +33,3 @@ dotnet run -- station isochrone milan 21226369 --delete 10
 dotnet run -- --logging Debug
 dotnet run -- --help
 ```
-
-
-
