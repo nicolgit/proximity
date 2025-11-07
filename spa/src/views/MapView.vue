@@ -139,7 +139,7 @@
     </button>
 
     <!-- Area bounds indicator -->
-    <div v-if="props.areaid" class="area-bounds-indicator" @click="toggleAreaBounds">
+    <div v-if="currentAreaId" class="area-bounds-indicator" @click="toggleAreaBounds">
       <div v-if="areaBoundsActive" class="bounds-icon">🔒</div>
       <div v-else class="bounds-icon">🔓</div>
       <div class="bounds-text">map limited to {{ currentAreaName }}</div>
@@ -209,7 +209,7 @@
                 :proximity-error="getAreaIsochroneErrorForArea(area.id) ?? undefined"
                 :selected-proximity-level="selectedProximityLevel"
                 @toggle-stations="() => toggleStationsForArea(area.id)"
-                @toggle-proximity="() => toggleAreaIsochronesForArea(area.id)"
+                @toggle-proximity="() => toggleAreaIsochronesForArea(props.country, area.id)"
               />
             </div>
           </l-popup>
@@ -253,7 +253,7 @@
                 :proximity-error="getAreaIsochroneErrorForArea(isochrone.areaId) ?? undefined"
                 :selected-proximity-level="selectedProximityLevel"
                 @toggle-stations="() => toggleStationsForArea(isochrone.areaId)"
-                @toggle-proximity="() => toggleAreaIsochronesForArea(isochrone.areaId)"
+                @toggle-proximity="() => toggleAreaIsochronesForArea(props.country, isochrone.areaId)"
               />
             </div>
           </l-popup>
@@ -325,7 +325,7 @@
           :key="station.id"
           :lat-lng="[station.latitude, station.longitude]"
           :icon="getStationIcon(station.type) as any"
-          @click="onStationClick(station, station.areaId)">
+          @click="onStationClick(props.country || 'italy', station, station.areaId)">
           <l-popup>
             <div class="station-popup" @click="closeAreaPopupOnOutsideClick($event)">
               <h4>
@@ -344,7 +344,7 @@
               <p>coords: <strong>{{ station.latitude.toFixed(4) }}, {{ station.longitude.toFixed(4) }}</strong> </p>
               <div class="station-actions">
                 <button 
-                  @click="onStationClick(station, station.areaId)"
+                  @click="onStationClick(props.country || 'italy', station, station.areaId)"
                   class="btn"
                   :class="{ 'btn--active': selectedStationForIsochrone?.id === station.id }"
                 >
@@ -366,7 +366,7 @@
                 :proximity-error="getAreaIsochroneErrorForArea(station.areaId) ?? undefined"
                 :selected-proximity-level="selectedProximityLevel"
                 @toggle-stations="() => toggleStationsForArea(station.areaId)"
-                @toggle-proximity="() => toggleAreaIsochronesForArea(station.areaId)"
+                @toggle-proximity="() => toggleAreaIsochronesForArea(props.country, station.areaId)"
               />
             </div>
           </l-popup>
@@ -396,10 +396,14 @@ import WelcomePopup from '@/components/WelcomePopup.vue'
 
 // Props
 interface Props {
-  areaid?: string
+  country: string
+  area?: string
+  areaid?: string // Keep for backward compatibility
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  country: "",
+  area: undefined,
   areaid: undefined
 })
 
@@ -456,12 +460,17 @@ const {
   getLocation
 } = useGeolocation()
 
+// Computed area ID - prioritize new route params, fallback to legacy areaid prop
+const currentAreaId = computed(() => {
+  return props.area || props.areaid
+})
+
 const {
   areas,
   isLoading: isAreasLoading,
   error: areasError,
   load: loadAreas
-} = useAreas(props.areaid)
+} = useAreas(props.country)
 
 const {
   loadStations,
@@ -501,9 +510,11 @@ const pendingProximityLevel = ref(30) // For debounced updates
 let proximityLevelDebounceTimer: number | null = null
 
 // Function to initialize map for a specific area
-const initializeMapForArea = async (areaId: string | undefined) => {
-  // Load areas if not already loaded
-  if (areas.value.length === 0) {
+const initializeMapForArea = async (country: string, areaId: string | undefined) => {
+  // Load areas - if areaId is specified, load that specific area, otherwise load all
+  if (areaId) {
+    await loadAreas(areaId)
+  } else if (areas.value.length === 0) {
     await loadAreas()
   }
 
@@ -565,7 +576,7 @@ const initializeMapForArea = async (areaId: string | undefined) => {
       // Load stations if not already visible
       if (!visibleStations.value.has(areaId)) {
         if (getStationsForArea(areaId).length === 0) {
-          await loadStations(areaId)
+          await loadStations(country, areaId)
         }
         visibleStations.value.add(areaId)
         console.log(`✅ Stations loaded for area: ${targetArea.name}`)
@@ -573,7 +584,7 @@ const initializeMapForArea = async (areaId: string | undefined) => {
       
       // Load area isochrones if not already visible
       if (!visibleAreaIsochrones.value.has(areaId)) {
-        await loadAreaIsochrones(areaId)
+        await loadAreaIsochrones(country, areaId)
         console.log(`✅ Isochrones loaded for area: ${targetArea.name}`)
       }
     }, 200) // Slight delay to ensure map is ready
@@ -598,13 +609,17 @@ const initializeMapForArea = async (areaId: string | undefined) => {
 
 // Watch for route parameter changes
 watch(
-  () => route.params.areaid as string | undefined,
-  async (newAreaId, oldAreaId) => {
+  () => route.params,
+  async (newParams, oldParams) => {
+    const newAreaId = (newParams.area || newParams.areaid) as string | undefined
+    const oldAreaId = (oldParams?.area || oldParams?.areaid) as string | undefined
+    
     if (newAreaId !== oldAreaId) {
       console.log(`🔄 Route changed from area "${oldAreaId}" to "${newAreaId}"`)
-      await initializeMapForArea(newAreaId)
+      await initializeMapForArea(props.country, newAreaId)
     }
-  }
+  },
+  { deep: true }
 )
 
 // Initialize on mount
@@ -612,7 +627,7 @@ onMounted(async () => {
   console.log('🚀 Component mounted')
   
   // Use the shared initialization function
-  await initializeMapForArea(props.areaid)
+  await initializeMapForArea(props.country, currentAreaId.value)
 })
 
 const debouncedProximityLevelUpdate = (level: number) => {
@@ -705,8 +720,8 @@ const areaIsochronesWithBorderIndex = computed(() => {
 
 // Computed property for current selected area name
 const currentAreaName = computed(() => {
-  if (props.areaid && areas.value.length > 0) {
-    const currentArea = areas.value.find(area => area.id === props.areaid)
+  if (currentAreaId.value && areas.value.length > 0) {
+    const currentArea = areas.value.find(area => area.id === currentAreaId.value)
     return currentArea?.name || 'selected area'
   }
   return 'selected area'
@@ -720,7 +735,7 @@ const toggleStationsForArea = async (areaId: string) => {
   } else {
     // Show stations - first load them if not already loaded
     if (getStationsForArea(areaId).length === 0) {
-      await loadStations(areaId)
+      await loadStations(props.country || 'italy', areaId)
     }
     visibleStations.value.add(areaId)
   }
@@ -757,7 +772,7 @@ const getAreaIsochroneErrorForArea = (areaId: string) => {
 }
 
 // Function to toggle area isochrones
-const toggleAreaIsochronesForArea = async (areaId: string) => {
+const toggleAreaIsochronesForArea = async (country: string, areaId: string) => {
   if (visibleAreaIsochrones.value.has(areaId)) {
     // Hide area isochrones
     visibleAreaIsochrones.value.delete(areaId)
@@ -769,12 +784,12 @@ const toggleAreaIsochronesForArea = async (areaId: string) => {
     areaIsochroneErrors.value.delete(areaId)
   } else {
     // Show area isochrones - load them from API
-    await loadAreaIsochrones(areaId)
+    await loadAreaIsochrones(country, areaId)
   }
 }
 
 // Function to load area isochrones from API
-const loadAreaIsochrones = async (areaId: string) => {
+const loadAreaIsochrones = async (country: string, areaId: string) => {
   const selectedLevel = selectedProximityLevel.value
   // Load all levels up to and including the selected level
   const levelsToLoad = proximityLevelOptions.value.filter(level => level <= selectedLevel)
@@ -792,7 +807,7 @@ const loadAreaIsochrones = async (areaId: string) => {
   try {
     const promises = levelsToLoad.map(async (timeInterval) => {
       try {
-        const response = await fetch(getApiUrl(`/area/${areaId}/isochrone/${timeInterval}`))
+        const response = await fetch(getApiUrl(`/area/${country}/${areaId}/isochrone/${timeInterval}`))
         
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`)
@@ -838,7 +853,7 @@ const loadAreaIsochrones = async (areaId: string) => {
 }
 
 // Function to handle station click and show isochrone circles
-const onStationClick = async (station: Station, areaId: string) => {
+const onStationClick = async (country: string, station: Station, areaId: string) => {
   // If clicking the same station, toggle off the isochrones
   if (selectedStationForIsochrone.value?.id === station.id) {
     selectedStationForIsochrone.value = null
@@ -847,12 +862,12 @@ const onStationClick = async (station: Station, areaId: string) => {
   } else {
     // Show isochrones for the new station
     selectedStationForIsochrone.value = station
-    await loadIsochronesForStation(station, areaId)
+    await loadIsochronesForStation(country, station, areaId)
   }
 }
 
 // Function to load isochrones from API or fallback to calculated circles
-const loadIsochronesForStation = async (station: Station, areaId: string) => {
+const loadIsochronesForStation = async (country: string, station: Station, areaId: string) => {
   // Only load time intervals up to the selected proximity level
   const timeIntervals = proximityLevelOptions.value.filter(level => level <= selectedProximityLevel.value)
   const baseColor = (station.type === 'station' || station.type === 'halt') ? '#22c55e' : '#eab308' // green for metro/train, yellow for tram
@@ -873,7 +888,7 @@ const loadIsochronesForStation = async (station: Station, areaId: string) => {
   const apiPromises = timeIntervals.map(async (time) => {
     try {
       const response = await fetch(
-        getApiUrl(`/area/${stationArea.id}/station/${station.id}/isochrone/${time}`)
+        getApiUrl(`/area/${country}/${stationArea.id}/station/${station.id}/isochrone/${time}`)
       )
       
       if (response.status === 400) {
@@ -1241,7 +1256,7 @@ const refreshVisibleAreaIsochrones = () => {
   
   // Reload isochrones for all visible areas with new level
   visibleAreaIds.forEach(areaId => {
-    loadAreaIsochrones(areaId)
+    loadAreaIsochrones(props.country, areaId)
   })
 }
 
@@ -1259,7 +1274,7 @@ const refreshStationIsochrones = async () => {
     }
     
     if (stationAreaId) {
-      await loadIsochronesForStation(selectedStationForIsochrone.value, stationAreaId)
+      await loadIsochronesForStation(props.country || 'italy', selectedStationForIsochrone.value, stationAreaId)
     } else {
       // Fallback to calculated circles if area not found
       generateIsochroneCircles(selectedStationForIsochrone.value)

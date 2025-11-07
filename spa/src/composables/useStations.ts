@@ -7,12 +7,12 @@ export function useStations() {
     const isLoading = ref<Record<string, boolean>>({})
     const error = ref<Record<string, string | null>>({})
 
-    const loadStations = async (areaId: string): Promise<void> => {
+    const loadStations = async (country: string, areaId: string): Promise<void> => {
         isLoading.value[areaId] = true
         error.value[areaId] = null
 
         try {
-            const url = getApiUrl(`/area/${areaId}/station`)
+            const url = getApiUrl(`/area/${country}/${areaId}/station`)
             const response = await fetch(url, {
                 method: 'GET',
                 headers: {
