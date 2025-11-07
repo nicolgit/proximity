@@ -1,46 +1,68 @@
-# Parametric Routing for Area IDs
+# Parametric Routing for Country and Area
 
-This implementation adds support for parametric routes that allow direct navigation to specific areas in the Metro Proximity app.
+This implementation adds support for parametric routes that allow direct navigation to specific areas in the Metro Proximity app with country/area structure.
 
 ## Features
 
 ### Route Structure
-- **Base route**: `/` - Shows the map with default behavior (user location or Rome as fallback)
-- **Area route**: `/:areaId` - Shows the map centered on the specified area
+- **Base route**: `/` - Redirects to `/italy` (default country)
+- **Country route**: `/:country` - Shows the map with areas for the specified country
+- **Area route**: `/:country/:area` - Shows the map centered on the specified area within the country
 
 ### Examples
-- `/milan` - Centers the map on the Milan area
-- `/naples` - Centers the map on the Naples area  
-- `/rome` - Centers the map on the Rome area
-- `/{any-area-id}` - Centers the map on the area with the matching ID
+- `/` - Redirects to `/italy`
+- `/italy` - Shows the map with Italian areas
+- `/italy/rome` - Centers the map on the Rome area 
+- `/italy/milan` - Centers the map on the Milan area 
+- `/italy/naples` - Centers the map on the Naples area
 
 ## How It Works
 
 ### 1. Router Configuration
-The Vue Router is configured with a parametric route that captures the area ID:
+The Vue Router is configured with parametric routes that capture country and area parameters:
 
 ```typescript
 {
-  path: '/:areaId',
-  name: 'map-area',
+  path: '/',
+  redirect: '/italy'
+},
+{
+  path: '/:country/:area',
+  name: 'map-area', 
+  component: MapView,
+  props: true
+},
+{
+  path: '/:country',
+  name: 'map-country',
   component: MapView,
   props: true
 }
 ```
 
 ### 2. MapView Component Updates
-The MapView component now accepts an optional `areaId` prop and implements area-specific centering logic:
+The MapView component now accepts optional `country` and `area` props, with backward compatibility for legacy `areaid` prop:
 
 ```typescript
 interface Props {
-  areaId?: string
+  country?: string
+  area?: string
+  areaid?: string // Keep for backward compatibility
 }
 ```
 
 ### 3. Area Centering Logic
-When an `areaId` is provided:
+The component uses a computed property to determine the current area ID:
 
-1. **Load Areas**: First loads all available areas from the API
+```typescript
+const currentAreaId = computed(() => {
+  return props.area || props.areaid
+})
+```
+
+When an area ID is provided:
+
+1. **Load Areas**: Loads the specific area or all areas from the API
 2. **Find Target Area**: Searches for the area with the matching ID
 3. **Calculate Zoom**: Calculates appropriate zoom level based on area diameter
 4. **Center Map**: Sets the map center to the area coordinates with proper zoom
@@ -65,9 +87,12 @@ If the area ID is not found or no area ID is provided:
 
 ### Direct URL Navigation
 Users can navigate directly to:
-- `https://your-app.com/milan`
-- `https://your-app.com/naples`
-- `https://your-app.com/{area-id}`
+- `https://your-app.com/` (redirects to `/italy`)
+- `https://your-app.com/italy` (shows Italian areas)
+- `https://your-app.com/italy/RM` (Rome area)
+- `https://your-app.com/italy/MI` (Milan area)
+- `https://your-app.com/italy/NA` (Naples area)
+- `https://your-app.com/{country}/{area-id}` (any country/area combination)
 
 ### Programmatic Navigation
 In Vue components:
@@ -77,7 +102,10 @@ import { useRouter } from 'vue-router'
 const router = useRouter()
 
 // Navigate to specific area
-router.push({ name: 'map-area', params: { areaId: 'milan' } })
+router.push({ name: 'map-area', params: { country: 'italy', area: 'RM' } })
+
+// Navigate to country view
+router.push({ name: 'map-country', params: { country: 'italy' } })
 ```
 
 ## Technical Details

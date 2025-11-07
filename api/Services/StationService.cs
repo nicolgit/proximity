@@ -28,20 +28,24 @@ public class StationService
     /// </summary>
     /// <param name="areaId">The area ID to filter stations by</param>
     /// <returns>List of StationDto objects</returns>
-    public async Task<List<StationDto>> GetStationsByAreaIdAsync(string areaId)
+    public async Task<List<StationDto>> GetStationsByAreaIdAsync(string country,string areaId)
     {
         try
         {
+            if (string.IsNullOrWhiteSpace(country))
+                throw new ArgumentException("Country cannot be null or empty", nameof(country));
+
             if (string.IsNullOrWhiteSpace(areaId))
                 throw new ArgumentException("Area ID cannot be null or empty", nameof(areaId));
 
-            _logger.LogInformation("Retrieving stations for area ID: {AreaId} from table storage", areaId);
+            _logger.LogInformation("Retrieving stations for country: {Country}, area ID: {AreaId} from table storage", country, areaId);
 
             var tableClient = _storageService.GetTableClient(_tableName);
 
+            var partitionKey = $"{country}-{areaId}";
             // Query all entities with partition key matching the area ID
             var queryResults = tableClient.QueryAsync<StationEntity>(
-                filter: $"PartitionKey eq '{areaId}'",
+                filter: $"PartitionKey eq '{partitionKey}'",
                 maxPerPage: 1000 // Adjust based on expected data size
             );
 

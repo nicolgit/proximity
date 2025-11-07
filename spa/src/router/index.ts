@@ -6,12 +6,17 @@ const router = createRouter({
     routes: [
         {
             path: '/',
-            name: 'map',
-            component: MapView
+            redirect: '/italy'
         },
         {
-            path: '/italy/:areaid',
+            path: '/:country/:area',
             name: 'map-area',
+            component: MapView,
+            props: true
+        },
+        {
+            path: '/:country',
+            name: 'map-country',
             component: MapView,
             props: true
         }

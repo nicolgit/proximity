@@ -13,7 +13,7 @@ public static class StationManager
 {
     public static async Task RetrieveAndStoreStationsAsync(string areaName, double latitude, double longitude,
         int diameterMeters, bool developerMode, bool noIsochrone, TableClient stationTableClient, ILogger? logger, IConfiguration? configuration)
-    {
+    {  
         try
         {
             logger?.LogInformation("Retrieving railway stations from Overpass API for area: {AreaName}", areaName);
@@ -140,10 +140,12 @@ out body;";
                         }
                     }
 
+                    string stationPartitionKey = areaName.Replace("/", "-").ToLowerInvariant();
+
                     // Create station entity
                     var station = new StationEntity
                     {
-                        PartitionKey = areaName.ToLowerInvariant(),
+                        PartitionKey = stationPartitionKey,
                         RowKey = stationId,
                         Name = stationName,
                         Latitude = stationLat,
@@ -235,6 +237,7 @@ out body;";
             logger?.LogInformation("Removing existing stations for area: {AreaName}", areaName);
             Console.WriteLine($"🗑️ Removing existing stations for area '{areaName}'...");
 
+            areaName = areaName.Replace ("/", "-");
             var areaNameLower = areaName.ToLowerInvariant();
             var stationsToDelete = new List<StationEntity>();
 
@@ -496,6 +499,9 @@ out body;";
 
     public static async Task DeleteAreaStationsAsync(string areaName, TableClient stationTableClient, ILogger? logger)
     {
+        // WARNING: areaname has format country/areaid
+        areaName = areaName.Replace("/", "-");
+        
         try
         {
             logger?.LogInformation("Deleting all stations for area: {AreaName}", areaName);
@@ -562,6 +568,9 @@ out body;";
 
     public static async Task ListStationsAsync(string areaId, string? filter, ILogger? logger, IConfiguration? configuration)
     {
+        // WARNING: areaname has format country/areaid
+        areaId = areaId.Replace("/", "-");
+
         try
         {
             logger?.LogInformation("Listing stations for area: {AreaId} with filter: {Filter}", areaId, filter ?? "none");
@@ -676,8 +685,13 @@ out body;";
         }
     }
 
-    public static async Task GenerateStationIsochroneAsync(string areaId, string stationId, bool isDeleteMode, int? deleteDuration, ILogger? logger, IConfiguration? configuration)
+    public static async Task GenerateStationIsochroneAsync(string areaIdinput, string stationId, bool isDeleteMode, int? deleteDuration, ILogger? logger, IConfiguration? configuration)
     {
+        // WARNING: areaid has format country/areaid
+        string country = areaIdinput.Split('/')[0];
+        string areaIdOnly = areaIdinput.Split('/')[1];
+        string areaId = areaIdinput.Replace("/", "-");
+
         try
         {
             logger?.LogInformation("Processing isochrones for station: {StationId} in area: {AreaId} - Delete mode: {IsDeleteMode}, Duration: {DeleteDuration}", 
@@ -709,13 +723,13 @@ out body;";
             AreaEntity? area = null;
             try
             {
-                var areaResponse = await areaTableClient.GetEntityAsync<AreaEntity>("area", areaId.ToLowerInvariant());
+                var areaResponse = await areaTableClient.GetEntityAsync<AreaEntity>(country.ToLowerInvariant(), areaIdOnly.ToLowerInvariant());
                 area = areaResponse.Value;
-                logger?.LogInformation("Found area: {AreaName} ({DisplayName})", area.Name, area.DisplayName);
+                logger?.LogInformation("Found area: {Country} {AreaName} ({DisplayName})", country, area.Name, area.DisplayName);
             }
             catch (Azure.RequestFailedException ex) when (ex.Status == 404)
             {
-                Console.WriteLine($"❌ Area '{areaId}' not found");
+                Console.WriteLine($"❌ Area '{country}'/'{areaId}' not found");
                 Environment.Exit(1);
                 return;
             }
@@ -870,9 +884,11 @@ out body;";
 
             // Check if area exists
             AreaEntity? area = null;
+            string areaPartitionKey = areaId.Split('/')[0].ToLowerInvariant();
+            string areaRowKey = areaId.Split('/')[1].ToLowerInvariant();
             try
             {
-                var areaResponse = await areaTableClient.GetEntityAsync<AreaEntity>("area", areaId.ToLowerInvariant());
+                var areaResponse = await areaTableClient.GetEntityAsync<AreaEntity>(areaPartitionKey, areaRowKey);
                 area = areaResponse.Value;
                 logger?.LogInformation("Found area: {AreaName} ({DisplayName})", area.Name, area.DisplayName);
                 Console.WriteLine($"📍 Area: {area.DisplayName ?? area.Name}");
@@ -893,9 +909,10 @@ out body;";
             }
 
             // Query all stations for this area
+            var stationsPartitionKey = areaId.Replace('/', '-').ToLowerInvariant();
             var stations = new List<StationEntity>();
             await foreach (var station in stationTableClient.QueryAsync<StationEntity>(
-                filter: $"PartitionKey eq '{areaId.ToLowerInvariant()}'"))
+                filter: $"PartitionKey eq '{stationsPartitionKey}'"))
             {
                 stations.Add(station);
             }
