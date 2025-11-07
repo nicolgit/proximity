@@ -7,6 +7,7 @@ using api.Models;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Collections.Concurrent;
 
 namespace api;
 
@@ -89,23 +90,23 @@ public class AreaFunction
     /// <returns>JSON object of the area or 404 if not found</returns>
     [Function("GetAreaById")]
     public async Task<IActionResult> GetAreaById(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "area/{id}")] HttpRequest req,
-        string id)
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "area/{country}/{id}")] HttpRequest req,
+        string country, string id)
     {
         try
         {
-            _logger.LogInformation("Processing request to get area with ID: {AreaId}", id);
+            _logger.LogInformation("Processing request to get area with ID: {country}/{AreaId}", country, id);
 
             if (string.IsNullOrWhiteSpace(id))
             {
                 return new BadRequestObjectResult(new { error = "Area ID is required" });
             }
 
-            var area = await _areaService.GetAreaByIdAsync(id);
+            var area = await _areaService.GetAreaByIdAsync(country, id);
 
             if (area == null)
             {
-                _logger.LogWarning("Area with ID {AreaId} not found", id);
+                _logger.LogWarning("Area with ID {country}/{AreaId} not found", country, id);
                 return new NotFoundObjectResult(new { error = $"Area with ID '{id}' not found" });
             }
 
@@ -113,7 +114,7 @@ public class AreaFunction
             var etag = CdnResponseService.GenerateETag(area);
             if (CdnResponseService.IsNotModified(req, etag))
             {
-                _logger.LogInformation("Area data not modified, returning 304 for ID: {AreaId}", id);
+                _logger.LogInformation("Area data not modified, returning 304 for ID: {country}/{AreaId}", country, id);
                 CdnResponseService.ConfigureCacheableResponse(req.HttpContext.Response, area);
                 CdnResponseService.ConfigureCorsHeaders(req.HttpContext.Response);
                 return CdnResponseService.CreateNotModifiedResponse(etag);
@@ -123,7 +124,7 @@ public class AreaFunction
             CdnResponseService.ConfigureCacheableResponse(req.HttpContext.Response, area);
             CdnResponseService.ConfigureCorsHeaders(req.HttpContext.Response);
 
-            _logger.LogInformation("Successfully returned area with ID: {AreaId}", id);
+            _logger.LogInformation("Successfully returned area with ID: {country}/{AreaId}", country, id);
 
             return new OkObjectResult(area);
         }
@@ -211,23 +212,29 @@ public class AreaFunction
     /// HTTP GET endpoint to retrieve isochrone data for a specific station within an area
     /// </summary>
     /// <param name="req">HTTP request</param>
+    /// <param name="country">Country from route</param>
     /// <param name="id">Area ID from route</param>
     /// <param name="stationid">Station ID from route</param>
     /// <param name="time">Time parameter (10, 15, 20, or 30 minutes) from route</param>
     /// <returns>JSON content of the isochrone blob or 404 if not found</returns>
     [Function("GetIsochroneData")]
     public async Task<IActionResult> GetIsochroneData(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "area/{id}/station/{stationid}/isochrone/{time}")] HttpRequest req,
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "area/{country}/{id}/station/{stationid}/isochrone/{time}")] HttpRequest req,
+        string country,
         string id,
         string stationid,
         string time)
     {
         try
         {
-            _logger.LogInformation("Processing request to get isochrone data for area: {AreaId}, station: {StationId}, time: {Time}", 
-                id, stationid, time);
+            _logger.LogInformation("Processing request to get isochrone data for area: {Country}/{AreaId}, station: {StationId}, time: {Time}",
+                country, id, stationid, time);
 
             // Validate input parameters
+            if (string.IsNullOrWhiteSpace(country))
+            {
+                return new BadRequestObjectResult(new { error = "Country is required" });
+            }
             if (string.IsNullOrWhiteSpace(id))
             {
                 return new BadRequestObjectResult(new { error = "Area ID is required" });
@@ -250,8 +257,8 @@ public class AreaFunction
                 return new BadRequestObjectResult(new { error = "Time parameter must be one of: 5, 10, 15, 20, 30" });
             }
 
-            // Construct blob path: isochrone/{id}/{stationid}/{time}min.json
-            var blobPath = $"{id}/{stationid}/{time}min.json";
+            // Construct blob path: isochrone/{country}/{id}/{stationid}/{time}min.json
+            var blobPath = $"{country}/{id}/{stationid}/{time}min.json";
             var containerName = "isochrone";
 
             // Retrieve blob content
@@ -259,13 +266,13 @@ public class AreaFunction
 
             if (blobContent == null)
             {
-                _logger.LogWarning("Isochrone data not found for area: {AreaId}, station: {StationId}, time: {Time}", 
+                _logger.LogWarning("Isochrone data not found for area: {Country}/{AreaId}, station: {StationId}, time: {Time}", 
                     id, stationid, time);
                 return new NotFoundObjectResult(new { error = $"Isochrone data not found for the specified parameters" });
             }
 
-            _logger.LogInformation("Successfully retrieved isochrone data for area: {AreaId}, station: {StationId}, time: {Time}", 
-                id, stationid, time);
+            _logger.LogInformation("Successfully retrieved isochrone data for area: {Country}/{AreaId}, station: {StationId}, time: {Time}", 
+                country, id, stationid, time);
 
             // Check for conditional requests (304 Not Modified)
             var etag = CdnResponseService.GenerateETag(blobContent);
@@ -320,7 +327,8 @@ public class AreaFunction
     /// <returns>JSON content of the combined isochrone data or 404 if not found</returns>
     [Function("GetAreaIsochroneData")]
     public async Task<IActionResult> GetAreaIsochroneData(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "area/{id}/isochrone/{time}")] HttpRequest req,
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "area/{country}/{id}/isochrone/{time}")] HttpRequest req,
+        string country,
         string id,
         string time)
     {
@@ -348,11 +356,11 @@ public class AreaFunction
             }
 
             // Get pre-generated isochrone data for the area
-            var areaIsochroneData = await _areaService.GetAreaIsochroneAsync(id, time);
+            var areaIsochroneData = await _areaService.GetAreaIsochroneAsync(country, id, time);
 
             if (areaIsochroneData == null)
             {
-                _logger.LogWarning("Area-level isochrone data not found for area: {AreaId}, time: {Time}", id, time);
+                _logger.LogWarning("Area-level isochrone data not found for area: {country}/{AreaId}, time: {Time}", country, id, time);
                 return new NotFoundObjectResult(new { error = $"Area-level isochrone data not found for the specified parameters" });
             }
 
@@ -370,7 +378,7 @@ public class AreaFunction
             CdnResponseService.ConfigureIsochroneResponse(req.HttpContext.Response, areaIsochroneData);
             CdnResponseService.ConfigureCorsHeaders(req.HttpContext.Response);
 
-            _logger.LogInformation("Successfully retrieved area-level isochrone data for area: {AreaId}, time: {Time}", id, time);
+            _logger.LogInformation("Successfully retrieved area-level isochrone data for area: {country}/{AreaId}, time: {Time}", country, id, time);
 
             // Return the combined isochrone content as JSON
             return new ContentResult
@@ -382,7 +390,7 @@ public class AreaFunction
         }
         catch (FileNotFoundException ex)
         {
-            _logger.LogWarning(ex, "Area isochrone file not found for area: {AreaId}, time: {Time}", id, time);
+            _logger.LogWarning(ex, "Area isochrone file not found for area: {country}/{AreaId}, time: {Time}", country, id, time);
             CdnResponseService.ConfigureNoCacheResponse(req.HttpContext.Response);
             return new NotFoundObjectResult(new { error = ex.Message });
         }

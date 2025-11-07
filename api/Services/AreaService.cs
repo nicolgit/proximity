@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Collections.Concurrent;
 
 namespace api.Services;
 
@@ -38,7 +39,7 @@ public class AreaService
 
             // Query all entities with partition key "area"
             var queryResults = tableClient.QueryAsync<AreaEntity>(
-                filter: $"PartitionKey eq 'area'",
+                //filter: $"PartitionKey eq 'area'",
                 maxPerPage: 1000 // Adjust based on expected data size
             );
 
@@ -48,6 +49,7 @@ public class AreaService
             {
                 areas.Add(new AreaDto
                 {
+                    Country = entity.PartitionKey ?? string.Empty,
                     Id = entity.RowKey ?? string.Empty,
                     Name = entity.DisplayName ?? entity.Name ?? string.Empty,
                     Latitude = entity.Latitude,
@@ -71,23 +73,23 @@ public class AreaService
     /// </summary>
     /// <param name="id">The ID (RowKey) of the area</param>
     /// <returns>AreaDto or null if not found</returns>
-    public async Task<AreaDto?> GetAreaByIdAsync(string id)
+    public async Task<AreaDto?> GetAreaByIdAsync(string country, string id)
     {
         try
         {
             if (string.IsNullOrWhiteSpace(id))
                 throw new ArgumentException("Area ID cannot be null or empty", nameof(id));
 
-            _logger.LogInformation("Retrieving area with ID: {AreaId}", id);
+            _logger.LogInformation("Retrieving area with ID: {country}/{AreaId}", country, id);
 
             var tableClient = _storageService.GetTableClient(_tableName);
 
             // Get specific entity
-            var response = await tableClient.GetEntityIfExistsAsync<AreaEntity>("area", id);
+            var response = await tableClient.GetEntityIfExistsAsync<AreaEntity>(country, id);
 
             if (!response.HasValue || response.Value == null)
             {
-                _logger.LogWarning("Area with ID {AreaId} not found", id);
+                _logger.LogWarning("Area with ID {country}/{AreaId} not found", country, id);
                 return null;
             }
 
@@ -118,29 +120,32 @@ public class AreaService
     /// <param name="time">The time parameter (5, 10, 15, 20, or 30 minutes)</param>
     /// <returns>Pre-generated isochrone data as JSON string, or null if file not found</returns>
     /// <exception cref="FileNotFoundException">Thrown when the isochrone file is not found</exception>
-    public async Task<string?> GetAreaIsochroneAsync(string areaId, string time)
+    public async Task<string?> GetAreaIsochroneAsync(string country, string areaId, string time)
     {
         try
         {
+            if (string.IsNullOrWhiteSpace(country))
+                throw new ArgumentException("Country cannot be null or empty", nameof(country));
+
             if (string.IsNullOrWhiteSpace(areaId))
                 throw new ArgumentException("Area ID cannot be null or empty", nameof(areaId));
 
             if (string.IsNullOrWhiteSpace(time))
                 throw new ArgumentException("Time parameter cannot be null or empty", nameof(time));
 
-            _logger.LogInformation("Retrieving pre-generated isochrone for area: {AreaId}, time: {Time}", areaId, time);
+            _logger.LogInformation("Retrieving pre-generated isochrone for area: {country}/{AreaId}, time: {Time}", country, areaId, time);
 
             // First, verify the area exists
-            var area = await GetAreaByIdAsync(areaId);
+            var area = await GetAreaByIdAsync(country, areaId);
             if (area == null)
             {
-                _logger.LogWarning("Area with ID {AreaId} not found", areaId);
+                _logger.LogWarning("Area with ID {country}/{AreaId} not found", country, areaId);
                 throw new FileNotFoundException($"Area with ID {areaId} not found");
             }
 
             // Construct the blob path for the pre-generated isochrone file
             var containerName = "isochrone";
-            var blobPath = $"{areaId}/{time}min.json";
+            var blobPath = $"{country}/{areaId}/{time}min.json";
 
             _logger.LogDebug("Looking for pre-generated isochrone file at: {BlobPath}", blobPath);
 
@@ -149,11 +154,11 @@ public class AreaService
 
             if (isochroneData == null)
             {
-                _logger.LogWarning("Pre-generated isochrone file not found for area: {AreaId}, time: {Time}, path: {BlobPath}", areaId, time, blobPath);
-                throw new FileNotFoundException($"Isochrone data not found for area {areaId} and time {time} minutes");
+                _logger.LogWarning("Pre-generated isochrone file not found for area: {country}/{AreaId}, time: {Time}, path: {BlobPath}", country, areaId, time, blobPath);
+                throw new FileNotFoundException($"Isochrone data not found for area {country}/{areaId} and time {time} minutes");
             }
 
-            _logger.LogInformation("Successfully retrieved pre-generated isochrone for area: {AreaId}, time: {Time}", areaId, time);
+            _logger.LogInformation("Successfully retrieved pre-generated isochrone for area: {country}/{AreaId}, time: {Time}", country, areaId, time);
             return isochroneData;
         }
         catch (FileNotFoundException)
@@ -163,8 +168,8 @@ public class AreaService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to retrieve pre-generated isochrone for area: {AreaId}, time: {Time}", areaId, time);
-            throw new InvalidOperationException($"Failed to retrieve isochrone for area: {areaId}", ex);
+            _logger.LogError(ex, "Failed to retrieve pre-generated isochrone for area: {country}/{AreaId}, time: {Time}", country, areaId, time);
+            throw new InvalidOperationException($"Failed to retrieve isochrone for area: {country}/{areaId}", ex);
         }
     }
 }

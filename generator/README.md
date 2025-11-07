@@ -12,24 +12,24 @@ A .NET 8 console application for managing areas and generating station proximity
 
 ```bash
 # Area Management
-dotnet run -- area create rome --center "41.9028,12.4964" --diameter 1000 --displayname "Rome City Center"
-dotnet run -- area create rome --center "40,40" --diameter 1000 --displayname "Test Area" --developer --logging Debug
-dotnet run -- area create "stations-only" --center "41.9028,12.4964" --diameter 1000 --displayname "Stations Only" --noisochrone
-dotnet run -- area isochrone rome
-dotnet run -- area isochrone rome --delete
-dotnet run -- area delete "rome"
+dotnet run -- area create italy/rome --center "41.9028,12.4964" --diameter 1000 --displayname "Rome City Center"
+dotnet run -- area create italy/rome --center "40,40" --diameter 1000 --displayname "Test Area" --developer --logging Debug
+dotnet run -- area isochrone italy/romerome
+dotnet run -- area isochrone italy/romerome --delete
+dotnet run -- area delete "italy/rome"
 dotnet run -- area list
 
 # Station Management  
-dotnet run -- station list rome
+dotnet run -- station list italy/romerome
 dotnet run -- station list rome --filter Roma
-dotnet run -- station isochrone rome
-dotnet run -- station isochrone milan --delete
-dotnet run -- station isochrone milan 21226369
-dotnet run -- station isochrone milan 21226369 --delete
-dotnet run -- station isochrone milan 21226369 --delete 10
+dotnet run -- station isochrone italy/rome
+dotnet run -- station isochrone italy/milan --delete
+dotnet run -- station isochrone italy/milan 21226369
+dotnet run -- station isochrone italy/milan 21226369 --delete
+dotnet run -- station isochrone italy/milan 21226369 --delete 10
 
 # Global Options
 dotnet run -- --logging Debug
 dotnet run -- --help
 ```
+ 

@@ -94,8 +94,8 @@ public static class AreaManager
             }
 
             // populate partition and row key from name 'partition/row'
-            var partitionKey = name.Contains('-') ? name.Split('-')[0] : "area";
-            var rowKey = name.Contains('-') ? name.Split('-')[1] : name;
+            var partitionKey = name.Contains('/') ? name.Split('/')[0] : "noarea";
+            var rowKey = name.Contains('/') ? name.Split('/')[1] : name;
 
             // Create or update area entity
             var area = new AreaEntity
@@ -350,9 +350,11 @@ public static class AreaManager
 
             // Try to get the area entity first to check if it exists
             AreaEntity? existingArea = null;
+            string areaPartitionKey = name.Split('/')[0];
+            string areaRowKey = name.Split('/')[1];
             try
             {
-                var response = await areaTableClient.GetEntityAsync<AreaEntity>("area", name.ToLowerInvariant());
+                var response = await areaTableClient.GetEntityAsync<AreaEntity>(areaPartitionKey.ToLowerInvariant(), areaRowKey.ToLowerInvariant());
                 existingArea = response.Value;
                 logger?.LogInformation("Found area to delete: {Name} ({DisplayName})", existingArea.Name, existingArea.DisplayName);
             }
@@ -375,7 +377,7 @@ public static class AreaManager
             // Step 3: Delete the area entity itself
             try
             {
-                await areaTableClient.DeleteEntityAsync("area", name.ToLowerInvariant());
+                await areaTableClient.DeleteEntityAsync(areaPartitionKey.ToLowerInvariant(), areaRowKey.ToLowerInvariant());
                 logger?.LogInformation("Deleted area entity: {Name}", name);
                 Console.WriteLine($"✓ Deleted area entity '{name}'");
             }
@@ -582,7 +584,7 @@ public static class AreaManager
             await foreach (var blobItem in containerClient.GetBlobsAsync(prefix: areaPrefix))
             {
                 if (blobItem.Name.EndsWith($"/{duration}min.json") && 
-                    blobItem.Name.Count(c => c == '/') == 2) // Ensure it's a station file, not an area file
+                    blobItem.Name.Count(c => c == '/') == 3) // Ensure it's a station file, not an area file
                 {
                     isochroneFiles.Add(blobItem.Name);
                 }
@@ -733,7 +735,7 @@ public static class AreaManager
 
             await foreach (var blobItem in containerClient.GetBlobsAsync(prefix: areaPrefix))
             {
-                if (blobItem.Name.EndsWith(".json") && blobItem.Name.Count(c => c == '/') == 1) // Only 1 slash means area/duration.json
+                if (blobItem.Name.EndsWith(".json") && blobItem.Name.Count(c => c == '/') == 2) // Only 2 slash means area/duration.json
                 {
                     areaIsochronesToDelete.Add(blobItem.Name);
                 }
@@ -836,8 +838,8 @@ public static class AreaManager
 
             await foreach (var blobItem in containerClient.GetBlobsAsync(prefix: areaPrefix))
             {
-                // Look for station isochrone files (has 3 path segments: area/station/duration.json)
-                if (blobItem.Name.EndsWith(".json") && blobItem.Name.Count(c => c == '/') == 2)
+                // Look for station isochrone files (has 3 path segments: country/area/station/duration.json)
+                if (blobItem.Name.EndsWith(".json") && blobItem.Name.Count(c => c == '/') == 3)
                 {
                     hasStationIsochrones = true;
                     break;
