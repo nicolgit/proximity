@@ -156,7 +156,8 @@ public class AreaFunction
     /// <returns>JSON array of stations for the specified area</returns>
     [Function("GetStationsByAreaId")]
     public async Task<IActionResult> GetStationsByAreaId(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "area/{id}/station")] HttpRequest req,
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "area/{country}/{id}/station")] HttpRequest req,
+        string country,
         string id)
     {
         try
@@ -168,7 +169,7 @@ public class AreaFunction
                 return new BadRequestObjectResult(new { error = "Area ID is required" });
             }
 
-            var stations = await _stationService.GetStationsByAreaIdAsync(id);
+            var stations = await _stationService.GetStationsByAreaIdAsync(country, id);
 
             // Generate ETag and check for conditional requests
             var etag = CdnResponseService.GenerateETag(stations);
@@ -267,7 +268,7 @@ public class AreaFunction
             if (blobContent == null)
             {
                 _logger.LogWarning("Isochrone data not found for area: {Country}/{AreaId}, station: {StationId}, time: {Time}", 
-                    id, stationid, time);
+                    country, id, stationid, time);
                 return new NotFoundObjectResult(new { error = $"Isochrone data not found for the specified parameters" });
             }
 
