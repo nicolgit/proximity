@@ -412,7 +412,7 @@ out body;";
             
             // Determine colors based on railway type
             string fillColor, strokeColor;
-            if (railwayType == "station")
+            if (railwayType == "station" || railwayType == "halt")
             {
                 // Train station - green
                 fillColor = "#22c55e";
@@ -423,6 +423,12 @@ out body;";
                 // Tram stop - yellow
                 fillColor = "#eab308";
                 strokeColor = "#eab308";
+            }
+            else if (railwayType == "trolleybus")
+            {
+                // Halt - blue
+                fillColor = "#3b82f6";
+                strokeColor = "#3b82f6";
             }
             else
             {

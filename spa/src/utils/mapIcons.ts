@@ -98,3 +98,18 @@ export const tramStopIconSvg = L.divIcon({
     iconAnchor: [8, 24],
     popupAnchor: [0, -24]
 })
+
+// Trolleybus stop icons
+export const trolleyStopIconSvg = L.divIcon({
+    className: 'custom-marker trolley-stop-marker-svg',
+    html: `
+    <svg width="16" height="24" viewBox="0 0 16 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M8 0C3.582 0 0 3.582 0 8C0 14 8 24 8 24S16 14 16 8C16 3.582 12.418 0 8 0Z" fill="#3B82F6"/>
+      <circle cx="8" cy="8" r="4" fill="white"/>
+      <rect x="6" y="6" width="4" height="4" rx="1" fill="#1D4ED8"/>
+    </svg>
+  `,
+    iconSize: [16, 24],
+    iconAnchor: [8, 24],
+    popupAnchor: [0, -24]
+})
