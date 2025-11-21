@@ -31,6 +31,7 @@ public static class StationManager
   node[""railway""=""station""](around:{radiusMeters},{latitude.ToString(CultureInfo.InvariantCulture)},{longitude.ToString(CultureInfo.InvariantCulture)});
   node[""railway""=""halt""](around:{radiusMeters},{latitude.ToString(CultureInfo.InvariantCulture)},{longitude.ToString(CultureInfo.InvariantCulture)});
   node[""railway""=""tram_stop""](around:{radiusMeters},{latitude.ToString(CultureInfo.InvariantCulture)},{longitude.ToString(CultureInfo.InvariantCulture)});
+  node[""highway""=""bus_stop""][""trolleybus""=""yes""](around:{radiusMeters},{latitude.ToString(CultureInfo.InvariantCulture)},{longitude.ToString(CultureInfo.InvariantCulture)});
 );
 out body;";
 
@@ -90,6 +91,10 @@ out body;";
                         if (tags.TryGetProperty("railway", out var railwayProperty))
                         {
                             railwayType = railwayProperty.GetString();
+                        }
+                        else
+                        {
+                            railwayType = "trolleybus";
                         }
 
                         // Try different Wikipedia tag formats
