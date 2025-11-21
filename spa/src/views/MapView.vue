@@ -325,7 +325,7 @@
           :key="station.id"
           :lat-lng="[station.latitude, station.longitude]"
           :icon="getStationIcon(station.type) as any"
-          @click="onStationClick(props.country || 'italy', station, station.areaId)">
+          @click="onStationClick(props.country, station, station.areaId)">
           <l-popup>
             <div class="station-popup" @click="closeAreaPopupOnOutsideClick($event)">
               <h4>
@@ -340,7 +340,11 @@
                 </span>
                 <span v-else class="station-name">{{ station.name }}</span>
               </h4>
-              <p>type: <strong>{{ (station.type === 'station' || station.type === 'halt') ? 'Train/Metro Station' : 'Tram Stop' }}</strong></p>
+              <p>type: <strong>{{ 
+                (station.type === 'station' || station.type === 'halt') ? 'Train/Metro Station' : 
+                (station.type === 'tram_stop') ? 'Tram Stop' : 
+                (station.type === 'trolleybus') ? 'Trolleybus Stop' : 'Unknown'
+              }}</strong></p>
               <p>coords: <strong>{{ station.latitude.toFixed(4) }}, {{ station.longitude.toFixed(4) }}</strong> </p>
               <div class="station-actions">
                 <button 
@@ -383,7 +387,7 @@ import { useLocationSearch } from '@/composables/useLocationSearch'
 import { useStations } from '@/composables/useStations'
 import { LocationSearchService } from '@/services/LocationSearchService'
 import type { Area, SearchResult, Station } from '@/types'
-import { searchLocationIconSvg, userLocationIconSvg, stationIconSvg, tramStopIconSvg } from '@/utils/mapIcons'
+import { searchLocationIconSvg, userLocationIconSvg, stationIconSvg, tramStopIconSvg, trolleyStopIconSvg } from '@/utils/mapIcons'
 import { getApiUrl } from '@/config/env'
 import { LCircle, LMap, LMarker, LPopup, LGeoJson } from '@vue-leaflet/vue-leaflet'
 import 'maplibre-gl/dist/maplibre-gl.css'
@@ -743,7 +747,14 @@ const toggleStationsForArea = async (areaId: string) => {
 
 // Helper function to get icon for station type
 const getStationIcon = (type: string) => {
-  return type === 'station'  || type === 'halt' ? stationIconSvg : tramStopIconSvg
+  if (type === 'station' || type === 'halt') {
+    return stationIconSvg
+  } else if (type === 'tram_stop') {
+    return tramStopIconSvg
+  } else if (type === 'trolleybus') {
+    return trolleyStopIconSvg
+  }
+  return stationIconSvg // fallback
 }
 
 // Helper function to open Wikipedia link
@@ -870,7 +881,10 @@ const onStationClick = async (country: string, station: Station, areaId: string)
 const loadIsochronesForStation = async (country: string, station: Station, areaId: string) => {
   // Only load time intervals up to the selected proximity level
   const timeIntervals = proximityLevelOptions.value.filter(level => level <= selectedProximityLevel.value)
-  const baseColor = (station.type === 'station' || station.type === 'halt') ? '#22c55e' : '#eab308' // green for metro/train, yellow for tram
+  const baseColor = (station.type === 'station' || station.type === 'halt') ? '#22c55e' : 
+                   (station.type === 'tram_stop') ? '#eab308' : 
+                   (station.type === 'trolleybus') ? '#3b82f6' : '#22c55e' 
+                   // green for station/halt, yellow for tram_stop, blue for trolleybus
   
   // Clear existing isochrones
   isochroneCircles.value = []
