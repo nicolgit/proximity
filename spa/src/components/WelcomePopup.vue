@@ -28,6 +28,13 @@
           <button @click="onOpenGitHub" class="welcome-btn welcome-btn--secondary">
             📱 view on GitHub
           </button>
+          <button 
+            v-if="areas && areas.length === 1"
+            @click="navigateToArea(areas[0].id)" 
+            class="welcome-btn welcome-btn--primary"
+          >
+            🗺️ start exploring!
+          </button>
         </div>
       </div>
     </div>
@@ -180,6 +187,16 @@ const onOpenGitHub = () => {
   align-items: center;
   justify-content: center;
   gap: 6px;
+}
+
+.welcome-btn--primary {
+  background-color: #007bff;
+  color: white;
+}
+
+.welcome-btn--primary:hover {
+  background-color: #0056b3;
+  transform: translateY(-1px);
 }
 
 .welcome-btn--secondary {
