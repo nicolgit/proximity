@@ -410,7 +410,6 @@ const route = useRoute()
 const mapRef = ref<InstanceType<typeof LMap> | null>(null)
 const zoom = ref(7)
 const minZoom = ref<number | undefined>(undefined) // Minimum zoom level when targeting a specific area
-const maxBounds = ref<[[number, number], [number, number]] | undefined>(undefined) // Max bounds when targeting a specific area
 const initialCenter = ref<[number, number]>([41.9028, 12.4964]) // Default to Rome
 const selectedLocation = ref<[number, number] | null>(null)
 const selectedLocationName = ref('')
@@ -706,15 +705,6 @@ const areaIsochronesWithBorderIndex = computed(() => {
   })
   
   return result
-})
-
-// Computed property for current selected area name
-const currentAreaName = computed(() => {
-  if (currentAreaId.value && areas.value.length > 0) {
-    const currentArea = areas.value.find(area => area.id === currentAreaId.value)
-    return currentArea?.name || 'selected area'
-  }
-  return 'selected area'
 })
 
 // Station toggle functionality
@@ -1254,29 +1244,6 @@ const refreshStationIsochrones = async () => {
       generateIsochroneCircles(selectedStationForIsochrone.value)
     }
   }
-}
-
-// Function to calculate bounds for an area
-const calculateAreaBounds = (area: any): [[number, number], [number, number]] => {
-  const radiusKm = area.diameter / 2000 // Convert diameter from meters to radius in km
-  const lat = area.latitude
-  const lng = area.longitude
-  
-  // Calculate approximate bounds using radius
-  // 1 degree latitude ≈ 111 km
-  // 1 degree longitude varies by latitude: ≈ 111 * cos(latitude) km
-  const latDelta = radiusKm / 111
-  const lngDelta = radiusKm / (111 * Math.cos(lat * Math.PI / 180))
-  
-  // Add some padding (20% extra) to prevent hitting the exact bounds
-  const padding = 0.2
-  const paddedLatDelta = latDelta * (1 + padding)
-  const paddedLngDelta = lngDelta * (1 + padding)
-  
-  const southWest: [number, number] = [lat - paddedLatDelta, lng - paddedLngDelta]
-  const northEast: [number, number] = [lat + paddedLatDelta, lng + paddedLngDelta]
-  
-  return [southWest, northEast]
 }
 
 // Cleanup debounce timer on unmount
