@@ -80,6 +80,7 @@
       @close="moreAreasSelected"
       @areaSelected="handleAreaSelected"
     />
+    <!--handleAreaSelected-->
 
     <!-- Area Proximity Level Selector -->
     <div class="proximity-level-toolbar">
