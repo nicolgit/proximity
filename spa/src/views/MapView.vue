@@ -80,8 +80,8 @@
       @areaSelected="handleAreaSelected"
     />
 
-    <!-- Area Proximity Level Selector -->
-    <div class="proximity-level-toolbar">
+    <!-- Area Proximity advanced tools -->
+    <div class="proximity-toolbar">
       <div class="proximity-level-header">
         <span class="proximity-level-title">🏙️ advanced tools</span>
         <button 
@@ -177,9 +177,13 @@
           v-if="selectedLocation"
           :lat-lng="selectedLocation"
           :icon="searchLocationIconSvg as any"
+          @click="() => selectedLocationClickLocation = selectedLocation"
         >
           <l-popup>
-            <div>{{ selectedLocationName }}</div>
+            <div class="selected-location-popup">
+              <div><strong>{{ selectedLocationName }}</strong></div>
+              <ReverseGeocodingInfo :location="selectedLocationClickLocation" />
+            </div>
           </l-popup>
         </l-marker>
 
@@ -188,10 +192,21 @@
           v-if="currentLocation"
           :lat-lng="currentLocation"
           :icon="userLocationIconSvg as any"
+          @click="() => {
+            if (currentLocation) {
+              currentLocationClickLocation = Array.isArray(currentLocation) 
+                ? currentLocation 
+                : [currentLocation.lat, currentLocation.lng]
+            }
+          }"
         >
           <l-popup>
             <div class="user-location-popup">
               <strong>🟢you're here🟢</strong>
+              <ReverseGeocodingInfo 
+                v-if="currentLocationClickLocation" 
+                :location="currentLocationClickLocation" 
+              />
             </div>
           </l-popup>
         </l-marker>
@@ -206,10 +221,12 @@
           :fill-opacity="0"
           :weight="2"
           :dash-array="'5, 5'"
+          @click="onAreaClick"
         >
           <l-popup>
             <div class="area-popup" @click="closeAreaPopupOnOutsideClick($event)">
-              <h3>📍 {{ area.name }}</h3>
+              <h3>📍 {{ area.name }} </h3>
+              <ReverseGeocodingInfo :location="areaClickLocation" />
             </div>
           </l-popup>
         </l-circle>
@@ -228,15 +245,7 @@
               from a train or tram stop
               
               <!-- Reverse geocoding info for clicked location -->
-              <div v-if="isochroneClickLocation" class="reverse-geocoding-info">
-                <hr style="margin: 10px 0; border: none; border-top: 1px solid #eee;">
-                <div class="location-address">
-                  <strong>📍 Address:</strong>
-                  <div v-if="isLoadingIsochroneAddress" class="address-loading">Loading address...</div>
-                  <div v-else-if="isochroneClickAddress" class="address-text">{{ isochroneClickAddress }}</div>
-                  <div v-else class="address-error">Address not found</div>
-                </div>
-              </div>
+              <ReverseGeocodingInfo :location="isochroneClickLocation" />
             </div>
           </l-popup>
         </l-geo-json>
@@ -261,15 +270,7 @@
               <p><strong>From:</strong> {{ selectedStationForIsochrone?.name }}</p>
               
               <!-- Reverse geocoding info for clicked location on circle -->
-              <div v-if="circleClickLocation" class="reverse-geocoding-info">
-                <hr style="margin: 10px 0; border: none; border-top: 1px solid #eee;">
-                <div class="location-address">
-                  <strong>📍 Address:</strong>
-                  <div v-if="isLoadingCircleAddress" class="address-loading">Loading address...</div>
-                  <div v-else-if="circleClickAddress" class="address-text">{{ circleClickAddress }}</div>
-                  <div v-else class="address-error">Address not found</div>
-                </div>
-              </div>
+              <ReverseGeocodingInfo :location="circleClickLocation" />
             </div>
           </l-popup>
         </l-circle>
@@ -288,15 +289,7 @@
               <p>from <strong>{{ selectedStationForIsochrone?.name }}</strong></p>
               
               <!-- Reverse geocoding info for clicked location on station isochrone -->
-              <div v-if="stationIsochroneClickLocation" class="reverse-geocoding-info">
-                <hr style="margin: 10px 0; border: none; border-top: 1px solid #eee;">
-                <div class="location-address">
-                  <strong>📍 Address:</strong>
-                  <div v-if="isLoadingStationIsochroneAddress" class="address-loading">Loading address...</div>
-                  <div v-else-if="stationIsochroneClickAddress" class="address-text">{{ stationIsochroneClickAddress }}</div>
-                  <div v-else class="address-error">Address not found</div>
-                </div>
-              </div>
+              <ReverseGeocodingInfo :location="stationIsochroneClickLocation" />
             </div>
           </l-popup>
         </l-geo-json>
@@ -341,7 +334,6 @@ import { useAreas } from '@/composables/useAreas'
 import { useGeolocation } from '@/composables/useGeolocation'
 import { useLocationSearch } from '@/composables/useLocationSearch'
 import { useStations } from '@/composables/useStations'
-import { LocationSearchService } from '@/services/LocationSearchService'
 import type { SearchResult, Station } from '@/types'
 import { searchLocationIconSvg, userLocationIconSvg, stationIconSvg, tramStopIconSvg, trolleyStopIconSvg } from '@/utils/mapIcons'
 import { getApiUrl } from '@/config/env'
@@ -352,6 +344,7 @@ import * as L from 'leaflet'
 import { onMounted, ref, computed, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import WelcomePopup from '@/components/WelcomePopup.vue'
+import ReverseGeocodingInfo from '@/components/ReverseGeocodingInfo.vue'
 
 // Props
 interface Props {
@@ -379,18 +372,21 @@ const selectedLocationName = ref('')
 
 // Isochrone click state for reverse geocoding
 const isochroneClickLocation = ref<[number, number] | null>(null)
-const isochroneClickAddress = ref('')
-const isLoadingIsochroneAddress = ref(false)
 
 // Circle click state for reverse geocoding
 const circleClickLocation = ref<[number, number] | null>(null)
-const circleClickAddress = ref('')
-const isLoadingCircleAddress = ref(false)
 
 // Station isochrone click state for reverse geocoding
 const stationIsochroneClickLocation = ref<[number, number] | null>(null)
-const stationIsochroneClickAddress = ref('')
-const isLoadingStationIsochroneAddress = ref(false)
+
+// Selected location click state for reverse geocoding
+const selectedLocationClickLocation = ref<[number, number] | null>(null)
+
+// Current location click state for reverse geocoding
+const currentLocationClickLocation = ref<[number, number] | null>(null)
+
+// Area click state for reverse geocoding
+const areaClickLocation = ref<[number, number] | null>(null)
 
 // Map configuration
 // Use OpenFreeMap style (MapLibre GL) instead of raster tiles
@@ -1016,23 +1012,6 @@ const onIsochroneClick = async (event: any) => {
   
   // Set isochrone click location
   isochroneClickLocation.value = [lat, lng]
-  isochroneClickAddress.value = ''
-  isLoadingIsochroneAddress.value = true
-  
-  try {
-    // Perform reverse geocoding
-    const result = await LocationSearchService.reverseGeocode(lat, lng)
-    if (result && result.display_name) {
-      isochroneClickAddress.value = result.display_name
-    } else {
-      isochroneClickAddress.value = 'Address not found'
-    }
-  } catch (error) {
-    console.error('Error performing reverse geocoding on isochrone:', error)
-    isochroneClickAddress.value = 'Failed to load address'
-  } finally {
-    isLoadingIsochroneAddress.value = false
-  }
 }
 
 const onCircleClick = async (event: any) => {
@@ -1040,23 +1019,6 @@ const onCircleClick = async (event: any) => {
   
   // Set circle click location
   circleClickLocation.value = [lat, lng]
-  circleClickAddress.value = ''
-  isLoadingCircleAddress.value = true
-  
-  try {
-    // Perform reverse geocoding
-    const result = await LocationSearchService.reverseGeocode(lat, lng)
-    if (result && result.display_name) {
-      circleClickAddress.value = result.display_name
-    } else {
-      circleClickAddress.value = 'Address not found'
-    }
-  } catch (error) {
-    console.error('Error performing reverse geocoding on circle:', error)
-    circleClickAddress.value = 'Failed to load address'
-  } finally {
-    isLoadingCircleAddress.value = false
-  }
 }
 
 const onStationIsochroneClick = async (event: any) => {
@@ -1064,23 +1026,15 @@ const onStationIsochroneClick = async (event: any) => {
   
   // Set station isochrone click location
   stationIsochroneClickLocation.value = [lat, lng]
-  stationIsochroneClickAddress.value = ''
-  isLoadingStationIsochroneAddress.value = true
+}
+
+// Area click handler
+const onAreaClick = async (event: any) => {
+  const { lat, lng } = event.latlng
+  console.log('Area clicked:', lat, lng)
   
-  try {
-    // Perform reverse geocoding
-    const result = await LocationSearchService.reverseGeocode(lat, lng)
-    if (result && result.display_name) {
-      stationIsochroneClickAddress.value = result.display_name
-    } else {
-      stationIsochroneClickAddress.value = 'Address not found'
-    }
-  } catch (error) {
-    console.error('Error performing reverse geocoding on station isochrone:', error)
-    stationIsochroneClickAddress.value = 'Failed to load address'
-  } finally {
-    isLoadingStationIsochroneAddress.value = false
-  }
+  // Set area click location
+  areaClickLocation.value = [lat, lng]
 }
 
 // Location selection
@@ -1470,7 +1424,7 @@ onUnmounted(() => {
   }
 }
 
-.proximity-level-toolbar {
+.proximity-toolbar {
   position: absolute;
   bottom: 20px;
   left: 50%;
@@ -1485,7 +1439,7 @@ onUnmounted(() => {
 
 /* Mobile adjustments for proximity toolbar */
 @media screen and (max-width: 768px) {
-  .proximity-level-toolbar {
+  .proximity-toolbar {
     bottom: calc(env(safe-area-inset-bottom, 0px) + 15px);
     left: 10px;
     right: 10px;
@@ -1720,6 +1674,16 @@ onUnmounted(() => {
 .user-location-popup {
   text-align: center;
   font-size: 14px;
+  min-width: 200px;
+}
+
+.selected-location-popup {
+  min-width: 200px;
+}
+
+.selected-location-popup > div:first-child {
+  margin-bottom: 8px;
+  font-size: 14px;
 }
 
 .area-popup {
@@ -1808,42 +1772,6 @@ onUnmounted(() => {
 
 .isochrone-popup strong {
   color: #333;
-}
-
-/* Reverse Geocoding Info Styles */
-.reverse-geocoding-info {
-  margin-top: 10px;
-}
-
-.location-address {
-  font-size: 12px;
-}
-
-.location-address strong {
-  color: #333;
-  font-size: 12px;
-}
-
-.address-loading {
-  color: #6b7280;
-  font-style: italic;
-  margin-top: 4px;
-  font-size: 11px;
-}
-
-.address-text {
-  color: #374151;
-  margin-top: 4px;
-  font-size: 11px;
-  line-height: 1.3;
-  word-wrap: break-word;
-}
-
-.address-error {
-  color: #dc3545;
-  font-style: italic;
-  margin-top: 4px;
-  font-size: 11px;
 }
 
 </style>
