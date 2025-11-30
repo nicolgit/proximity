@@ -1,11 +1,5 @@
 // Types for the application
 
-export interface Location {
-    lat: number
-    lon: number
-    name?: string
-}
-
 export interface SearchResult {
     place_id: string
     display_name: string
@@ -13,13 +7,6 @@ export interface SearchResult {
     lon: string
     type?: string
     importance?: number
-}
-
-export interface MapConfig {
-    defaultZoom: number
-    maxZoom: number
-    minZoom: number
-    defaultCenter: [number, number]
 }
 
 export interface NominatimSearchParams {
@@ -30,12 +17,6 @@ export interface NominatimSearchParams {
     countrycodes?: string
     bounded?: 0 | 1
     viewbox?: string
-}
-
-export interface ApiResponse<T> {
-    success: boolean
-    data?: T
-    error?: string
 }
 
 export interface Area {
@@ -51,6 +32,6 @@ export interface Station {
     name: string
     latitude: number
     longitude: number
-    type: 'tram_stop' | 'station' | 'halt'
+    type: 'tram_stop' | 'station' | 'halt' | 'trolleybus'
     wikipediaLink: string | null
 }

@@ -16,22 +16,12 @@
           <p v-else-if="areas && areas.length > 1">
             Following metro areas are currently available:
             <span v-for="(area) in areas" :key="area.id" class="area-item">
-              &nbsp;<button 
-                @click="toggleAreaSelection(area.id)"
-                :class="['area-toggle-btn', { selected: selectedAreas.includes(area.id), disabled: !canSelectArea(area.id) }]"
-                :disabled="!canSelectArea(area.id)"
-                type="button"
-              >
-                {{ selectedAreas.includes(area.id) ? '✓' : '○' }}
-              </button>
               <b 
-                v-if="areas.length > 1" 
                 @click="navigateToArea(area.id)"
                 class="clickable-area"
-              >{{ area.name }}</b>
-              <b v-else>{{ area.name }}</b>
+              >{{ area.name }}</b>,
             </span>
-            <br /><br />Select up to 3 areas ({{ selectedAreas.length }}/3) or click on area names to navigate directly. You must select at least one area to start exploring!
+            <br /><br />Click on the area name to start!
           </p>
         <p v-else-if="areas && areas.length === 0" >No areas available at the moment</p>
         <div class="welcome-actions">
@@ -39,11 +29,11 @@
             📱 view on GitHub
           </button>
           <button 
-            @click="onClose" 
-            :class="['welcome-btn', 'welcome-btn--primary', { 'disabled': !canStartExploring }]"
-            :disabled="!canStartExploring"
+            v-if="areas && areas.length === 1"
+            @click="navigateToArea(areas[0].id)" 
+            class="welcome-btn welcome-btn--primary"
           >
-            🗺️ start exploring the Map!
+            🗺️ start exploring!
           </button>
         </div>
       </div>
@@ -52,72 +42,31 @@
 </template>
 
 <script setup lang="ts">
-import { defineProps, defineEmits, ref, computed } from 'vue'
+import { defineProps, defineEmits } from 'vue'
 import { useRouter } from 'vue-router'
 import type { Area } from '@/types'
 
 const router = useRouter()
 
 // defineProps used to declare the component props for the template; avoid assigning to an unused variable
-const props = defineProps<{
+defineProps<{
   areas?: Array<Area>
   isAreasLoading?: boolean
   areasError?: string | null
 }>()
 
 const emit = defineEmits<{
-  (e: 'close', filteredAreas: Area[]): void
   (e: 'areaSelected', areaId: string): void
 }>()
-
-// Reactive variable to store selected areas (max 3)
-const selectedAreas = ref<string[]>([])
-
-// Computed property to check if we can start exploring (has selected areas or only 1 area available)
-const canStartExploring = computed(() => 
-  selectedAreas.value.length > 0 || (props.areas && props.areas.length === 1)
-)
-
-// Function to toggle area selection (max 3 areas)
-const toggleAreaSelection = (areaId: string) => {
-  const index = selectedAreas.value.indexOf(areaId)
-  if (index > -1) {
-    // Remove area from selection
-    selectedAreas.value.splice(index, 1)
-  } else if (selectedAreas.value.length < 3) {
-    // Add area to selection only if less than 3 are selected
-    selectedAreas.value.push(areaId)
-  }
-}
-
-// Check if an area can be selected (not selected and under limit)
-const canSelectArea = (areaId: string) => {
-  return selectedAreas.value.includes(areaId) || selectedAreas.value.length < 3
-}
-
-const onClose = () => {
-  // Allow closing if areas are selected OR if there's only 1 area available
-  if (props.areas && selectedAreas.value.length > 0) {
-    const filteredAreas = props.areas.filter(area => selectedAreas.value.includes(area.id))
-    console.log('Filtered areas to selected only:', filteredAreas)
-    emit('close', filteredAreas)
-  } else if (props.areas && props.areas.length === 1) {
-    // Auto-select the single available area
-    console.log('Auto-selecting single available area:', props.areas[0])
-    emit('close', props.areas)
-  } else {
-    console.log('Cannot close: No areas selected')
-    // Do nothing - require selection before allowing close
-  }
-}
-const onOpenGitHub = () => {
-  window.open('https://github.com/nicolgit/proximity', '_blank')
-}
 
 const navigateToArea = (areaId: string) => {
   router.push(`/italy/${areaId}`)
   // Emit areaSelected event to notify parent
   emit('areaSelected', areaId)
+}
+
+const onOpenGitHub = () => {
+  window.open('https://github.com/nicolgit/proximity', '_blank')
 }
 </script>
 
@@ -178,7 +127,7 @@ const navigateToArea = (areaId: string) => {
 .area-item {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+
 }
 
 .area-toggle-btn {
@@ -205,16 +154,6 @@ const navigateToArea = (areaId: string) => {
   background-color: #007bff;
   border-color: #007bff;
   color: white;
-}
-
-.area-toggle-btn.disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.area-toggle-btn.disabled:hover {
-  border-color: #ddd;
-  color: #666;
 }
 
 .clickable-area {
@@ -258,18 +197,6 @@ const navigateToArea = (areaId: string) => {
 .welcome-btn--primary:hover {
   background-color: #0056b3;
   transform: translateY(-1px);
-}
-
-.welcome-btn--primary.disabled {
-  background-color: #ccc;
-  color: #666;
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
-.welcome-btn--primary.disabled:hover {
-  background-color: #ccc;
-  transform: none;
 }
 
 .welcome-btn--secondary {

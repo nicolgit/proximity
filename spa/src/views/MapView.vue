@@ -77,14 +77,13 @@
       :areas="areas"
       :is-areas-loading="isAreasLoading"
       :areas-error="areasError"
-      @close="moreAreasSelected"
       @areaSelected="handleAreaSelected"
     />
 
-    <!-- Area Proximity Level Selector -->
-    <div class="proximity-level-toolbar">
+    <!-- Area Proximity advanced tools -->
+    <div class="proximity-toolbar">
       <div class="proximity-level-header">
-        <span class="proximity-level-title">🏙️ Levels</span>
+        <span class="proximity-level-title">🏙️ advanced tools</span>
         <button 
           @click="toggleProximityToolbar"
           class="proximity-level-toggle"
@@ -97,7 +96,46 @@
       </div>
       
       <div v-show="showProximityToolbar" class="proximity-level-selector">
-        <div class="proximity-level-slider-container">
+        <!-- Station Type Filter Segmented Button -->
+        <div class="toolbar-section">
+          <div class="toolbar-section-label">stations</div>
+          <div class="segmented-control">
+            <button 
+              v-for="stationType in stationTypeOptions"
+              :key="stationType.value"
+              @click="selectStationType(stationType.value)"
+              class="segmented-button"
+              :class="{ 'segmented-button--active': selectedStationType === stationType.value }"
+              :disabled="areas.length === 0 || isAreasLoading"
+            >
+              {{ stationType.icon }} {{ stationType.label }}
+            </button>
+          </div>
+        </div>
+        
+        <!-- Isochrones Toggle Segmented Button -->
+        <div class="toolbar-section">
+          <div class="toolbar-section-label">isochrones</div>
+          <div class="segmented-control">
+            <button 
+              @click="setIsochronesVisibility(false)"
+              class="segmented-button"
+              :class="{ 'segmented-button--active': !areAllIsochronesVisible }"
+              :disabled="areas.length === 0 || isAreasLoading"
+            >
+              hide
+            </button>
+            <button 
+              @click="setIsochronesVisibility(true)"
+              class="segmented-button"
+              :class="{ 'segmented-button--active': areAllIsochronesVisible }"
+              :disabled="areas.length === 0 || isAreasLoading"
+            >
+              show
+            </button>
+          </div>
+        </div>
+        <div v-if="areAllIsochronesVisible" class="proximity-level-slider-container">
           <div class="proximity-level-slider-labels">
             <span v-for="level in proximityLevelOptions" :key="level" class="slider-label">
               {{ level }}m
@@ -115,6 +153,7 @@
              <strong>{{ pendingProximityLevel }}min</strong> isochrones
           </div>
         </div>
+        
       </div>
     </div>
 
@@ -138,13 +177,6 @@
       </svg>
     </button>
 
-    <!-- Area bounds indicator -->
-    <div v-if="currentAreaId" class="area-bounds-indicator" @click="toggleAreaBounds">
-      <div v-if="areaBoundsActive" class="bounds-icon">🔒</div>
-      <div v-else class="bounds-icon">🔓</div>
-      <div class="bounds-text">map limited to {{ currentAreaName }}</div>
-    </div>
-
     <!-- Map Container -->
     <div class="map-container">
       <l-map
@@ -161,9 +193,13 @@
           v-if="selectedLocation"
           :lat-lng="selectedLocation"
           :icon="searchLocationIconSvg as any"
+          @click="() => selectedLocationClickLocation = selectedLocation"
         >
           <l-popup>
-            <div>{{ selectedLocationName }}</div>
+            <div class="selected-location-popup">
+              <div><strong>{{ selectedLocationName }}</strong></div>
+              <ReverseGeocodingInfo :location="selectedLocationClickLocation" />
+            </div>
           </l-popup>
         </l-marker>
 
@@ -172,10 +208,22 @@
           v-if="currentLocation"
           :lat-lng="currentLocation"
           :icon="userLocationIconSvg as any"
+          @click="() => {
+            if (currentLocation) {
+              const coords = currentLocation as any
+              currentLocationClickLocation = Array.isArray(coords) 
+                ? coords as [number, number]
+                : [coords.lat, coords.lng]
+            }
+          }"
         >
           <l-popup>
             <div class="user-location-popup">
               <strong>🟢you're here🟢</strong>
+              <ReverseGeocodingInfo 
+                v-if="currentLocationClickLocation" 
+                :location="currentLocationClickLocation" 
+              />
             </div>
           </l-popup>
         </l-marker>
@@ -190,27 +238,12 @@
           :fill-opacity="0"
           :weight="2"
           :dash-array="'5, 5'"
+          @click="onAreaClick"
         >
           <l-popup>
             <div class="area-popup" @click="closeAreaPopupOnOutsideClick($event)">
-              <h3>📍 {{ area.name }}</h3>
-              
-              <!-- Use reusable AreaControls component -->
-              <AreaControls
-                :area-id="area.id"
-                :show-stats="true"
-                :station-visible="visibleStations.has(area.id)"
-                :is-loading-stations="isLoadingForArea(area.id)"
-                :station-count="getStationsForArea(area.id).length"
-                :station-error="getErrorForArea(area.id) ?? undefined"
-                :proximity-visible="visibleAreaIsochrones.has(area.id)"
-                :is-loading-proximity="isLoadingAreaIsochroneForArea(area.id)"
-                :proximity-count="areaIsochronesWithBorderIndex.filter(iso => iso.areaId === area.id).length"
-                :proximity-error="getAreaIsochroneErrorForArea(area.id) ?? undefined"
-                :selected-proximity-level="selectedProximityLevel"
-                @toggle-stations="() => toggleStationsForArea(area.id)"
-                @toggle-proximity="() => toggleAreaIsochronesForArea(props.country, area.id)"
-              />
+              <h3>📍 {{ area.name }} </h3>
+              <ReverseGeocodingInfo :location="areaClickLocation" />
             </div>
           </l-popup>
         </l-circle>
@@ -229,32 +262,7 @@
               from a train or tram stop
               
               <!-- Reverse geocoding info for clicked location -->
-              <div v-if="isochroneClickLocation" class="reverse-geocoding-info">
-                <hr style="margin: 10px 0; border: none; border-top: 1px solid #eee;">
-                <div class="location-address">
-                  <strong>📍 Address:</strong>
-                  <div v-if="isLoadingIsochroneAddress" class="address-loading">Loading address...</div>
-                  <div v-else-if="isochroneClickAddress" class="address-text">{{ isochroneClickAddress }}</div>
-                  <div v-else class="address-error">Address not found</div>
-                </div>
-              </div>
-
-              <!-- Area controls reused here -->
-              <AreaControls
-                :area-id="isochrone.areaId"
-                :show-stats="false"
-                :station-visible="visibleStations.has(isochrone.areaId)"
-                :is-loading-stations="isLoadingForArea(isochrone.areaId)"
-                :station-count="getStationsForArea(isochrone.areaId).length"
-                :station-error="getErrorForArea(isochrone.areaId) ?? undefined"
-                :proximity-visible="visibleAreaIsochrones.has(isochrone.areaId)"
-                :is-loading-proximity="isLoadingAreaIsochroneForArea(isochrone.areaId)"
-                :proximity-count="areaIsochronesWithBorderIndex.filter(iso => iso.areaId === isochrone.areaId).length"
-                :proximity-error="getAreaIsochroneErrorForArea(isochrone.areaId) ?? undefined"
-                :selected-proximity-level="selectedProximityLevel"
-                @toggle-stations="() => toggleStationsForArea(isochrone.areaId)"
-                @toggle-proximity="() => toggleAreaIsochronesForArea(props.country, isochrone.areaId)"
-              />
+              <ReverseGeocodingInfo :location="isochroneClickLocation" />
             </div>
           </l-popup>
         </l-geo-json>
@@ -279,15 +287,7 @@
               <p><strong>From:</strong> {{ selectedStationForIsochrone?.name }}</p>
               
               <!-- Reverse geocoding info for clicked location on circle -->
-              <div v-if="circleClickLocation" class="reverse-geocoding-info">
-                <hr style="margin: 10px 0; border: none; border-top: 1px solid #eee;">
-                <div class="location-address">
-                  <strong>📍 Address:</strong>
-                  <div v-if="isLoadingCircleAddress" class="address-loading">Loading address...</div>
-                  <div v-else-if="circleClickAddress" class="address-text">{{ circleClickAddress }}</div>
-                  <div v-else class="address-error">Address not found</div>
-                </div>
-              </div>
+              <ReverseGeocodingInfo :location="circleClickLocation" />
             </div>
           </l-popup>
         </l-circle>
@@ -306,15 +306,7 @@
               <p>from <strong>{{ selectedStationForIsochrone?.name }}</strong></p>
               
               <!-- Reverse geocoding info for clicked location on station isochrone -->
-              <div v-if="stationIsochroneClickLocation" class="reverse-geocoding-info">
-                <hr style="margin: 10px 0; border: none; border-top: 1px solid #eee;">
-                <div class="location-address">
-                  <strong>📍 Address:</strong>
-                  <div v-if="isLoadingStationIsochroneAddress" class="address-loading">Loading address...</div>
-                  <div v-else-if="stationIsochroneClickAddress" class="address-text">{{ stationIsochroneClickAddress }}</div>
-                  <div v-else class="address-error">Address not found</div>
-                </div>
-              </div>
+              <ReverseGeocodingInfo :location="stationIsochroneClickLocation" />
             </div>
           </l-popup>
         </l-geo-json>
@@ -346,32 +338,6 @@
                 (station.type === 'trolleybus') ? 'Trolleybus Stop' : 'Unknown'
               }}</strong></p>
               <p>coords: <strong>{{ station.latitude.toFixed(4) }}, {{ station.longitude.toFixed(4) }}</strong> </p>
-              <div class="station-actions">
-                <button 
-                  @click="onStationClick(props.country || 'italy', station, station.areaId)"
-                  class="btn"
-                  :class="{ 'btn--active': selectedStationForIsochrone?.id === station.id }"
-                >
-                  🚶‍♂️ {{ selectedStationForIsochrone?.id === station.id ? 'Hide' : 'Show' }} Walking Distances
-                </button>
-              </div>
-
-              <!-- Reuse AreaControls for the station's area -->
-              <AreaControls
-                :area-id="station.areaId"
-                :show-stats="false"
-                :station-visible="visibleStations.has(station.areaId)"
-                :is-loading-stations="isLoadingForArea(station.areaId)"
-                :station-count="getStationsForArea(station.areaId).length"
-                :station-error="getErrorForArea(station.areaId) ?? undefined"
-                :proximity-visible="visibleAreaIsochrones.has(station.areaId)"
-                :is-loading-proximity="isLoadingAreaIsochroneForArea(station.areaId)"
-                :proximity-count="areaIsochronesWithBorderIndex.filter(iso => iso.areaId === station.areaId).length"
-                :proximity-error="getAreaIsochroneErrorForArea(station.areaId) ?? undefined"
-                :selected-proximity-level="selectedProximityLevel"
-                @toggle-stations="() => toggleStationsForArea(station.areaId)"
-                @toggle-proximity="() => toggleAreaIsochronesForArea(props.country, station.areaId)"
-              />
             </div>
           </l-popup>
         </l-marker>
@@ -385,8 +351,7 @@ import { useAreas } from '@/composables/useAreas'
 import { useGeolocation } from '@/composables/useGeolocation'
 import { useLocationSearch } from '@/composables/useLocationSearch'
 import { useStations } from '@/composables/useStations'
-import { LocationSearchService } from '@/services/LocationSearchService'
-import type { Area, SearchResult, Station } from '@/types'
+import type { SearchResult, Station } from '@/types'
 import { searchLocationIconSvg, userLocationIconSvg, stationIconSvg, tramStopIconSvg, trolleyStopIconSvg } from '@/utils/mapIcons'
 import { getApiUrl } from '@/config/env'
 import { LCircle, LMap, LMarker, LPopup, LGeoJson } from '@vue-leaflet/vue-leaflet'
@@ -395,8 +360,8 @@ import '@maplibre/maplibre-gl-leaflet'
 import * as L from 'leaflet'
 import { onMounted, ref, computed, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import AreaControls from '@/components/AreaControls.vue'
 import WelcomePopup from '@/components/WelcomePopup.vue'
+import ReverseGeocodingInfo from '@/components/ReverseGeocodingInfo.vue'
 
 // Props
 interface Props {
@@ -418,26 +383,27 @@ const route = useRoute()
 const mapRef = ref<InstanceType<typeof LMap> | null>(null)
 const zoom = ref(7)
 const minZoom = ref<number | undefined>(undefined) // Minimum zoom level when targeting a specific area
-const maxBounds = ref<[[number, number], [number, number]] | undefined>(undefined) // Max bounds when targeting a specific area
-const areaBoundsActive = ref(false) // Track if area bounds constraints are currently active
 const initialCenter = ref<[number, number]>([41.9028, 12.4964]) // Default to Rome
 const selectedLocation = ref<[number, number] | null>(null)
 const selectedLocationName = ref('')
 
 // Isochrone click state for reverse geocoding
 const isochroneClickLocation = ref<[number, number] | null>(null)
-const isochroneClickAddress = ref('')
-const isLoadingIsochroneAddress = ref(false)
 
 // Circle click state for reverse geocoding
 const circleClickLocation = ref<[number, number] | null>(null)
-const circleClickAddress = ref('')
-const isLoadingCircleAddress = ref(false)
 
 // Station isochrone click state for reverse geocoding
 const stationIsochroneClickLocation = ref<[number, number] | null>(null)
-const stationIsochroneClickAddress = ref('')
-const isLoadingStationIsochroneAddress = ref(false)
+
+// Selected location click state for reverse geocoding
+const selectedLocationClickLocation = ref<[number, number] | null>(null)
+
+// Current location click state for reverse geocoding
+const currentLocationClickLocation = ref<[number, number] | null>(null)
+
+// Area click state for reverse geocoding
+const areaClickLocation = ref<[number, number] | null>(null)
 
 // Map configuration
 // Use OpenFreeMap style (MapLibre GL) instead of raster tiles
@@ -478,9 +444,7 @@ const {
 
 const {
   loadStations,
-  getStationsForArea,
-  isLoadingForArea,
-  getErrorForArea
+  getStationsForArea
 } = useStations()
 
 // Search UI state
@@ -492,6 +456,17 @@ const showWelcomePopup = ref(true)
 
 // Stations state
 const visibleStations = ref<Set<string>>(new Set())
+const showAllStations = ref(false)
+
+// Station type filtering
+type StationType = 'all' | 'train' | 'trolley' | 'tram'
+const selectedStationType = ref<StationType>('all')
+const stationTypeOptions = ref([
+  { value: 'all' as const, label: 'all', icon: null },
+  { value: 'train' as const, label: 'train', icon: '🚇' },
+  { value: 'trolley' as const, label: 'trolley', icon: '🚐' },
+  { value: 'tram' as const, label: 'tram', icon: '🚊' }
+])
 
 // Area proximity/isochrone state
 const visibleAreaIsochrones = ref<Set<string>>(new Set())
@@ -507,8 +482,8 @@ const areaIsochroneGeoJson = ref<Array<{
 // Proximity level selector state
 const showProximityToolbar = ref(false)
 const proximityLevelOptions = ref([5, 10, 15, 20, 30])
-const selectedProximityLevel = ref(30)
-const pendingProximityLevel = ref(30) // For debounced updates
+const selectedProximityLevel = ref(15)
+const pendingProximityLevel = ref(15) // For debounced updates
 
 // Debounced proximity level update
 let proximityLevelDebounceTimer: number | null = null
@@ -537,13 +512,10 @@ const initializeMapForArea = async (country: string, areaId: string | undefined)
         if (mapRef.value?.leafletObject) {
           console.log('🗺️ Setting initial map view to user location')
           mapRef.value.leafletObject.setView([lat, lng], 13)
-          removeAreaConstraints()
         }
       }, 100)
     } else {
-      setTimeout(() => {
-        removeAreaConstraints()
-      }, 100)
+      // No user location, just remove constraints
     }
     return
   }
@@ -564,12 +536,11 @@ const initializeMapForArea = async (country: string, areaId: string | undefined)
     zoom.value = calculatedZoomLevel
     minZoom.value = calculatedZoomLevel
     
-    // Wait a bit for the map to be ready, then set view and apply constraints
+    // Wait a bit for the map to be ready, then set view
     setTimeout(() => {
       if (mapRef.value?.leafletObject) {
         console.log(`🗺️ Setting area map view: ${targetArea.latitude}, ${targetArea.longitude}, zoom: ${calculatedZoomLevel}, minZoom: ${calculatedZoomLevel}`)
         mapRef.value.leafletObject.setView([targetArea.latitude, targetArea.longitude], calculatedZoomLevel)
-        applyAreaConstraints(targetArea)
       }
     }, 100)
 
@@ -604,7 +575,6 @@ const initializeMapForArea = async (country: string, areaId: string | undefined)
       setTimeout(() => {
         if (mapRef.value?.leafletObject) {
           mapRef.value.leafletObject.setView([lat, lng], 13)
-          removeAreaConstraints()
         }
       }, 100)
     }
@@ -666,7 +636,7 @@ const isochroneGeoJson = ref<Array<{
   color: string
 }>>([])
 
-// Computed property for all visible stations across all areas
+// Computed property for all visible stations across all areas, filtered by type
 const allVisibleStations = computed(() => {
   const stations: (Station & { areaId: string })[] = []
   for (const areaId of visibleStations.value) {
@@ -676,8 +646,42 @@ const allVisibleStations = computed(() => {
     }))
     stations.push(...areaStations)
   }
-  return stations
+  
+  // Filter by selected station type
+  if (selectedStationType.value === 'all') {
+    return stations
+  }
+  
+  return stations.filter(station => {
+    switch (selectedStationType.value) {
+      case 'train':
+        return station.type === 'station' || station.type === 'halt'
+      case 'tram':
+        return station.type === 'tram_stop'
+      case 'trolley':
+        return station.type === 'trolleybus'
+      default:
+        return true
+    }
+  })
 })
+
+// Computed property to check if all areas have stations visible
+const areAllStationsVisible = computed(() => {
+  if (areas.value.length === 0) return false
+  return areas.value.every(area => visibleStations.value.has(area.id))
+})
+
+// Computed property to check if all areas have isochrones visible
+const areAllIsochronesVisible = computed(() => {
+  if (areas.value.length === 0) return false
+  return areas.value.every(area => visibleAreaIsochrones.value.has(area.id))
+})
+
+// Watch for changes in visible stations to update showAllStations flag
+watch(areAllStationsVisible, (newValue) => {
+  showAllStations.value = newValue
+}, { immediate: true })
 
 // Computed property for filtered isochrone circles based on proximity level
 const filteredIsochroneCircles = computed(() => {
@@ -722,26 +726,51 @@ const areaIsochronesWithBorderIndex = computed(() => {
   return result
 })
 
-// Computed property for current selected area name
-const currentAreaName = computed(() => {
-  if (currentAreaId.value && areas.value.length > 0) {
-    const currentArea = areas.value.find(area => area.id === currentAreaId.value)
-    return currentArea?.name || 'selected area'
-  }
-  return 'selected area'
-})
-
-// Station toggle functionality
-const toggleStationsForArea = async (areaId: string) => {
-  if (visibleStations.value.has(areaId)) {
-    // Hide stations
-    visibleStations.value.delete(areaId)
+// Toggle all stations functionality
+const toggleAllStations = async () => {
+  if (areAllStationsVisible.value) {
+    // Hide all stations
+    visibleStations.value.clear()
   } else {
-    // Show stations - first load them if not already loaded
-    if (getStationsForArea(areaId).length === 0) {
-      await loadStations(props.country || 'italy', areaId)
+    // Show stations for all areas
+    for (const area of areas.value) {
+      if (!visibleStations.value.has(area.id)) {
+        // Load stations if not already loaded
+        if (getStationsForArea(area.id).length === 0) {
+          await loadStations(props.country, area.id)
+        }
+        visibleStations.value.add(area.id)
+      }
     }
-    visibleStations.value.add(areaId)
+  }
+}
+
+// Set isochrones visibility functionality
+const setIsochronesVisibility = async (show: boolean) => {
+  if (!show) {
+    // Hide all isochrones
+    visibleAreaIsochrones.value.clear()
+    // Remove all from map
+    areaIsochroneGeoJson.value = []
+    // Clear any errors
+    areaIsochroneErrors.value.clear()
+  } else {
+    // Show isochrones for all areas
+    for (const area of areas.value) {
+      if (!visibleAreaIsochrones.value.has(area.id)) {
+        await loadAreaIsochrones(props.country, area.id)
+      }
+    }
+  }
+}
+
+// Station type selection functionality
+const selectStationType = (type: StationType) => {
+  selectedStationType.value = type
+  
+  // Auto-load stations for all areas when switching types (if not already visible)
+  if (type !== 'all' && !areAllStationsVisible.value) {
+    toggleAllStations()
   }
 }
 
@@ -771,32 +800,6 @@ const getGeoJsonStyle = (isochrone: any, index: number = 0) => {
       weight: index === 0 ? 2 : 0,
       opacity: index === 0 ? 0.6 : 0.3
   })
-}
-
-// Area isochrone helper functions
-const isLoadingAreaIsochroneForArea = (areaId: string) => {
-  return isLoadingAreaIsochrones.value.has(areaId)
-}
-
-const getAreaIsochroneErrorForArea = (areaId: string) => {
-  return areaIsochroneErrors.value.get(areaId) || null
-}
-
-// Function to toggle area isochrones
-const toggleAreaIsochronesForArea = async (country: string, areaId: string) => {
-  if (visibleAreaIsochrones.value.has(areaId)) {
-    // Hide area isochrones
-    visibleAreaIsochrones.value.delete(areaId)
-    // Remove from map
-    areaIsochroneGeoJson.value = areaIsochroneGeoJson.value.filter(
-      isochrone => isochrone.areaId !== areaId
-    )
-    // Clear any errors
-    areaIsochroneErrors.value.delete(areaId)
-  } else {
-    // Show area isochrones - load them from API
-    await loadAreaIsochrones(country, areaId)
-  }
 }
 
 // Function to load area isochrones from API
@@ -1063,23 +1066,6 @@ const onIsochroneClick = async (event: any) => {
   
   // Set isochrone click location
   isochroneClickLocation.value = [lat, lng]
-  isochroneClickAddress.value = ''
-  isLoadingIsochroneAddress.value = true
-  
-  try {
-    // Perform reverse geocoding
-    const result = await LocationSearchService.reverseGeocode(lat, lng)
-    if (result && result.display_name) {
-      isochroneClickAddress.value = result.display_name
-    } else {
-      isochroneClickAddress.value = 'Address not found'
-    }
-  } catch (error) {
-    console.error('Error performing reverse geocoding on isochrone:', error)
-    isochroneClickAddress.value = 'Failed to load address'
-  } finally {
-    isLoadingIsochroneAddress.value = false
-  }
 }
 
 const onCircleClick = async (event: any) => {
@@ -1087,23 +1073,6 @@ const onCircleClick = async (event: any) => {
   
   // Set circle click location
   circleClickLocation.value = [lat, lng]
-  circleClickAddress.value = ''
-  isLoadingCircleAddress.value = true
-  
-  try {
-    // Perform reverse geocoding
-    const result = await LocationSearchService.reverseGeocode(lat, lng)
-    if (result && result.display_name) {
-      circleClickAddress.value = result.display_name
-    } else {
-      circleClickAddress.value = 'Address not found'
-    }
-  } catch (error) {
-    console.error('Error performing reverse geocoding on circle:', error)
-    circleClickAddress.value = 'Failed to load address'
-  } finally {
-    isLoadingCircleAddress.value = false
-  }
 }
 
 const onStationIsochroneClick = async (event: any) => {
@@ -1111,23 +1080,15 @@ const onStationIsochroneClick = async (event: any) => {
   
   // Set station isochrone click location
   stationIsochroneClickLocation.value = [lat, lng]
-  stationIsochroneClickAddress.value = ''
-  isLoadingStationIsochroneAddress.value = true
+}
+
+// Area click handler
+const onAreaClick = async (event: any) => {
+  const { lat, lng } = event.latlng
+  console.log('Area clicked:', lat, lng)
   
-  try {
-    // Perform reverse geocoding
-    const result = await LocationSearchService.reverseGeocode(lat, lng)
-    if (result && result.display_name) {
-      stationIsochroneClickAddress.value = result.display_name
-    } else {
-      stationIsochroneClickAddress.value = 'Address not found'
-    }
-  } catch (error) {
-    console.error('Error performing reverse geocoding on station isochrone:', error)
-    stationIsochroneClickAddress.value = 'Failed to load address'
-  } finally {
-    isLoadingStationIsochroneAddress.value = false
-  }
+  // Set area click location
+  areaClickLocation.value = [lat, lng]
 }
 
 // Location selection
@@ -1140,11 +1101,6 @@ const selectLocation = (result: SearchResult) => {
   
   // Use map's setView method instead of reactive center
   if (mapRef.value?.leafletObject) {
-    // Remove area constraints when user searches for a new location
-    if (props.areaid) {
-      removeAreaConstraints()
-    }
-
     mapRef.value.leafletObject.setView([lat, lon], 15)
   }
   
@@ -1183,11 +1139,6 @@ const goToCurrentLocation = async () => {
       console.log(`🎯 Centering map on: ${lat}, ${lng}`)
       
       if (mapRef.value?.leafletObject) {
-        // Remove area constraints when going to current location (unless we have a specific area target)
-        if (props.areaid) {
-          removeAreaConstraints()
-        }
-
         mapRef.value.leafletObject.setView([lat, lng], 16)
         console.log('✅ Map centered successfully')
       } else {
@@ -1195,11 +1146,6 @@ const goToCurrentLocation = async () => {
         // Try again after a short delay
         setTimeout(() => {
           if (mapRef.value?.leafletObject) {
-            // Remove area constraints when going to current location (unless we have a specific area target)
-            if (props.areaid) {
-              removeAreaConstraints()
-            }
-
             mapRef.value.leafletObject.setView([lat, lng], 16)
             console.log('✅ Map centered successfully (delayed)')
           }
@@ -1215,17 +1161,6 @@ const goToCurrentLocation = async () => {
 }
 
 // Welcome popup functionality
-const moreAreasSelected = (filteredAreas: Area[]) => {
-  console.log('🎉 Welcome popup closed with filtered areas:', filteredAreas)
-  
-  // Update the areas array with filtered areas if provided
-  if (filteredAreas && filteredAreas.length > 0) {
-    areas.value = filteredAreas
-  } 
-  
-  showWelcomePopup.value = false
-}
-
 const handleAreaSelected = (areaId: string) => {
   console.log('🎯 Area selected for navigation:', areaId)
   // Just close the popup when an area is selected for navigation
@@ -1288,78 +1223,10 @@ const refreshStationIsochrones = async () => {
     }
     
     if (stationAreaId) {
-      await loadIsochronesForStation(props.country || 'italy', selectedStationForIsochrone.value, stationAreaId)
+      await loadIsochronesForStation(props.country, selectedStationForIsochrone.value, stationAreaId)
     } else {
       // Fallback to calculated circles if area not found
       generateIsochroneCircles(selectedStationForIsochrone.value)
-    }
-  }
-}
-
-// Function to calculate bounds for an area
-const calculateAreaBounds = (area: any): [[number, number], [number, number]] => {
-  const radiusKm = area.diameter / 2000 // Convert diameter from meters to radius in km
-  const lat = area.latitude
-  const lng = area.longitude
-  
-  // Calculate approximate bounds using radius
-  // 1 degree latitude ≈ 111 km
-  // 1 degree longitude varies by latitude: ≈ 111 * cos(latitude) km
-  const latDelta = radiusKm / 111
-  const lngDelta = radiusKm / (111 * Math.cos(lat * Math.PI / 180))
-  
-  // Add some padding (20% extra) to prevent hitting the exact bounds
-  const padding = 0.2
-  const paddedLatDelta = latDelta * (1 + padding)
-  const paddedLngDelta = lngDelta * (1 + padding)
-  
-  const southWest: [number, number] = [lat - paddedLatDelta, lng - paddedLngDelta]
-  const northEast: [number, number] = [lat + paddedLatDelta, lng + paddedLngDelta]
-  
-  return [southWest, northEast]
-}
-
-// Function to apply area constraints to the map
-const applyAreaConstraints = (area: any) => {
-  if (mapRef.value?.leafletObject) {
-    const bounds = calculateAreaBounds(area)
-    maxBounds.value = bounds
-    areaBoundsActive.value = true
-    
-    // Set the max bounds on the Leaflet map
-    mapRef.value.leafletObject.setMaxBounds(bounds)
-    
-    console.log(`🔒 Applied bounds constraint for area: ${area.name}`, bounds)
-  }
-}
-
-// Function to remove area constraints from the map
-const removeAreaConstraints = () => {
-  if (mapRef.value?.leafletObject) {
-    maxBounds.value = undefined
-    areaBoundsActive.value = false
-    minZoom.value = undefined // Remove minimum zoom constraint
-    
-    // Remove the max bounds from the Leaflet map completely
-    const leafletMap = mapRef.value.leafletObject as any 
-    leafletMap.setMaxBounds(null)
-    
-    console.log('🔓 Removed bounds and zoom constraints from map')
-  }
-}
-
-// Function to toggle area bounds constraints
-const toggleAreaBounds = () => {
-  if (areaBoundsActive.value) {
-    // Currently active, remove constraints
-    removeAreaConstraints()
-  } else {
-    // Currently inactive, apply constraints if we have a target area
-    if (props.areaid && areas.value.length > 0) {
-      const targetArea = areas.value.find(area => area.id === props.areaid)
-      if (targetArea) {
-        applyAreaConstraints(targetArea)
-      }
     }
   }
 }
@@ -1611,7 +1478,7 @@ onUnmounted(() => {
   }
 }
 
-.proximity-level-toolbar {
+.proximity-toolbar {
   position: absolute;
   bottom: 20px;
   left: 50%;
@@ -1626,7 +1493,7 @@ onUnmounted(() => {
 
 /* Mobile adjustments for proximity toolbar */
 @media screen and (max-width: 768px) {
-  .proximity-level-toolbar {
+  .proximity-toolbar {
     bottom: calc(env(safe-area-inset-bottom, 0px) + 15px);
     left: 10px;
     right: 10px;
@@ -1758,6 +1625,113 @@ onUnmounted(() => {
   border: 1px solid #e9ecef;
 }
 
+.toolbar-section {
+  border-bottom: 1px solid #f3f4f6;
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+}
+
+.toolbar-section:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+  margin-bottom: 0;
+}
+
+.toolbar-section-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+}
+
+.toolbar-button {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: white;
+  color: #374151;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+.toolbar-button:hover:not(:disabled) {
+  background-color: #f9fafb;
+  border-color: #d1d5db;
+  color: #111827;
+}
+
+.toolbar-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.toolbar-button--active {
+  background-color: #3b82f6;
+  border-color: #3b82f6;
+  color: white;
+}
+
+.toolbar-button--active:hover:not(:disabled) {
+  background-color: #2563eb;
+  border-color: #2563eb;
+}
+
+/* Segmented Control Styles */
+.segmented-control {
+  display: flex;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  overflow: hidden;
+  background: white;
+}
+
+.segmented-button {
+  flex: 1;
+  padding: 8px 12px;
+  border: none;
+  background: white;
+  color: #374151;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 500;
+  border-right: 1px solid #e5e7eb;
+  position: relative;
+}
+
+.segmented-button:last-child {
+  border-right: none;
+}
+
+.segmented-button:hover:not(:disabled) {
+  background-color: #f9fafb;
+  color: #111827;
+}
+
+.segmented-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.segmented-button--active {
+  background-color: #3b82f6;
+  color: white;
+  font-weight: 600;
+}
+
+.segmented-button--active:hover:not(:disabled) {
+  background-color: #2563eb;
+}
+
 .location-btn:hover:not(:disabled) {
   background-color: #f8f9fa;
   border-color: #22C55E;
@@ -1778,69 +1752,6 @@ onUnmounted(() => {
 
 .loading-icon {
   color: #22C55E;
-}
-
-.area-bounds-indicator {
-  position: absolute;
-  top: 80px;
-  right: 20px;
-  z-index: 1000;
-  background: rgba(139, 92, 246, 0.95);
-  color: white;
-  border-radius: 8px;
-  padding: 8px 12px;
-  font-size: 12px;
-  font-weight: 500;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  backdrop-filter: blur(4px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  animation: fadeInSlide 0.3s ease-out;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  user-select: none;
-}
-
-/* Mobile adjustments for area bounds indicator */
-@media screen and (max-width: 768px) {
-  .area-bounds-indicator {
-    top: calc(env(safe-area-inset-top, 0px) + 140px);
-    right: 15px;
-    font-size: 11px;
-    padding: 6px 10px;
-  }
-}
-
-.area-bounds-indicator:hover {
-  background: rgba(139, 92, 246, 1);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
-
-.area-bounds-indicator:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-}
-
-.bounds-icon {
-  font-size: 14px;
-}
-
-.bounds-text {
-  white-space: nowrap;
-}
-
-@keyframes fadeInSlide {
-  from {
-    opacity: 0;
-    transform: translateX(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
 }
 
 .leaflet-map {
@@ -1872,6 +1783,16 @@ onUnmounted(() => {
 
 .user-location-popup {
   text-align: center;
+  font-size: 14px;
+  min-width: 200px;
+}
+
+.selected-location-popup {
+  min-width: 200px;
+}
+
+.selected-location-popup > div:first-child {
+  margin-bottom: 8px;
   font-size: 14px;
 }
 
@@ -1963,58 +1884,4 @@ onUnmounted(() => {
   color: #333;
 }
 
-/* Reverse Geocoding Info Styles */
-.reverse-geocoding-info {
-  margin-top: 10px;
-}
-
-.location-address {
-  font-size: 12px;
-}
-
-.location-address strong {
-  color: #333;
-  font-size: 12px;
-}
-
-.address-loading {
-  color: #6b7280;
-  font-style: italic;
-  margin-top: 4px;
-  font-size: 11px;
-}
-
-.address-text {
-  color: #374151;
-  margin-top: 4px;
-  font-size: 11px;
-  line-height: 1.3;
-  word-wrap: break-word;
-}
-
-.address-error {
-  color: #dc3545;
-  font-style: italic;
-  margin-top: 4px;
-  font-size: 11px;
-}
-
-
-/* Area Controls Layout */
-.area-controls {
-  margin-top: 12px;
-}
-
-.controls-row--buttons {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.controls-row--station-info,
-.controls-row--proximity-info {
-  font-size: 13px;
-  color: #666;
-  margin-top: 8px;
-}
 </style>
