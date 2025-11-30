@@ -83,7 +83,7 @@
     <!-- Area Proximity Level Selector -->
     <div class="proximity-level-toolbar">
       <div class="proximity-level-header">
-        <span class="proximity-level-title">🏙️ Levels</span>
+        <span class="proximity-level-title">🏙️ advanced tools</span>
         <button 
           @click="toggleProximityToolbar"
           class="proximity-level-toggle"
@@ -96,6 +96,29 @@
       </div>
       
       <div v-show="showProximityToolbar" class="proximity-level-selector">
+        <!-- Toggle All Stations Button -->
+        <div class="toolbar-section">
+          <button 
+            @click="toggleAllStations"
+            class="toolbar-button"
+            :class="{ 'toolbar-button--active': areAllStationsVisible }"
+            :disabled="areas.length === 0 || isAreasLoading"
+          >
+            {{ areAllStationsVisible ? '🚇 Hide All Stations' : '🚇 Show All Stations' }}
+          </button>
+        </div>
+        
+        <!-- Toggle All Isochrones Button -->
+        <div class="toolbar-section">
+          <button 
+            @click="toggleAllIsochrones"
+            class="toolbar-button"
+            :class="{ 'toolbar-button--active': areAllIsochronesVisible }"
+            :disabled="areas.length === 0 || isAreasLoading"
+          >
+            {{ areAllIsochronesVisible ? '🏙️ Hide All Isochrones' : '🏙️ Show All Isochrones' }}
+          </button>
+        </div>
         <div class="proximity-level-slider-container">
           <div class="proximity-level-slider-labels">
             <span v-for="level in proximityLevelOptions" :key="level" class="slider-label">
@@ -114,6 +137,7 @@
              <strong>{{ pendingProximityLevel }}min</strong> isochrones
           </div>
         </div>
+        
       </div>
     </div>
 
@@ -482,6 +506,7 @@ const showWelcomePopup = ref(true)
 
 // Stations state
 const visibleStations = ref<Set<string>>(new Set())
+const showAllStations = ref(false)
 
 // Area proximity/isochrone state
 const visibleAreaIsochrones = ref<Set<string>>(new Set())
@@ -497,8 +522,8 @@ const areaIsochroneGeoJson = ref<Array<{
 // Proximity level selector state
 const showProximityToolbar = ref(false)
 const proximityLevelOptions = ref([5, 10, 15, 20, 30])
-const selectedProximityLevel = ref(30)
-const pendingProximityLevel = ref(30) // For debounced updates
+const selectedProximityLevel = ref(15)
+const pendingProximityLevel = ref(15) // For debounced updates
 
 // Debounced proximity level update
 let proximityLevelDebounceTimer: number | null = null
@@ -664,6 +689,23 @@ const allVisibleStations = computed(() => {
   return stations
 })
 
+// Computed property to check if all areas have stations visible
+const areAllStationsVisible = computed(() => {
+  if (areas.value.length === 0) return false
+  return areas.value.every(area => visibleStations.value.has(area.id))
+})
+
+// Computed property to check if all areas have isochrones visible
+const areAllIsochronesVisible = computed(() => {
+  if (areas.value.length === 0) return false
+  return areas.value.every(area => visibleAreaIsochrones.value.has(area.id))
+})
+
+// Watch for changes in visible stations to update showAllStations flag
+watch(areAllStationsVisible, (newValue) => {
+  showAllStations.value = newValue
+}, { immediate: true })
+
 // Computed property for filtered isochrone circles based on proximity level
 const filteredIsochroneCircles = computed(() => {
   return isochroneCircles.value.filter(circle => circle.timeMinutes <= selectedProximityLevel.value)
@@ -715,9 +757,47 @@ const toggleStationsForArea = async (areaId: string) => {
   } else {
     // Show stations - first load them if not already loaded
     if (getStationsForArea(areaId).length === 0) {
-      await loadStations(props.country || 'italy', areaId)
+      await loadStations(props.country, areaId)
     }
     visibleStations.value.add(areaId)
+  }
+}
+
+// Toggle all stations functionality
+const toggleAllStations = async () => {
+  if (areAllStationsVisible.value) {
+    // Hide all stations
+    visibleStations.value.clear()
+  } else {
+    // Show stations for all areas
+    for (const area of areas.value) {
+      if (!visibleStations.value.has(area.id)) {
+        // Load stations if not already loaded
+        if (getStationsForArea(area.id).length === 0) {
+          await loadStations(props.country, area.id)
+        }
+        visibleStations.value.add(area.id)
+      }
+    }
+  }
+}
+
+// Toggle all isochrones functionality
+const toggleAllIsochrones = async () => {
+  if (areAllIsochronesVisible.value) {
+    // Hide all isochrones
+    visibleAreaIsochrones.value.clear()
+    // Remove all from map
+    areaIsochroneGeoJson.value = []
+    // Clear any errors
+    areaIsochroneErrors.value.clear()
+  } else {
+    // Show isochrones for all areas
+    for (const area of areas.value) {
+      if (!visibleAreaIsochrones.value.has(area.id)) {
+        await loadAreaIsochrones(props.country, area.id)
+      }
+    }
   }
 }
 
@@ -1238,7 +1318,7 @@ const refreshStationIsochrones = async () => {
     }
     
     if (stationAreaId) {
-      await loadIsochronesForStation(props.country || 'italy', selectedStationForIsochrone.value, stationAreaId)
+      await loadIsochronesForStation(props.country, selectedStationForIsochrone.value, stationAreaId)
     } else {
       // Fallback to calculated circles if area not found
       generateIsochroneCircles(selectedStationForIsochrone.value)
@@ -1638,6 +1718,57 @@ onUnmounted(() => {
   background: #f8f9fa;
   border-radius: 6px;
   border: 1px solid #e9ecef;
+}
+
+.toolbar-section {
+  border-bottom: 1px solid #f3f4f6;
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+}
+
+.toolbar-section:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+  margin-bottom: 0;
+}
+
+.toolbar-button {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: white;
+  color: #374151;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+.toolbar-button:hover:not(:disabled) {
+  background-color: #f9fafb;
+  border-color: #d1d5db;
+  color: #111827;
+}
+
+.toolbar-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.toolbar-button--active {
+  background-color: #3b82f6;
+  border-color: #3b82f6;
+  color: white;
+}
+
+.toolbar-button--active:hover:not(:disabled) {
+  background-color: #2563eb;
+  border-color: #2563eb;
 }
 
 .location-btn:hover:not(:disabled) {
