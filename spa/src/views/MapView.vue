@@ -96,30 +96,46 @@
       </div>
       
       <div v-show="showProximityToolbar" class="proximity-level-selector">
-        <!-- Toggle All Stations Button -->
+        <!-- Station Type Filter Segmented Button -->
         <div class="toolbar-section">
-          <button 
-            @click="toggleAllStations"
-            class="toolbar-button"
-            :class="{ 'toolbar-button--active': areAllStationsVisible }"
-            :disabled="areas.length === 0 || isAreasLoading"
-          >
-            {{ areAllStationsVisible ? '🚇 Hide All Stations' : '🚇 Show All Stations' }}
-          </button>
+          <div class="toolbar-section-label">stations</div>
+          <div class="segmented-control">
+            <button 
+              v-for="stationType in stationTypeOptions"
+              :key="stationType.value"
+              @click="selectStationType(stationType.value)"
+              class="segmented-button"
+              :class="{ 'segmented-button--active': selectedStationType === stationType.value }"
+              :disabled="areas.length === 0 || isAreasLoading"
+            >
+              {{ stationType.icon }} {{ stationType.label }}
+            </button>
+          </div>
         </div>
         
-        <!-- Toggle All Isochrones Button -->
+        <!-- Isochrones Toggle Segmented Button -->
         <div class="toolbar-section">
-          <button 
-            @click="toggleAllIsochrones"
-            class="toolbar-button"
-            :class="{ 'toolbar-button--active': areAllIsochronesVisible }"
-            :disabled="areas.length === 0 || isAreasLoading"
-          >
-            {{ areAllIsochronesVisible ? '🏙️ Hide All Isochrones' : '🏙️ Show All Isochrones' }}
-          </button>
+          <div class="toolbar-section-label">isochrones</div>
+          <div class="segmented-control">
+            <button 
+              @click="setIsochronesVisibility(false)"
+              class="segmented-button"
+              :class="{ 'segmented-button--active': !areAllIsochronesVisible }"
+              :disabled="areas.length === 0 || isAreasLoading"
+            >
+              hide
+            </button>
+            <button 
+              @click="setIsochronesVisibility(true)"
+              class="segmented-button"
+              :class="{ 'segmented-button--active': areAllIsochronesVisible }"
+              :disabled="areas.length === 0 || isAreasLoading"
+            >
+              show
+            </button>
+          </div>
         </div>
-        <div class="proximity-level-slider-container">
+        <div v-if="areAllIsochronesVisible" class="proximity-level-slider-container">
           <div class="proximity-level-slider-labels">
             <span v-for="level in proximityLevelOptions" :key="level" class="slider-label">
               {{ level }}m
@@ -194,9 +210,10 @@
           :icon="userLocationIconSvg as any"
           @click="() => {
             if (currentLocation) {
-              currentLocationClickLocation = Array.isArray(currentLocation) 
-                ? currentLocation 
-                : [currentLocation.lat, currentLocation.lng]
+              const coords = currentLocation as any
+              currentLocationClickLocation = Array.isArray(coords) 
+                ? coords as [number, number]
+                : [coords.lat, coords.lng]
             }
           }"
         >
@@ -441,6 +458,16 @@ const showWelcomePopup = ref(true)
 const visibleStations = ref<Set<string>>(new Set())
 const showAllStations = ref(false)
 
+// Station type filtering
+type StationType = 'all' | 'train' | 'trolley' | 'tram'
+const selectedStationType = ref<StationType>('all')
+const stationTypeOptions = ref([
+  { value: 'all' as const, label: 'all', icon: null },
+  { value: 'train' as const, label: 'train', icon: '🚇' },
+  { value: 'trolley' as const, label: 'trolley', icon: '🚐' },
+  { value: 'tram' as const, label: 'tram', icon: '🚊' }
+])
+
 // Area proximity/isochrone state
 const visibleAreaIsochrones = ref<Set<string>>(new Set())
 const isLoadingAreaIsochrones = ref<Set<string>>(new Set())
@@ -609,7 +636,7 @@ const isochroneGeoJson = ref<Array<{
   color: string
 }>>([])
 
-// Computed property for all visible stations across all areas
+// Computed property for all visible stations across all areas, filtered by type
 const allVisibleStations = computed(() => {
   const stations: (Station & { areaId: string })[] = []
   for (const areaId of visibleStations.value) {
@@ -619,7 +646,24 @@ const allVisibleStations = computed(() => {
     }))
     stations.push(...areaStations)
   }
-  return stations
+  
+  // Filter by selected station type
+  if (selectedStationType.value === 'all') {
+    return stations
+  }
+  
+  return stations.filter(station => {
+    switch (selectedStationType.value) {
+      case 'train':
+        return station.type === 'station' || station.type === 'halt'
+      case 'tram':
+        return station.type === 'tram_stop'
+      case 'trolley':
+        return station.type === 'trolleybus'
+      default:
+        return true
+    }
+  })
 })
 
 // Computed property to check if all areas have stations visible
@@ -701,9 +745,9 @@ const toggleAllStations = async () => {
   }
 }
 
-// Toggle all isochrones functionality
-const toggleAllIsochrones = async () => {
-  if (areAllIsochronesVisible.value) {
+// Set isochrones visibility functionality
+const setIsochronesVisibility = async (show: boolean) => {
+  if (!show) {
     // Hide all isochrones
     visibleAreaIsochrones.value.clear()
     // Remove all from map
@@ -717,6 +761,16 @@ const toggleAllIsochrones = async () => {
         await loadAreaIsochrones(props.country, area.id)
       }
     }
+  }
+}
+
+// Station type selection functionality
+const selectStationType = (type: StationType) => {
+  selectedStationType.value = type
+  
+  // Auto-load stations for all areas when switching types (if not already visible)
+  if (type !== 'all' && !areAllStationsVisible.value) {
+    toggleAllStations()
   }
 }
 
@@ -1583,6 +1637,15 @@ onUnmounted(() => {
   margin-bottom: 0;
 }
 
+.toolbar-section-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+}
+
 .toolbar-button {
   width: 100%;
   padding: 10px 12px;
@@ -1620,6 +1683,53 @@ onUnmounted(() => {
 .toolbar-button--active:hover:not(:disabled) {
   background-color: #2563eb;
   border-color: #2563eb;
+}
+
+/* Segmented Control Styles */
+.segmented-control {
+  display: flex;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  overflow: hidden;
+  background: white;
+}
+
+.segmented-button {
+  flex: 1;
+  padding: 8px 12px;
+  border: none;
+  background: white;
+  color: #374151;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 500;
+  border-right: 1px solid #e5e7eb;
+  position: relative;
+}
+
+.segmented-button:last-child {
+  border-right: none;
+}
+
+.segmented-button:hover:not(:disabled) {
+  background-color: #f9fafb;
+  color: #111827;
+}
+
+.segmented-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.segmented-button--active {
+  background-color: #3b82f6;
+  color: white;
+  font-weight: 600;
+}
+
+.segmented-button--active:hover:not(:disabled) {
+  background-color: #2563eb;
 }
 
 .location-btn:hover:not(:disabled) {
