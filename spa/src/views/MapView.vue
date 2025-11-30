@@ -342,7 +342,7 @@ import { useGeolocation } from '@/composables/useGeolocation'
 import { useLocationSearch } from '@/composables/useLocationSearch'
 import { useStations } from '@/composables/useStations'
 import { LocationSearchService } from '@/services/LocationSearchService'
-import type { Area, SearchResult, Station } from '@/types'
+import type { SearchResult, Station } from '@/types'
 import { searchLocationIconSvg, userLocationIconSvg, stationIconSvg, tramStopIconSvg, trolleyStopIconSvg } from '@/utils/mapIcons'
 import { getApiUrl } from '@/config/env'
 import { LCircle, LMap, LMarker, LPopup, LGeoJson } from '@vue-leaflet/vue-leaflet'
@@ -431,9 +431,7 @@ const {
 
 const {
   loadStations,
-  getStationsForArea,
-  isLoadingForArea,
-  getErrorForArea
+  getStationsForArea
 } = useStations()
 
 // Search UI state
@@ -688,20 +686,6 @@ const areaIsochronesWithBorderIndex = computed(() => {
   return result
 })
 
-// Station toggle functionality
-const toggleStationsForArea = async (areaId: string) => {
-  if (visibleStations.value.has(areaId)) {
-    // Hide stations
-    visibleStations.value.delete(areaId)
-  } else {
-    // Show stations - first load them if not already loaded
-    if (getStationsForArea(areaId).length === 0) {
-      await loadStations(props.country, areaId)
-    }
-    visibleStations.value.add(areaId)
-  }
-}
-
 // Toggle all stations functionality
 const toggleAllStations = async () => {
   if (areAllStationsVisible.value) {
@@ -766,32 +750,6 @@ const getGeoJsonStyle = (isochrone: any, index: number = 0) => {
       weight: index === 0 ? 2 : 0,
       opacity: index === 0 ? 0.6 : 0.3
   })
-}
-
-// Area isochrone helper functions
-const isLoadingAreaIsochroneForArea = (areaId: string) => {
-  return isLoadingAreaIsochrones.value.has(areaId)
-}
-
-const getAreaIsochroneErrorForArea = (areaId: string) => {
-  return areaIsochroneErrors.value.get(areaId) || null
-}
-
-// Function to toggle area isochrones
-const toggleAreaIsochronesForArea = async (country: string, areaId: string) => {
-  if (visibleAreaIsochrones.value.has(areaId)) {
-    // Hide area isochrones
-    visibleAreaIsochrones.value.delete(areaId)
-    // Remove from map
-    areaIsochroneGeoJson.value = areaIsochroneGeoJson.value.filter(
-      isochrone => isochrone.areaId !== areaId
-    )
-    // Clear any errors
-    areaIsochroneErrors.value.delete(areaId)
-  } else {
-    // Show area isochrones - load them from API
-    await loadAreaIsochrones(country, areaId)
-  }
 }
 
 // Function to load area isochrones from API
@@ -1888,22 +1846,4 @@ onUnmounted(() => {
   font-size: 11px;
 }
 
-
-/* Area Controls Layout */
-.area-controls {
-  margin-top: 12px;
-}
-
-.controls-row--buttons {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.controls-row--station-info,
-.controls-row--proximity-info {
-  font-size: 13px;
-  color: #666;
-  margin-top: 8px;
-}
 </style>

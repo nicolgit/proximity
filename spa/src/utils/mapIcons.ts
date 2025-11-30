@@ -1,45 +1,5 @@
 import * as L from 'leaflet'
 
-// Custom marker icons
-export const createCustomIcon = (color: string, size: [number, number] = [25, 41]) => {
-    return L.divIcon({
-        className: 'custom-marker',
-        html: `
-      <div class="marker-pin" style="background-color: ${color};">
-        <div class="marker-icon">📍</div>
-      </div>
-    `,
-        iconSize: size,
-        iconAnchor: [size[0] / 2, size[1]],
-        popupAnchor: [0, -size[1]]
-    })
-}
-
-// Predefined icons
-export const userLocationIcon = L.divIcon({
-    className: 'custom-marker user-location-marker',
-    html: `
-    <div class="marker-pin user-location-pin">
-      <div class="marker-icon">📍</div>
-    </div>
-  `,
-    iconSize: [30, 45],
-    iconAnchor: [15, 45],
-    popupAnchor: [0, -45]
-})
-
-export const searchLocationIcon = L.divIcon({
-    className: 'custom-marker search-location-marker',
-    html: `
-    <div class="marker-pin search-location-pin">
-      <div class="marker-icon">📍</div>
-    </div>
-  `,
-    iconSize: [25, 41],
-    iconAnchor: [12.5, 41],
-    popupAnchor: [0, -41]
-})
-
 // Alternative green icon using SVG
 export const userLocationIconSvg = L.divIcon({
     className: 'custom-marker user-location-marker-svg',

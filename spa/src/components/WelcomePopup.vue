@@ -49,7 +49,7 @@ import type { Area } from '@/types'
 const router = useRouter()
 
 // defineProps used to declare the component props for the template; avoid assigning to an unused variable
-const props = defineProps<{
+defineProps<{
   areas?: Array<Area>
   isAreasLoading?: boolean
   areasError?: string | null
