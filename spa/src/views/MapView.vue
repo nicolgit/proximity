@@ -210,23 +210,6 @@
           <l-popup>
             <div class="area-popup" @click="closeAreaPopupOnOutsideClick($event)">
               <h3>📍 {{ area.name }}</h3>
-              
-              <!-- Use reusable AreaControls component -->
-              <AreaControls
-                :area-id="area.id"
-                :show-stats="true"
-                :station-visible="visibleStations.has(area.id)"
-                :is-loading-stations="isLoadingForArea(area.id)"
-                :station-count="getStationsForArea(area.id).length"
-                :station-error="getErrorForArea(area.id) ?? undefined"
-                :proximity-visible="visibleAreaIsochrones.has(area.id)"
-                :is-loading-proximity="isLoadingAreaIsochroneForArea(area.id)"
-                :proximity-count="areaIsochronesWithBorderIndex.filter(iso => iso.areaId === area.id).length"
-                :proximity-error="getAreaIsochroneErrorForArea(area.id) ?? undefined"
-                :selected-proximity-level="selectedProximityLevel"
-                @toggle-stations="() => toggleStationsForArea(area.id)"
-                @toggle-proximity="() => toggleAreaIsochronesForArea(props.country, area.id)"
-              />
             </div>
           </l-popup>
         </l-circle>
@@ -254,23 +237,6 @@
                   <div v-else class="address-error">Address not found</div>
                 </div>
               </div>
-
-              <!-- Area controls reused here -->
-              <AreaControls
-                :area-id="isochrone.areaId"
-                :show-stats="false"
-                :station-visible="visibleStations.has(isochrone.areaId)"
-                :is-loading-stations="isLoadingForArea(isochrone.areaId)"
-                :station-count="getStationsForArea(isochrone.areaId).length"
-                :station-error="getErrorForArea(isochrone.areaId) ?? undefined"
-                :proximity-visible="visibleAreaIsochrones.has(isochrone.areaId)"
-                :is-loading-proximity="isLoadingAreaIsochroneForArea(isochrone.areaId)"
-                :proximity-count="areaIsochronesWithBorderIndex.filter(iso => iso.areaId === isochrone.areaId).length"
-                :proximity-error="getAreaIsochroneErrorForArea(isochrone.areaId) ?? undefined"
-                :selected-proximity-level="selectedProximityLevel"
-                @toggle-stations="() => toggleStationsForArea(isochrone.areaId)"
-                @toggle-proximity="() => toggleAreaIsochronesForArea(props.country, isochrone.areaId)"
-              />
             </div>
           </l-popup>
         </l-geo-json>
@@ -362,32 +328,6 @@
                 (station.type === 'trolleybus') ? 'Trolleybus Stop' : 'Unknown'
               }}</strong></p>
               <p>coords: <strong>{{ station.latitude.toFixed(4) }}, {{ station.longitude.toFixed(4) }}</strong> </p>
-              <div class="station-actions">
-                <button 
-                  @click="onStationClick(props.country || 'italy', station, station.areaId)"
-                  class="btn"
-                  :class="{ 'btn--active': selectedStationForIsochrone?.id === station.id }"
-                >
-                  🚶‍♂️ {{ selectedStationForIsochrone?.id === station.id ? 'Hide' : 'Show' }} Walking Distances
-                </button>
-              </div>
-
-              <!-- Reuse AreaControls for the station's area -->
-              <AreaControls
-                :area-id="station.areaId"
-                :show-stats="false"
-                :station-visible="visibleStations.has(station.areaId)"
-                :is-loading-stations="isLoadingForArea(station.areaId)"
-                :station-count="getStationsForArea(station.areaId).length"
-                :station-error="getErrorForArea(station.areaId) ?? undefined"
-                :proximity-visible="visibleAreaIsochrones.has(station.areaId)"
-                :is-loading-proximity="isLoadingAreaIsochroneForArea(station.areaId)"
-                :proximity-count="areaIsochronesWithBorderIndex.filter(iso => iso.areaId === station.areaId).length"
-                :proximity-error="getAreaIsochroneErrorForArea(station.areaId) ?? undefined"
-                :selected-proximity-level="selectedProximityLevel"
-                @toggle-stations="() => toggleStationsForArea(station.areaId)"
-                @toggle-proximity="() => toggleAreaIsochronesForArea(props.country, station.areaId)"
-              />
             </div>
           </l-popup>
         </l-marker>
@@ -411,7 +351,6 @@ import '@maplibre/maplibre-gl-leaflet'
 import * as L from 'leaflet'
 import { onMounted, ref, computed, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import AreaControls from '@/components/AreaControls.vue'
 import WelcomePopup from '@/components/WelcomePopup.vue'
 
 // Props
