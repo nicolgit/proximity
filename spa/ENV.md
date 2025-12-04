@@ -9,7 +9,7 @@ This project uses Vite environment variables for configuration.
 ## Environment Files
 
 - `.env.development`: Development environment variables
-- `.env.production`: Production environment variables
+- `.env.production`: Production environment variables  
 - `.env.local`: Local overrides (gitignored)
 
 ## Usage
@@ -25,10 +25,22 @@ const areasUrl = getApiUrl('/areas')
 const stationsUrl = getApiUrl('/stations')
 ```
 
+## Map Key Configuration
+
+The Azure Maps subscription key is now fetched from the API endpoint `/api/map/key` at runtime instead of being stored in environment variables. This improves security by not exposing the key in client-side code.
+
+The API should return:
+```json
+{
+  "mapKey": "your-azure-maps-subscription-key"
+}
+```
+
 ## Development Setup
 
 1. Copy `.env.development` and customize if needed
 2. For local overrides, create `.env.local` (this file is gitignored)
+3. Ensure your API endpoint `/api/map/key` is configured to return the Azure Maps key
 
 ## Production Deployment
 

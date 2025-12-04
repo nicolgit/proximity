@@ -3,8 +3,20 @@
  */
 export const config = {
     apiRoot: import.meta.env.VITE_API_ROOT,
-    azureMapsSubscriptionKey: import.meta.env.VITE_AZURE_MAPS_SUBSCRIPTION_KEY,
 } as const
+
+/**
+ * Runtime map key storage
+ */
+let mapKey: string | null = null
+
+export function setMapKey(key: string): void {
+    mapKey = key
+}
+
+export function getMapKey(): string | null {
+    return mapKey
+}
 
 /**
  * Helper function to build API URLs

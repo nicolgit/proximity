@@ -179,7 +179,21 @@
 
     <!-- Map Container -->
     <div class="map-container">
+      <!-- Loading state for map key -->
+      <div v-if="isLoadingMapKey" class="map-loading">
+        <div class="loading-spinner"></div>
+        <p>Loading map...</p>
+      </div>
+      
+      <!-- Error state for map key -->
+      <div v-else-if="mapKeyError" class="map-error">
+        <p>Failed to load map: {{ mapKeyError }}</p>
+        <button @click="fetchMapKey" class="retry-button">Retry</button>
+      </div>
+      
+      <!-- Map when key is loaded -->
       <l-map
+        v-else-if="mapKey"
         ref="mapRef"
         v-model:zoom="zoom"
         :center="initialCenter"
@@ -363,7 +377,8 @@ import { useLocationSearch } from '@/composables/useLocationSearch'
 import { useStations } from '@/composables/useStations'
 import type { SearchResult, Station } from '@/types'
 import { searchLocationIconSvg, userLocationIconSvg, stationIconSvg, tramStopIconSvg, trolleyStopIconSvg } from '@/utils/mapIcons'
-import { getApiUrl, config } from '@/config/env'
+import { getApiUrl, setMapKey, getMapKey } from '@/config/env'
+import { MapKeyService } from '@/services/MapKeyService'
 import { LCircle, LMap, LMarker, LPopup, LGeoJson, LTileLayer } from '@vue-leaflet/vue-leaflet'
 import { onMounted, ref, computed, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
@@ -412,13 +427,46 @@ const currentLocationClickLocation = ref<[number, number] | null>(null)
 // Area click state for reverse geocoding
 const areaClickLocation = ref<[number, number] | null>(null)
 
+// Map key state
+const mapKey = ref<string | null>(null)
+const isLoadingMapKey = ref(true)
+const mapKeyError = ref<string | null>(null)
+
 // Map configuration
 // Azure Maps tile layer configuration for grayscale_light style
-const azureMapsSubscriptionKey = config.azureMapsSubscriptionKey || 'your-azure-maps-subscription-key-here'
-const azureMapsUrl = computed(() => 
-  `https://atlas.microsoft.com/map/tile?subscription-key=${azureMapsSubscriptionKey}&api-version=2024-04-01&tilesetId=microsoft.base.road&zoom={z}&x={x}&y={y}&tileSize=256`
-)
+const azureMapsUrl = computed(() => {
+  if (!mapKey.value) {
+    return ''
+  }
+  return `https://atlas.microsoft.com/map/tile?subscription-key=${mapKey.value}&api-version=2024-04-01&tilesetId=microsoft.base.road&zoom={z}&x={x}&y={y}&tileSize=256`
+})
 const azureMapsAttribution = '© 2024 Microsoft Corporation, © 2024 TomTom, © OpenStreetMap contributors'
+
+// Fetch map key on component mount
+const fetchMapKey = async () => {
+  try {
+    isLoadingMapKey.value = true
+    mapKeyError.value = null
+    
+    // Check if key is already cached
+    const cachedKey = getMapKey()
+    if (cachedKey) {
+      mapKey.value = cachedKey
+      isLoadingMapKey.value = false
+      return
+    }
+    
+    // Fetch key from API
+    const key = await MapKeyService.fetchMapKey()
+    mapKey.value = key
+    setMapKey(key) // Cache the key
+    isLoadingMapKey.value = false
+  } catch (error) {
+    console.error('Failed to fetch map key:', error)
+    mapKeyError.value = error instanceof Error ? error.message : 'Failed to load map'
+    isLoadingMapKey.value = false
+  }
+}
 
 // Use composables
 const {
@@ -607,6 +655,9 @@ watch(
 // Initialize on mount
 onMounted(async () => {
   console.log('🚀 Component mounted')
+  
+  // Fetch map key first
+  await fetchMapKey()
   
   // Use the shared initialization function
   await initializeMapForArea(props.country, currentAreaId.value)
@@ -1234,6 +1285,52 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* Map loading and error states */
+.map-loading,
+.map-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  background: #f8f9fa;
+  color: #495057;
+}
+
+.map-loading .loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #e9ecef;
+  border-top: 3px solid #007bff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+.map-error p {
+  margin-bottom: 1rem;
+  color: #dc3545;
+}
+
+.retry-button {
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.retry-button:hover {
+  background: #0056b3;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
 .map-view {
   height: 100vh;
   height: 100dvh; /* Dynamic viewport height for better mobile support */
