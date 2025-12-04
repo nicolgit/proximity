@@ -13,6 +13,13 @@ resource mapsAccount 'Microsoft.Maps/accounts@2024-07-01-preview' = {
   kind: 'Gen2'
   properties: {
     disableLocalAuth: false
+    cors: {
+      corsRules: [
+        {
+          allowedOrigins: ['https://proximity.duckiesfarm.com']
+        }
+      ]
+    }
   }
   tags: {
     environment: 'proximity-app'
