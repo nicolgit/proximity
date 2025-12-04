@@ -1,6 +1,6 @@
 <mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.0.3 Chrome/140.0.7339.249 Electron/38.7.0 Safari/537.36" version="29.0.3">
   <diagram name="Page-1" id="o_94vid7xFebRi_YSR5-">
-    <mxGraphModel dx="2492" dy="841" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+    <mxGraphModel dx="2215" dy="701" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -130,7 +130,7 @@
         <mxCell id="GV5Pj42Ep5QnTts1L2Bw-3" value="storage" style="verticalLabelPosition=bottom;html=1;verticalAlign=top;align=center;strokeColor=none;fillColor=#00BEF2;shape=mxgraph.azure.storage_blob;labelBackgroundColor=default;" parent="1" vertex="1">
           <mxGeometry x="570" y="248" width="30" height="24" as="geometry" />
         </mxCell>
-        <mxCell id="GV5Pj42Ep5QnTts1L2Bw-4" value="proxdata&amp;lt;####&amp;gt;" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/storage/Storage_Accounts.svg;" parent="1" vertex="1">
+        <mxCell id="GV5Pj42Ep5QnTts1L2Bw-4" value="proxfn&amp;lt;####&amp;gt;" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/storage/Storage_Accounts.svg;" parent="1" vertex="1">
           <mxGeometry x="566.3100000000001" y="63.1" width="33.62" height="26.9" as="geometry" />
         </mxCell>
         <mxCell id="GV5Pj42Ep5QnTts1L2Bw-5" value="&lt;div&gt;proxfnstorage-blob-pep&lt;/div&gt;&lt;div&gt;10.10.1.14&lt;/div&gt;" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/networking/Private_Endpoint.svg;" parent="1" vertex="1">
@@ -336,20 +336,20 @@
             <mxPoint as="offset" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="CfFRR-ND3HyhzvkOBMYP-1" value="proximity-maps-&amp;lt;####&amp;gt;" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/iot/Azure_Maps_Accounts.svg;" vertex="1" parent="1">
+        <mxCell id="CfFRR-ND3HyhzvkOBMYP-1" value="proximity-maps-&amp;lt;####&amp;gt;" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/iot/Azure_Maps_Accounts.svg;" parent="1" vertex="1">
           <mxGeometry x="223.13000000000002" y="697" width="33" height="33" as="geometry" />
         </mxCell>
-        <mxCell id="CfFRR-ND3HyhzvkOBMYP-2" value="user browser" style="dashed=0;outlineConnect=0;html=1;align=center;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;shape=mxgraph.weblogos.chrome" vertex="1" parent="1">
+        <mxCell id="CfFRR-ND3HyhzvkOBMYP-2" value="user browser" style="dashed=0;outlineConnect=0;html=1;align=center;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;shape=mxgraph.weblogos.chrome" parent="1" vertex="1">
           <mxGeometry x="-30" y="599.56" width="29.76" height="30" as="geometry" />
         </mxCell>
-        <mxCell id="CfFRR-ND3HyhzvkOBMYP-3" value="" style="endArrow=classic;html=1;rounded=1;curved=0;strokeColor=#7EA6E0;" edge="1" parent="1">
+        <mxCell id="CfFRR-ND3HyhzvkOBMYP-3" value="" style="endArrow=classic;html=1;rounded=1;curved=0;strokeColor=#7EA6E0;" parent="1" edge="1">
           <mxGeometry width="50" height="50" relative="1" as="geometry">
             <mxPoint x="-80" y="614" as="sourcePoint" />
             <mxPoint x="-30" y="614.27" as="targetPoint" />
             <Array as="points" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="CfFRR-ND3HyhzvkOBMYP-4" value="" style="endArrow=classic;html=1;rounded=1;curved=0;strokeColor=#7EA6E0;" edge="1" parent="1">
+        <mxCell id="CfFRR-ND3HyhzvkOBMYP-4" value="" style="endArrow=classic;html=1;rounded=1;curved=0;strokeColor=#7EA6E0;" parent="1" edge="1">
           <mxGeometry width="50" height="50" relative="1" as="geometry">
             <mxPoint y="620" as="sourcePoint" />
             <mxPoint x="220" y="720" as="targetPoint" />

@@ -306,14 +306,10 @@ out body;";
             }
 
             // Get Azure Storage connection using Azure AD
-            BlobServiceClient blobServiceClient;
-            try
+            BlobServiceClient? blobServiceClient = AzureStorageHelper.CreateBlobServiceClient(configuration);
+            if (blobServiceClient == null)
             {
-                blobServiceClient = AzureStorageHelper.CreateBlobServiceClient(configuration);
-            }
-            catch (Exception ex)
-            {
-                logger?.LogWarning(ex, "Failed to create Azure Blob Storage client, skipping isochrone generation for station: {StationName}", stationName);
+                logger?.LogWarning("Failed to create Azure Blob Storage client, skipping isochrone generation for station: {StationName}", stationName);
                 return;
             }
 
@@ -587,16 +583,10 @@ out body;";
             logger?.LogInformation("Listing stations for area: {AreaId} with filter: {Filter}", areaId, filter ?? "none");
 
             // Get Azure Storage connection using Azure AD
-            TableServiceClient tableServiceClient;
-            BlobServiceClient blobServiceClient;
-            try
+            TableServiceClient? tableServiceClient = AzureStorageHelper.CreateTableServiceClient(configuration);
+            BlobServiceClient? blobServiceClient = AzureStorageHelper.CreateBlobServiceClient(configuration);
+            if (tableServiceClient == null || blobServiceClient == null)
             {
-                tableServiceClient = AzureStorageHelper.CreateTableServiceClient(configuration);
-                blobServiceClient = AzureStorageHelper.CreateBlobServiceClient(configuration);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"❌ Failed to create Azure Storage clients: {ex.Message}");
                 Environment.Exit(1);
                 return;
             }
@@ -709,16 +699,10 @@ out body;";
                 stationId, areaId, isDeleteMode, deleteDuration?.ToString() ?? "all");
 
             // Get Azure Storage connection using Azure AD
-            TableServiceClient tableServiceClient;
-            BlobServiceClient blobServiceClient;
-            try
+            TableServiceClient? tableServiceClient = AzureStorageHelper.CreateTableServiceClient(configuration);
+            BlobServiceClient? blobServiceClient = AzureStorageHelper.CreateBlobServiceClient(configuration);
+            if (tableServiceClient == null || blobServiceClient == null)
             {
-                tableServiceClient = AzureStorageHelper.CreateTableServiceClient(configuration);
-                blobServiceClient = AzureStorageHelper.CreateBlobServiceClient(configuration);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"❌ Failed to create Azure Storage clients: {ex.Message}");
                 Environment.Exit(1);
                 return;
             }
@@ -872,16 +856,10 @@ out body;";
             Console.WriteLine($"🗑️  Deleting all station isochrones for area: {areaId}");
 
             // Get Azure Storage connection using Azure AD
-            TableServiceClient tableServiceClient;
-            BlobServiceClient blobServiceClient;
-            try
+            TableServiceClient? tableServiceClient = AzureStorageHelper.CreateTableServiceClient(configuration);
+            BlobServiceClient? blobServiceClient = AzureStorageHelper.CreateBlobServiceClient(configuration);
+            if (tableServiceClient == null || blobServiceClient == null)
             {
-                tableServiceClient = AzureStorageHelper.CreateTableServiceClient(configuration);
-                blobServiceClient = AzureStorageHelper.CreateBlobServiceClient(configuration);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"❌ Failed to create Azure Storage clients: {ex.Message}");
                 Environment.Exit(1);
                 return;
             }
@@ -1017,16 +995,10 @@ out body;";
             Console.WriteLine($"🔄 Regenerating all station isochrones for area: {areaId}");
 
             // Get Azure Storage connection using Azure AD
-            TableServiceClient tableServiceClient;
-            BlobServiceClient blobServiceClient;
-            try
+            TableServiceClient? tableServiceClient = AzureStorageHelper.CreateTableServiceClient(configuration);
+            BlobServiceClient? blobServiceClient = AzureStorageHelper.CreateBlobServiceClient(configuration);
+            if (tableServiceClient == null || blobServiceClient == null)
             {
-                tableServiceClient = AzureStorageHelper.CreateTableServiceClient(configuration);
-                blobServiceClient = AzureStorageHelper.CreateBlobServiceClient(configuration);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"❌ Failed to create Azure Storage clients: {ex.Message}");
                 Environment.Exit(1);
                 return;
             }

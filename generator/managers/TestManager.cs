@@ -16,19 +16,13 @@ public static class TestManager
             Console.WriteLine("🔍 Testing Azure Storage permissions...");
 
             // Create BlobServiceClient and TableServiceClient using AzureStorageHelper
-            BlobServiceClient blobServiceClient;
-            TableServiceClient tableServiceClient;
+            BlobServiceClient? blobServiceClient = AzureStorageHelper.CreateBlobServiceClient(configuration);
+            TableServiceClient? tableServiceClient = AzureStorageHelper.CreateTableServiceClient(configuration);
             
-            try
-            {
-                blobServiceClient = AzureStorageHelper.CreateBlobServiceClient(configuration);
-                tableServiceClient = AzureStorageHelper.CreateTableServiceClient(configuration);
-            }
-            catch (InvalidOperationException ex)
+            if (blobServiceClient == null || tableServiceClient == null)
             {
                 logger?.LogInformation("Azure AD credentials or storage URIs not configured. Skipping storage test.");
                 Console.WriteLine("⚠️ Azure configuration not complete - storage test skipped");
-                Console.WriteLine($"   {ex.Message}");
                 Console.WriteLine();
                 return false; // This is a critical failure since we need these for the app to work
             }
