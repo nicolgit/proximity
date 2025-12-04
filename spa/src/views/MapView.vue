@@ -149,8 +149,7 @@
             @input="selectProximityLevelByIndex(($event.target as HTMLInputElement).value)"
             class="proximity-level-slider"
           />
-          <div class="proximity-level-current">
-             within <strong>{{ pendingProximityLevel }} minutes</strong> from a station
+          <div class="proximity-level-current" v-html="proximityLevelDescription">
           </div>
         </div>
         
@@ -790,6 +789,25 @@ const areaIsochronesWithBorderIndex = computed(() => {
   return result
 })
 
+// Computed property to get descriptive text based on station type
+const proximityLevelDescription = computed(() => {
+  const minutes = pendingProximityLevel.value
+  
+  switch (selectedStationType.value) {
+    case 'train':
+      return `within <strong>${minutes} minutes</strong> from a train station`
+    case 'trolley':
+      return `within <strong>${minutes} minutes</strong> from a trolleybus stop`
+    case 'tram':
+      return `within <strong>${minutes} minutes</strong> from a tram stop`
+    case 'none':
+      return `within <strong>${minutes} minutes</strong> (no station filter)`
+    case 'all':
+    default:
+      return `within <strong>${minutes} minutes</strong> from any station`
+  }
+})
+
 // Toggle all stations functionality
 const toggleAllStations = async () => {
   if (areAllStationsVisible.value) {
@@ -829,13 +847,24 @@ const setIsochronesVisibility = async (show: boolean) => {
 }
 
 // Station type selection functionality
-const selectStationType = (type: StationType) => {
+const selectStationType = async (type: StationType) => {
   selectedStationType.value = type
   
   // Auto-load stations for all areas when switching types (if not already visible)
   // Skip auto-loading for 'none' since we don't want to show any stations
   if (type !== 'all' && type !== 'none' && !areAllStationsVisible.value) {
     toggleAllStations()
+  }
+  
+  // Reload isochrones if they are currently visible, since different station types use different APIs
+  if (areAllIsochronesVisible.value) {
+    // Get all currently visible area isochrones
+    const visibleAreaIds = Array.from(visibleAreaIsochrones.value)
+    
+    // Reload isochrones for all visible areas with the new station type
+    for (const areaId of visibleAreaIds) {
+      await loadAreaIsochrones(props.country, areaId)
+    }
   }
 }
 
@@ -867,6 +896,24 @@ const getGeoJsonStyle = (isochrone: any, index: number = 0) => {
   })
 }
 
+// Function to get the appropriate isochrone API endpoint based on station type
+const getIsochroneApiEndpoint = (country: string, areaId: string, timeInterval: number, stationType: StationType): string => {
+  const baseUrl = `/area/${country}/${areaId}/isochrone`
+  
+  switch (stationType) {
+    case 'train':
+      return `${baseUrl}/station/${timeInterval}`
+    case 'trolley':
+      return `${baseUrl}/trolleybus/${timeInterval}`
+    case 'tram':
+      return `${baseUrl}/halt/${timeInterval}`
+    case 'all':
+    case 'none':
+    default:
+      return `${baseUrl}/${timeInterval}`
+  }
+}
+
 // Function to load area isochrones from API
 const loadAreaIsochrones = async (country: string, areaId: string) => {
   const selectedLevel = selectedProximityLevel.value
@@ -886,7 +933,9 @@ const loadAreaIsochrones = async (country: string, areaId: string) => {
   try {
     const promises = levelsToLoad.map(async (timeInterval) => {
       try {
-        const response = await fetch(getApiUrl(`/area/${country}/${areaId}/isochrone/${timeInterval}`))
+        // Use the appropriate API endpoint based on selected station type
+        const endpoint = getIsochroneApiEndpoint(country, areaId, timeInterval, selectedStationType.value)
+        const response = await fetch(getApiUrl(endpoint))
         
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`)
@@ -895,7 +944,7 @@ const loadAreaIsochrones = async (country: string, areaId: string) => {
         const geojson = await response.json()
         return { timeInterval, success: true, data: geojson }
       } catch (error) {
-        console.error(`Error fetching area isochrone for ${timeInterval} minutes:`, error)
+        console.error(`Error fetching area isochrone for ${timeInterval} minutes (station type: ${selectedStationType.value}):`, error)
         return { timeInterval, success: false, data: null }
       }
     })
