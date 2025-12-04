@@ -323,30 +323,50 @@ public class AreaFunction
     /// HTTP GET endpoint to retrieve combined isochrone data for all stations in an area
     /// </summary>
     /// <param name="req">HTTP request</param>
+    /// <param name="country">Country from route</param>
     /// <param name="id">Area ID from route</param>
+    /// <param name="stationType">Station type (station, trolleybus, halt) from route</param>
     /// <param name="time">Time parameter (5, 10, 15, 20, or 30 minutes) from route</param>
     /// <returns>JSON content of the combined isochrone data or 404 if not found</returns>
     [Function("GetAreaIsochroneData")]
     public async Task<IActionResult> GetAreaIsochroneData(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "area/{country}/{id}/isochrone/{time}")] HttpRequest req,
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "area/{country}/{id}/isochrone/{stationType}/{time}")] HttpRequest req,
         string country,
         string id,
+        string stationType,
         string time)
     {
         try
         {
-            _logger.LogInformation("Processing request to get area-level isochrone data for area: {AreaId}, time: {Time}", 
-                id, time);
+            _logger.LogInformation("Processing request to get area-level isochrone data for area: {Country}/{AreaId}, station-type: {StationType}, time: {Time}", 
+                country, id, stationType, time);
 
             // Validate input parameters
+            if (string.IsNullOrWhiteSpace(country))
+            {
+                return new BadRequestObjectResult(new { error = "Country is required" });
+            }
+
             if (string.IsNullOrWhiteSpace(id))
             {
                 return new BadRequestObjectResult(new { error = "Area ID is required" });
             }
 
+            if (string.IsNullOrWhiteSpace(stationType))
+            {
+                return new BadRequestObjectResult(new { error = "Station type is required" });
+            }
+
             if (string.IsNullOrWhiteSpace(time))
             {
                 return new BadRequestObjectResult(new { error = "Time parameter is required" });
+            }
+
+            // Validate station type parameter - must be station, trolleybus, or halt
+            var allowedStationTypes = new[] { "station", "trolleybus", "halt" };
+            if (!allowedStationTypes.Contains(stationType))
+            {
+                return new BadRequestObjectResult(new { error = "Station type must be one of: station, trolleybus, halt" });
             }
 
             // Validate time parameter - must be 5, 10, 15, 20, or 30
@@ -357,11 +377,11 @@ public class AreaFunction
             }
 
             // Get pre-generated isochrone data for the area
-            var areaIsochroneData = await _areaService.GetAreaIsochroneAsync(country, id, time);
+            var areaIsochroneData = await _areaService.GetAreaIsochroneAsync(country, id, stationType, time);
 
             if (areaIsochroneData == null)
             {
-                _logger.LogWarning("Area-level isochrone data not found for area: {country}/{AreaId}, time: {Time}", country, id, time);
+                _logger.LogWarning("Area-level isochrone data not found for area: {country}/{AreaId}, station-type: {StationType}, time: {Time}", country, id, stationType, time);
                 return new NotFoundObjectResult(new { error = $"Area-level isochrone data not found for the specified parameters" });
             }
 
@@ -379,7 +399,7 @@ public class AreaFunction
             CdnResponseService.ConfigureIsochroneResponse(req.HttpContext.Response, areaIsochroneData);
             CdnResponseService.ConfigureCorsHeaders(req.HttpContext.Response);
 
-            _logger.LogInformation("Successfully retrieved area-level isochrone data for area: {country}/{AreaId}, time: {Time}", country, id, time);
+            _logger.LogInformation("Successfully retrieved area-level isochrone data for area: {country}/{AreaId}, station-type: {StationType}, time: {Time}", country, id, stationType, time);
 
             // Return the combined isochrone content as JSON
             return new ContentResult
@@ -391,7 +411,7 @@ public class AreaFunction
         }
         catch (FileNotFoundException ex)
         {
-            _logger.LogWarning(ex, "Area isochrone file not found for area: {country}/{AreaId}, time: {Time}", country, id, time);
+            _logger.LogWarning(ex, "Area isochrone file not found for area: {country}/{AreaId}, station-type: {StationType}, time: {Time}", country, id, stationType, time);
             CdnResponseService.ConfigureNoCacheResponse(req.HttpContext.Response);
             return new NotFoundObjectResult(new { error = ex.Message });
         }
@@ -409,8 +429,8 @@ public class AreaFunction
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Unexpected error occurred while getting area isochrone data for area: {AreaId}, time: {Time}", 
-                id, time);
+            _logger.LogError(ex, "Unexpected error occurred while getting area isochrone data for area: {country}/{AreaId}, station-type: {StationType}, time: {Time}", 
+                country, id, stationType, time);
             CdnResponseService.ConfigureNoCacheResponse(req.HttpContext.Response);
             return new StatusCodeResult(500); // Internal Server Error
         }
