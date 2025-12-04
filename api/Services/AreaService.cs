@@ -177,4 +177,65 @@ public class AreaService
             throw new InvalidOperationException($"Failed to retrieve isochrone for area: {country}/{areaId}, station type: {stationType}", ex);
         }
     }
+
+    /// <summary>
+    /// Retrieves pre-generated isochrone data for a specific area without station type
+    /// </summary>
+    /// <param name="country">The country</param>
+    /// <param name="areaId">The area ID</param>
+    /// <param name="time">The time parameter (5, 10, 15, 20, or 30 minutes)</param>
+    /// <returns>Pre-generated isochrone data as JSON string, or null if file not found</returns>
+    /// <exception cref="FileNotFoundException">Thrown when the isochrone file is not found</exception>
+    public async Task<string?> GetAreaIsochroneAsync(string country, string areaId, string time)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(country))
+                throw new ArgumentException("Country cannot be null or empty", nameof(country));
+
+            if (string.IsNullOrWhiteSpace(areaId))
+                throw new ArgumentException("Area ID cannot be null or empty", nameof(areaId));
+
+            if (string.IsNullOrWhiteSpace(time))
+                throw new ArgumentException("Time parameter cannot be null or empty", nameof(time));
+
+            _logger.LogInformation("Retrieving pre-generated isochrone for area: {country}/{AreaId}, time: {Time}", country, areaId, time);
+
+            // First, verify the area exists
+            var area = await GetAreaByIdAsync(country, areaId);
+            if (area == null)
+            {
+                _logger.LogWarning("Area with ID {country}/{AreaId} not found", country, areaId);
+                throw new FileNotFoundException($"Area with ID {areaId} not found");
+            }
+
+            // Construct the blob path for the pre-generated isochrone file
+            var containerName = "isochrone";
+            var blobPath = $"{country}/{areaId}/{time}min.json";
+
+            _logger.LogDebug("Looking for pre-generated isochrone file at: {BlobPath}", blobPath);
+
+            // Retrieve the pre-generated isochrone data
+            var isochroneData = await _storageService.GetBlobContentAsync(containerName, blobPath);
+
+            if (isochroneData == null)
+            {
+                _logger.LogWarning("Pre-generated isochrone file not found for area: {country}/{AreaId}, time: {Time}, path: {BlobPath}", country, areaId, time, blobPath);
+                throw new FileNotFoundException($"Isochrone data not found for area {country}/{areaId} and time {time} minutes");
+            }
+
+            _logger.LogInformation("Successfully retrieved pre-generated isochrone for area: {country}/{AreaId}, time: {Time}", country, areaId, time);
+            return isochroneData;
+        }
+        catch (FileNotFoundException)
+        {
+            // Re-throw FileNotFoundException as-is for proper HTTP 404 handling
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to retrieve pre-generated isochrone for area: {country}/{AreaId}, time: {Time}", country, areaId, time);
+            throw new InvalidOperationException($"Failed to retrieve isochrone for area: {country}/{areaId}", ex);
+        }
+    }
 }
