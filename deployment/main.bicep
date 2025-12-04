@@ -81,6 +81,15 @@ module staticWebApp 'modules/staticwebapp.bicep' = {
   }
 }
 
+// Deploy Azure Maps
+module azureMaps 'modules/azuremaps.bicep' = {
+  name: 'azuremaps-deployment'
+  params: {
+    location: location
+    uniqueSuffix: uniqueSuffix
+  }
+}
+
 // Outputs
 output vnetId string = networking.outputs.vnetId
 output vnetName string = networking.outputs.vnetName
@@ -123,6 +132,11 @@ output applicationInsightsConnectionString string = applicationInsights.outputs.
 output applicationInsightsInstrumentationKey string = applicationInsights.outputs.applicationInsightsInstrumentationKey
 output logAnalyticsWorkspaceId string = applicationInsights.outputs.logAnalyticsWorkspaceId
 output logAnalyticsWorkspaceName string = applicationInsights.outputs.logAnalyticsWorkspaceName
+
+// Azure Maps Outputs
+output mapsAccountId string = azureMaps.outputs.mapsAccountId
+output mapsAccountName string = azureMaps.outputs.mapsAccountName
+output mapsAccountClientId string = azureMaps.outputs.mapsAccountClientId
 
 
 

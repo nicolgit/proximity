@@ -1,6 +1,6 @@
-<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/28.1.2 Chrome/138.0.7204.243 Electron/37.4.0 Safari/537.36" version="28.1.2">
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.0.3 Chrome/140.0.7339.249 Electron/38.7.0 Safari/537.36" version="29.0.3">
   <diagram name="Page-1" id="o_94vid7xFebRi_YSR5-">
-    <mxGraphModel dx="2756" dy="1414" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+    <mxGraphModel dx="2492" dy="841" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -59,7 +59,7 @@
           <mxGeometry x="208.37" y="642" width="70" height="20" as="geometry" />
         </mxCell>
         <mxCell id="TZj7A_iM_BkXJGJBP_RB-19" value="internet" style="image;aspect=fixed;perimeter=ellipsePerimeter;html=1;align=center;shadow=0;dashed=0;spacingTop=3;image=img/lib/active_directory/internet_cloud.svg;" parent="1" vertex="1">
-          <mxGeometry x="40" y="570" width="95.24" height="60" as="geometry" />
+          <mxGeometry x="40" y="579" width="95.24" height="60" as="geometry" />
         </mxCell>
         <mxCell id="TZj7A_iM_BkXJGJBP_RB-20" value="" style="endArrow=classic;html=1;rounded=1;curved=0;strokeColor=#7EA6E0;" parent="1" edge="1">
           <mxGeometry width="50" height="50" relative="1" as="geometry">
@@ -69,7 +69,7 @@
           </mxGeometry>
         </mxCell>
         <mxCell id="TZj7A_iM_BkXJGJBP_RB-21" value="user" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/management_governance/My_Customers.svg;" parent="1" vertex="1">
-          <mxGeometry x="-50" y="595.56" width="35.73" height="29" as="geometry" />
+          <mxGeometry x="-120" y="592.56" width="35.73" height="29" as="geometry" />
         </mxCell>
         <mxCell id="TZj7A_iM_BkXJGJBP_RB-24" value="" style="endArrow=oval;html=1;rounded=1;curved=0;strokeColor=#7EA6E0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;endFill=1;entryX=0.493;entryY=0.504;entryDx=0;entryDy=0;entryPerimeter=0;" parent="1" source="TZj7A_iM_BkXJGJBP_RB-13" target="TZj7A_iM_BkXJGJBP_RB-9" edge="1">
           <mxGeometry width="50" height="50" relative="1" as="geometry">
@@ -316,7 +316,7 @@
             <mxPoint as="offset" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="FxRjEdKYXGra20SssN0z-2" value="deploy-api.yml" style="endArrow=none;html=1;rounded=1;curved=0;strokeColor=#97D077;endFill=0;startArrow=classic;startFill=1;dashed=1;" edge="1" parent="1">
+        <mxCell id="FxRjEdKYXGra20SssN0z-2" value="deploy-api.yml" style="endArrow=none;html=1;rounded=1;curved=0;strokeColor=#97D077;endFill=0;startArrow=classic;startFill=1;dashed=1;" parent="1" edge="1">
           <mxGeometry width="50" height="50" relative="1" as="geometry">
             <mxPoint x="190" y="468" as="sourcePoint" />
             <mxPoint x="-40" y="198" as="targetPoint" />
@@ -326,7 +326,7 @@
             <mxPoint as="offset" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="FxRjEdKYXGra20SssN0z-3" value="deploy-spa.yml" style="endArrow=none;html=1;rounded=1;curved=0;strokeColor=#97D077;exitX=-0.03;exitY=0.143;exitDx=0;exitDy=0;endFill=0;exitPerimeter=0;startArrow=classic;startFill=1;dashed=1;" edge="1" parent="1">
+        <mxCell id="FxRjEdKYXGra20SssN0z-3" value="deploy-spa.yml" style="endArrow=none;html=1;rounded=1;curved=0;strokeColor=#97D077;exitX=-0.03;exitY=0.143;exitDx=0;exitDy=0;endFill=0;exitPerimeter=0;startArrow=classic;startFill=1;dashed=1;" parent="1" edge="1">
           <mxGeometry width="50" height="50" relative="1" as="geometry">
             <mxPoint x="187" y="559.5900000000001" as="sourcePoint" />
             <mxPoint x="-80" y="198" as="targetPoint" />
@@ -334,6 +334,29 @@
               <mxPoint x="-80" y="560" />
             </Array>
             <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="CfFRR-ND3HyhzvkOBMYP-1" value="proximity-maps-&amp;lt;####&amp;gt;" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/iot/Azure_Maps_Accounts.svg;" vertex="1" parent="1">
+          <mxGeometry x="223.13000000000002" y="697" width="33" height="33" as="geometry" />
+        </mxCell>
+        <mxCell id="CfFRR-ND3HyhzvkOBMYP-2" value="user browser" style="dashed=0;outlineConnect=0;html=1;align=center;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;shape=mxgraph.weblogos.chrome" vertex="1" parent="1">
+          <mxGeometry x="-30" y="599.56" width="29.76" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="CfFRR-ND3HyhzvkOBMYP-3" value="" style="endArrow=classic;html=1;rounded=1;curved=0;strokeColor=#7EA6E0;" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="-80" y="614" as="sourcePoint" />
+            <mxPoint x="-30" y="614.27" as="targetPoint" />
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="CfFRR-ND3HyhzvkOBMYP-4" value="" style="endArrow=classic;html=1;rounded=1;curved=0;strokeColor=#7EA6E0;" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint y="620" as="sourcePoint" />
+            <mxPoint x="220" y="720" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="170" y="620" />
+              <mxPoint x="170" y="720" />
+            </Array>
           </mxGeometry>
         </mxCell>
       </root>

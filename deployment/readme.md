@@ -2,7 +2,7 @@
 
 This document provides comprehensive instructions for deploying the Proximity application infrastructure to Azure. Upon successful deployment, the architecture will match the following diagram:
 
-![Architecture Diagram](architecture.png)
+![Architecture Diagram](proximity-architecture.png)
 
 ## Architecture Overview
 
