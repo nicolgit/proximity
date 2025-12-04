@@ -113,9 +113,9 @@
           </div>
         </div>
         
-        <!-- Isochrones Toggle Segmented Button -->
+        <!-- Range Toggle Segmented Button -->
         <div class="toolbar-section">
-          <div class="toolbar-section-label">isochrones</div>
+          <div class="toolbar-section-label">range</div>
           <div class="segmented-control">
             <button 
               @click="setIsochronesVisibility(false)"
@@ -150,7 +150,7 @@
             class="proximity-level-slider"
           />
           <div class="proximity-level-current">
-             <strong>{{ pendingProximityLevel }}min</strong> isochrones
+             within <strong>{{ pendingProximityLevel }} minutes</strong> from a station
           </div>
         </div>
         
@@ -515,13 +515,14 @@ const visibleStations = ref<Set<string>>(new Set())
 const showAllStations = ref(false)
 
 // Station type filtering
-type StationType = 'all' | 'train' | 'trolley' | 'tram'
+type StationType = 'all' | 'train' | 'trolley' | 'tram' | 'none'
 const selectedStationType = ref<StationType>('all')
 const stationTypeOptions = ref([
   { value: 'all' as const, label: 'all', icon: null },
   { value: 'train' as const, label: 'train', icon: '🚇' },
   { value: 'trolley' as const, label: 'trolley', icon: '🚐' },
-  { value: 'tram' as const, label: 'tram', icon: '🚊' }
+  { value: 'tram' as const, label: 'tram', icon: '🚊' },
+  { value: 'none' as const, label: 'none', icon: '🚫' }
 ])
 
 // Area proximity/isochrone state
@@ -711,6 +712,10 @@ const allVisibleStations = computed(() => {
     return stations
   }
   
+  if (selectedStationType.value === 'none') {
+    return []
+  }
+  
   return stations.filter(station => {
     switch (selectedStationType.value) {
       case 'train':
@@ -828,7 +833,8 @@ const selectStationType = (type: StationType) => {
   selectedStationType.value = type
   
   // Auto-load stations for all areas when switching types (if not already visible)
-  if (type !== 'all' && !areAllStationsVisible.value) {
+  // Skip auto-loading for 'none' since we don't want to show any stations
+  if (type !== 'all' && type !== 'none' && !areAllStationsVisible.value) {
     toggleAllStations()
   }
 }
@@ -1972,6 +1978,13 @@ onUnmounted(() => {
 /* Maintain interactivity on hover */
 :deep(.azure-maps-grayscale:hover) {
   filter: grayscale(90%) brightness(1.05) contrast(0.95);
+}
+
+/* Hide zoom controls on mobile devices */
+@media screen and (max-width: 768px) {
+  :deep(.leaflet-control-zoom) {
+    display: none !important;
+  }
 }
 
 </style>
