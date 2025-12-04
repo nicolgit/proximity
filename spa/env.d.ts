@@ -1,7 +1,8 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
-    readonly API_ROOT: string
+    readonly VITE_API_ROOT: string
+    readonly VITE_AZURE_MAPS_SUBSCRIPTION_KEY: string
     // more env variables...
 }
 

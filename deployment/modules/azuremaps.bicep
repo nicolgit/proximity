@@ -12,7 +12,7 @@ resource mapsAccount 'Microsoft.Maps/accounts@2024-07-01-preview' = {
   }
   kind: 'Gen2'
   properties: {
-    disableLocalAuth: true
+    disableLocalAuth: false
   }
   tags: {
     environment: 'proximity-app'

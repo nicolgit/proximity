@@ -3,6 +3,7 @@
  */
 export const config = {
     apiRoot: import.meta.env.VITE_API_ROOT,
+    azureMapsSubscriptionKey: import.meta.env.VITE_AZURE_MAPS_SUBSCRIPTION_KEY,
 } as const
 
 /**

@@ -188,6 +188,16 @@
         class="leaflet-map"
         @ready="onMapReady"
       >
+        <!-- Azure Maps Tile Layer with grayscale styling -->
+        <l-tile-layer
+          :url="azureMapsUrl"
+          :attribution="azureMapsAttribution"
+          :tile-size="256"
+          :max-zoom="19"
+          layer-type="base"
+          name="Azure Maps"
+          class-name="azure-maps-grayscale"
+        />
          <!-- Marker for selected location -->
          <l-marker
           v-if="selectedLocation"
@@ -353,11 +363,8 @@ import { useLocationSearch } from '@/composables/useLocationSearch'
 import { useStations } from '@/composables/useStations'
 import type { SearchResult, Station } from '@/types'
 import { searchLocationIconSvg, userLocationIconSvg, stationIconSvg, tramStopIconSvg, trolleyStopIconSvg } from '@/utils/mapIcons'
-import { getApiUrl } from '@/config/env'
-import { LCircle, LMap, LMarker, LPopup, LGeoJson } from '@vue-leaflet/vue-leaflet'
-import 'maplibre-gl/dist/maplibre-gl.css'
-import '@maplibre/maplibre-gl-leaflet'
-import * as L from 'leaflet'
+import { getApiUrl, config } from '@/config/env'
+import { LCircle, LMap, LMarker, LPopup, LGeoJson, LTileLayer } from '@vue-leaflet/vue-leaflet'
 import { onMounted, ref, computed, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import WelcomePopup from '@/components/WelcomePopup.vue'
@@ -406,11 +413,12 @@ const currentLocationClickLocation = ref<[number, number] | null>(null)
 const areaClickLocation = ref<[number, number] | null>(null)
 
 // Map configuration
-// Use OpenFreeMap style (MapLibre GL) instead of raster tiles
-const openFreeMapStyleUrl = 'https://tiles.openfreemap.org/styles/positron'
-
-// Reference for the added MapLibre GL layer so we can remove it on unmount
-const maplibreLayerRef = ref<any | null>(null)
+// Azure Maps tile layer configuration for grayscale_light style
+const azureMapsSubscriptionKey = config.azureMapsSubscriptionKey || 'your-azure-maps-subscription-key-here'
+const azureMapsUrl = computed(() => 
+  `https://atlas.microsoft.com/map/tile?subscription-key=${azureMapsSubscriptionKey}&api-version=2024-04-01&tilesetId=microsoft.base.road&zoom={z}&x={x}&y={y}&tileSize=256`
+)
+const azureMapsAttribution = '© 2024 Microsoft Corporation, © 2024 TomTom, © OpenStreetMap contributors'
 
 // Use composables
 const {
@@ -1042,23 +1050,8 @@ const onSearchKeydown = (event: KeyboardEvent) => {
 // Map event handlers
 const onMapReady = () => {
   console.log('🗺️ Map is ready!', mapRef.value?.leafletObject)
-  // Add a MapLibre GL layer (OpenFreeMap) to the Leaflet map using maplibre-gl-leaflet
-  try {
-    if (mapRef.value?.leafletObject) {
-      // @ts-ignore - maplibreGL is injected into Leaflet by the maplibre-leaflet package
-      const maplibreLayer = (L as any).maplibreGL({
-        style: openFreeMapStyleUrl,
-        interactive: true
-      })
-
-      // Add to the Leaflet map
-      maplibreLayer.addTo(mapRef.value.leafletObject)
-      maplibreLayerRef.value = maplibreLayer
-      console.log('✅ MapLibre GL layer added (OpenFreeMap style)')
-    }
-  } catch (e) {
-    console.warn('⚠️ Could not add MapLibre GL layer:', e)
-  }
+  // Azure Maps tiles are now added via LTileLayer component in template
+  console.log('✅ Azure Maps tile layer ready with grayscale_light style')
 }
 
 const onIsochroneClick = async (event: any) => {
@@ -1236,17 +1229,6 @@ onUnmounted(() => {
   if (proximityLevelDebounceTimer) {
     clearTimeout(proximityLevelDebounceTimer)
     proximityLevelDebounceTimer = null
-  }
-
-  // Remove MapLibre GL layer if present
-  try {
-    if (maplibreLayerRef.value && mapRef.value?.leafletObject) {
-      mapRef.value.leafletObject.removeLayer(maplibreLayerRef.value)
-      maplibreLayerRef.value = null
-      console.log('🧹 Removed MapLibre GL layer on unmount')
-    }
-  } catch (e) {
-    console.warn('Error removing MapLibre GL layer on unmount', e)
   }
 })
 </script>
@@ -1882,6 +1864,17 @@ onUnmounted(() => {
 
 .isochrone-popup strong {
   color: #333;
+}
+
+/* Azure Maps grayscale styling for grayscale_light appearance */
+:deep(.azure-maps-grayscale) {
+  filter: grayscale(100%) brightness(1.1) contrast(0.9);
+  transition: filter 0.3s ease;
+}
+
+/* Maintain interactivity on hover */
+:deep(.azure-maps-grayscale:hover) {
+  filter: grayscale(90%) brightness(1.05) contrast(0.95);
 }
 
 </style>
