@@ -118,7 +118,7 @@
           <div class="toolbar-section-label">range</div>
           <div class="segmented-control">
             <button 
-              @click="setIsochronesVisibility(false)"
+              @click="setIsochronesVisibility('none')"
               class="segmented-button"
               :class="{ 'segmented-button--active': !areAllIsochronesVisible }"
               :disabled="areas.length === 0 || isAreasLoading"
@@ -126,7 +126,7 @@
               hide
             </button>
             <button 
-              @click="setIsochronesVisibility(true)"
+              @click="setIsochronesVisibility(selectedStationType)"
               class="segmented-button"
               :class="{ 'segmented-button--active': areAllIsochronesVisible }"
               :disabled="areas.length === 0 || isAreasLoading"
@@ -514,13 +514,13 @@ const visibleStations = ref<Set<string>>(new Set())
 const showAllStations = ref(false)
 
 // Station type filtering
-type StationType = 'all' | 'train' | 'trolley' | 'tram' | 'none'
+type StationType = 'all' | 'station' | 'trolleybus' | 'halt' | 'none'
 const selectedStationType = ref<StationType>('all')
 const stationTypeOptions = ref([
   { value: 'all' as const, label: 'all', icon: null },
-  { value: 'train' as const, label: 'train', icon: '🚇' },
-  { value: 'trolley' as const, label: 'trolley', icon: '🚐' },
-  { value: 'tram' as const, label: 'tram', icon: '🚊' },
+  { value: 'station' as const, label: 'station', icon: '🚇' },
+  { value: 'trolleybus' as const, label: 'trolleybus', icon: '🚐' },
+  { value: 'halt' as const, label: 'halt', icon: '🚊' },
   { value: 'none' as const, label: 'none', icon: '🚫' }
 ])
 
@@ -717,11 +717,11 @@ const allVisibleStations = computed(() => {
   
   return stations.filter(station => {
     switch (selectedStationType.value) {
-      case 'train':
+      case 'station':
         return station.type === 'station' || station.type === 'halt'
-      case 'tram':
+      case 'halt':
         return station.type === 'tram_stop'
-      case 'trolley':
+      case 'trolleybus':
         return station.type === 'trolleybus'
       default:
         return true
@@ -794,11 +794,11 @@ const proximityLevelDescription = computed(() => {
   const minutes = pendingProximityLevel.value
   
   switch (selectedStationType.value) {
-    case 'train':
+    case 'station':
       return `within <strong>${minutes} minutes</strong> from a train station`
-    case 'trolley':
+    case 'trolleybus':
       return `within <strong>${minutes} minutes</strong> from a trolleybus stop`
-    case 'tram':
+    case 'halt':
       return `within <strong>${minutes} minutes</strong> from a tram stop`
     case 'none':
       return `within <strong>${minutes} minutes</strong> (no station filter)`
@@ -828,8 +828,8 @@ const toggleAllStations = async () => {
 }
 
 // Set isochrones visibility functionality
-const setIsochronesVisibility = async (show: boolean) => {
-  if (!show) {
+const setIsochronesVisibility = async (stationType: StationType) => {
+  if (stationType === 'none') {
     // Hide all isochrones
     visibleAreaIsochrones.value.clear()
     // Remove all from map
@@ -837,9 +837,15 @@ const setIsochronesVisibility = async (show: boolean) => {
     // Clear any errors
     areaIsochroneErrors.value.clear()
   } else {
-    // Show isochrones for all areas
+    // Update the selected station type
+    selectedStationType.value = stationType
+    
+    // Show isochrones for all areas with the specified station type
     for (const area of areas.value) {
       if (!visibleAreaIsochrones.value.has(area.id)) {
+        await loadAreaIsochrones(props.country, area.id)
+      } else {
+        // Reload existing isochrones with new station type
         await loadAreaIsochrones(props.country, area.id)
       }
     }
@@ -901,11 +907,11 @@ const getIsochroneApiEndpoint = (country: string, areaId: string, timeInterval: 
   const baseUrl = `/area/${country}/${areaId}/isochrone`
   
   switch (stationType) {
-    case 'train':
+    case 'station':
       return `${baseUrl}/station/${timeInterval}`
-    case 'trolley':
+    case 'trolleybus':
       return `${baseUrl}/trolleybus/${timeInterval}`
-    case 'tram':
+    case 'halt':
       return `${baseUrl}/halt/${timeInterval}`
     case 'all':
     case 'none':
