@@ -6,7 +6,6 @@ using Microsoft.Extensions.Logging;
 using System.Globalization;
 using System.Text.Json;
 using Generator.Types;
-
 namespace Generator.Managers;
 
 public static class StationManager
@@ -58,13 +57,15 @@ out body;";
 
             var stationsProcessed = 0;
             var stationsSkipped = 0;
+
             var railwayStationCount = 0;
             var tramStopCount = 0;
+            var trolleybusStopCount = 0;
 
             if (developerMode)
             {
-                logger?.LogInformation("Developer mode enabled: limiting to first 3 railway stations and 3 tram stops");
-                Console.WriteLine($"🔧 Developer mode: limiting to first 3 railway stations and 3 tram stops");
+                logger?.LogInformation("Developer mode enabled: limiting to first 3 stations per stationType");
+                Console.WriteLine($"🔧 Developer mode: limiting to first 3 stations per stationType");
             }
 
             foreach (var element in elements.EnumerateArray())
@@ -78,8 +79,8 @@ out body;";
                     // Extract station name from tags
                     string? stationName = null;
                     string? wikipediaLink = null;
-                    string? railwayType = null;
-
+                    StationTypes stationType = StationTypes.Undefined;
+                    
                     if (element.TryGetProperty("tags", out var tags))
                     {
                         if (tags.TryGetProperty("name", out var nameProperty))
@@ -87,16 +88,33 @@ out body;";
                             stationName = nameProperty.GetString();
                         }
 
-                        // Extract railway type
-                        if (tags.TryGetProperty("railway", out var railwayProperty))
+                        /* railway types mapping:
+                         * node[""railway""=""station""]                          -> railway station
+                         * node[""railway""=""halt""]                             -> railway station halt
+                         * node[""railway""=""tram_stop"]                         -> tram stop
+                         * node[""highway""=""bus_stop""][""trolleybus""=""yes""] -> trolleybus stop
+                         */
+                        tags.TryGetProperty("railway", out var railwayPropertyOverpass);
+
+                        // Extract railwayType
+                        if (railwayPropertyOverpass.GetString() == "station")
                         {
-                            railwayType = railwayProperty.GetString();
+                            stationType = StationTypes.Station;
                         }
-                        else
+                        else if (railwayPropertyOverpass.GetString() == "halt")
                         {
-                            railwayType = "trolleybus";
+                            stationType = StationTypes.Station;
+                        }
+                        else if (railwayPropertyOverpass.GetString() == "tram_stop")
+                        {
+                            stationType = StationTypes.TramStop;
+                        }
+                        else 
+                        {
+                            stationType = StationTypes.TrolleybusStop;
                         }
 
+                        
                         // Try different Wikipedia tag formats
                         if (tags.TryGetProperty("wikipedia", out var wikiProperty))
                         {
@@ -131,15 +149,21 @@ out body;";
                     // Apply developer mode limits
                     if (developerMode)
                     {
-                        if (railwayType == "station" && railwayStationCount >= 3)
+                        if (stationType == StationTypes.Station && railwayStationCount >= 3)
                         {
                             logger?.LogDebug("Skipping railway station {StationName} - developer limit reached (3)", stationName);
                             stationsSkipped++;
                             continue;
                         }
-                        if (railwayType == "tram_stop" && tramStopCount >= 3)
+                        if (stationType == StationTypes.TramStop && tramStopCount >= 3)
                         {
                             logger?.LogDebug("Skipping tram stop {StationName} - developer limit reached (3)", stationName);
+                            stationsSkipped++;
+                            continue;
+                        }
+                        if (stationType == StationTypes.TrolleybusStop && trolleybusStopCount >= 3)
+                        {
+                            logger?.LogDebug("Skipping trolleybus stop {StationName} - developer limit reached (3)", stationName);
                             stationsSkipped++;
                             continue;
                         }
@@ -156,7 +180,7 @@ out body;";
                         Latitude = stationLat,
                         Longitude = stationLon,
                         WikipediaLink = wikipediaLink,
-                        Railway = railwayType ?? "unknown"
+                        Railway = stationType.ToStringValue()
                     };
 
                     // Store in Azure Table Storage
@@ -166,25 +190,27 @@ out body;";
                     // Generate and save isochrone data (unless skipped)
                     if (!noIsochrone)
                     {
-                        await GenerateAndSaveIsochroneAsync(areaName, stationId, stationName, stationLat, stationLon, railwayType, logger, configuration);
+                        await GenerateAndSaveIsochroneAsync(areaName, stationId, stationName, stationLat, stationLon, stationType, logger, configuration);
                     }
                     else
                     {
                         logger?.LogInformation("Skipping isochrone generation for station: {StationName} (--noisochrone flag)", stationName);
-                        Console.WriteLine($"  {stationName,-30} ⏭️ Skipping isochrone generation (--noisochrone flag)");
+                        Console.WriteLine($"  {stationName,-30} {stationType.ToStringValue(),-10} ⏭️ Skipping isochrone generation (--noisochrone flag)");
                     }
 
                     // Update counters for developer mode
                     if (developerMode)
                     {
-                        if (railwayType == "station")
+                        if (stationType == StationTypes.Station)
                             railwayStationCount++;
-                        else if (railwayType == "tram_stop")
+                        else if (stationType == StationTypes.TramStop)
                             tramStopCount++;
+                        else if (stationType == StationTypes.TrolleybusStop)
+                            trolleybusStopCount++;
                     }
 
                     logger?.LogDebug("Stored station: {Name} (ID: {Id}, Railway: {Railway}) at ({Lat}, {Lon})",
-                        stationName, stationId, railwayType ?? "unknown", stationLat, stationLon);
+                        stationName, stationId, stationType.ToStringValue(), stationLat, stationLon);
                 }
                 catch (Exception ex)
                 {
@@ -289,7 +315,7 @@ out body;";
     }
 
     public static async Task GenerateAndSaveIsochroneAsync(string areaName, string stationId, string stationName, 
-        double latitude, double longitude, string? railwayType, ILogger? logger, IConfiguration? configuration)
+        double latitude, double longitude, StationTypes stationType, ILogger? logger, IConfiguration? configuration)
     {
         try
         {
@@ -347,7 +373,7 @@ out body;";
                         }
 
                         // Add styling properties to the GeoJSON
-                        var styledIsochroneJson = AddStylingToIsochrone(isochroneJson, duration, railwayType, logger);
+                        var styledIsochroneJson = AddStylingToIsochrone(isochroneJson, duration, stationType, logger);
 
                         // Create blob path: /areaid/stationid/duration.json
                         var blobPath = $"{areaName.ToLowerInvariant()}/{stationId}/{duration}min.json";
@@ -399,7 +425,205 @@ out body;";
         }
     }
 
-    private static string AddStylingToIsochrone(string isochroneJson, int duration, string? railwayType, ILogger? logger)
+    public static async Task GenerateAndSaveStationTypeIsochroneAsync(string areaName, StationTypes stationType, int duration, ILogger? logger, IConfiguration? configuration)
+    {
+        try
+        {
+            logger?.LogInformation("Generating station type isochrone for area: {AreaName}, station type: {StationType}, duration: {Duration}min", areaName, stationType, duration);
+            Console.WriteLine($"🚉 Generating {duration}min {stationType.ToStringValue()} isochrones for area: {areaName}");
+
+            // Get Azure Storage connection using Azure AD
+            TableServiceClient? tableServiceClient = AzureStorageHelper.CreateTableServiceClient(configuration);
+            BlobServiceClient? blobServiceClient = AzureStorageHelper.CreateBlobServiceClient(configuration);
+            if (tableServiceClient == null || blobServiceClient == null)
+            {
+                logger?.LogError("Failed to create Azure Storage clients");
+                Environment.Exit(1);
+                return;
+            }
+
+            // Connect to Azure Table Storage and Blob Storage
+            var stationTableClient = tableServiceClient.GetTableClient("station");
+            var containerClient = blobServiceClient.GetBlobContainerClient("isochrone");
+
+            logger?.LogInformation("Connected to Azure Storage services");
+
+            // Check if isochrone container exists
+            if (!await containerClient.ExistsAsync())
+            {
+                logger?.LogWarning("Isochrone container does not exist for area: {AreaName}", areaName);
+                Console.WriteLine($"  ⚠️ No isochrone container found, cannot generate station type isochrones");
+                return;
+            }
+
+            // Query all stations for this area with the specified station type
+            var stationsPartitionKey = areaName.Replace('/', '-').ToLowerInvariant();
+            var stations = new List<StationEntity>();
+            await foreach (var station in stationTableClient.QueryAsync<StationEntity>(
+                filter: $"PartitionKey eq '{stationsPartitionKey}' and Railway eq '{stationType.ToStringValue()}'"))
+            {
+                stations.Add(station);
+            }
+
+            if (!stations.Any())
+            {
+                logger?.LogInformation("No stations found for area: {AreaName} with station type: {StationType}", areaName, stationType);
+                Console.WriteLine($"  ℹ️ No {stationType.ToStringValue()} stations found in area: {areaName}");
+                return;
+            }
+
+            Console.WriteLine($"  📊 Found {stations.Count} {stationType.ToStringValue()} stations to process");
+
+            // Import required namespaces for GeoJSON processing
+            var geoJsonReader = new NetTopologySuite.IO.GeoJsonReader();
+            var geoJsonWriter = new NetTopologySuite.IO.GeoJsonWriter();
+
+            try
+            {
+                logger?.LogInformation("Processing {Duration}min isochrones for station type: {StationType}", duration, stationType);
+                Console.WriteLine($"  📍 Processing {duration}min isochrones...");
+
+                    var geometries = new List<NetTopologySuite.Geometries.Geometry>();
+
+                    // Read all isochrones from each station of this type for the current duration
+                    foreach (var station in stations)
+                    {
+                        var stationIsochronePath = $"{areaName.ToLowerInvariant()}/{station.RowKey}/{duration}min.json";
+                        var stationBlobClient = containerClient.GetBlobClient(stationIsochronePath);
+
+                        try
+                        {
+                            var response = await stationBlobClient.DownloadContentAsync();
+                            var geoJsonContent = response.Value.Content.ToString();
+
+                            // Parse GeoJSON using NetTopologySuite
+                            var stationFeatureCollection = geoJsonReader.Read<NetTopologySuite.Features.FeatureCollection>(geoJsonContent);
+                            
+                            if (stationFeatureCollection != null)
+                            {
+                                foreach (var stationFeature in stationFeatureCollection)
+                                {
+                                    if (stationFeature.Geometry != null)
+                                    {
+                                        geometries.Add(stationFeature.Geometry);
+                                    }
+                                }
+                            }
+
+                            logger?.LogDebug("Successfully parsed isochrone file: {BlobPath}", stationIsochronePath);
+                        }
+                        catch (Exception ex)
+                        {
+                            logger?.LogWarning(ex, "Failed to read isochrone file for station {StationId}: {BlobPath}", station.RowKey, stationIsochronePath);
+                        }
+                    }
+
+                    if (!geometries.Any())
+                    {
+                        logger?.LogWarning("No valid geometries found for station type: {StationType}, duration: {Duration}min", stationType, duration);
+                        Console.WriteLine($"    ⚠️ No valid geometries found for {duration}min");
+                        return;
+                    }
+
+                    logger?.LogInformation("Processing {Count} geometries for union operation", geometries.Count);
+
+                    // Merge all isochrones into one
+                    NetTopologySuite.Geometries.Geometry unionGeometry;
+                    if (geometries.Count == 1)
+                    {
+                        unionGeometry = geometries[0];
+                    }
+                    else
+                    {
+                        // Use CascadedPolygonUnion for better performance with many polygons
+                        var unionOp = new NetTopologySuite.Operation.Union.CascadedPolygonUnion(geometries);
+                        unionGeometry = unionOp.Union();
+                    }
+
+                    // Ensure the result is valid
+                    if (!unionGeometry.IsValid)
+                    {
+                        logger?.LogWarning("Union geometry is not valid, attempting to buffer with 0 distance");
+                        unionGeometry = unionGeometry.Buffer(0);
+                    }
+
+                    logger?.LogInformation("Successfully created union geometry with {GeomType}", unionGeometry.GeometryType);
+
+                    // Create GeoJSON feature collection with the union geometry
+                    var resultFeature = new NetTopologySuite.Features.Feature(unionGeometry, new NetTopologySuite.Features.AttributesTable());
+                    
+                    // Add properties based on station type with appropriate styling
+                    string fillColor, strokeColor;
+                    if (stationType == StationTypes.Station)
+                    {
+                        // Train station - green
+                        fillColor = "#22c55e";
+                        strokeColor = "#22c55e";
+                    }
+                    else if (stationType == StationTypes.TramStop)
+                    {
+                        // Tram stop - yellow
+                        fillColor = "#eab308";
+                        strokeColor = "#eab308";
+                    }
+                    else if (stationType == StationTypes.TrolleybusStop)
+                    {
+                        // Trolleybus stop - blue
+                        fillColor = "#3b82f6";
+                        strokeColor = "#3b82f6";
+                    }
+                    else
+                    {
+                        // Default for unknown types
+                        fillColor = "#6b7280";
+                        strokeColor = "#6b7280";
+                    }
+
+                    resultFeature.Attributes.Add("fill", fillColor);
+                    resultFeature.Attributes.Add("stroke", strokeColor);
+                    resultFeature.Attributes.Add("fill-opacity", 0.2); // Slightly more visible than individual station isochrones
+                    resultFeature.Attributes.Add("stroke-width", 2);
+                    resultFeature.Attributes.Add("contour", duration);
+                    resultFeature.Attributes.Add("metric", "time");
+                    resultFeature.Attributes.Add("type", "station-type");
+                    resultFeature.Attributes.Add("railway-type", stationType.ToStringValue());
+
+                    var resultFeatureCollection = new NetTopologySuite.Features.FeatureCollection { resultFeature };
+
+                    // Convert to GeoJSON string
+                    var geoJsonResult = geoJsonWriter.Write(resultFeatureCollection);
+
+                    // Save it in container {areaName.ToLowerInvariant()}/{stationType}-{duration}min.json
+                    var stationTypeIsochronePath = $"{areaName.ToLowerInvariant()}/{stationType.ToStringValue()}-{duration}min.json";
+                    var stationTypeBlobClient = containerClient.GetBlobClient(stationTypeIsochronePath);
+
+                    using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(geoJsonResult));
+                    await stationTypeBlobClient.UploadAsync(stream, overwrite: true);
+
+                    logger?.LogInformation("Successfully saved station type isochrone to: {BlobPath}", stationTypeIsochronePath);
+                    Console.WriteLine($"    ✓ Saved {duration}min {stationType.ToStringValue()} isochrone to: {stationTypeIsochronePath}");
+            }
+            catch (Exception ex)
+            {
+                logger?.LogError(ex, "Failed to generate {Duration}min isochrone for station type: {StationType}", duration, stationType);
+                Console.WriteLine($"    ❌ Failed to generate {duration}min isochrone: {ex.Message}");
+                throw;
+            }
+
+            Console.WriteLine($"  ✅ Completed {duration}min station type isochrone generation for {stationType.ToStringValue()} stations in area: {areaName}");
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Failed to generate station type isochrones for area: {AreaName}, station type: {StationType}", areaName, stationType);
+            Console.WriteLine($"❌ Failed to generate station type isochrones for area: {areaName}, station type: {stationType.ToStringValue()}");
+            Console.WriteLine($"   Error: {ex.Message}");
+            throw;
+        }
+    }
+
+
+
+    private static string AddStylingToIsochrone(string isochroneJson, int duration, StationTypes stationType, ILogger? logger)
     {
         try
         {
@@ -408,19 +632,19 @@ out body;";
             
             // Determine colors based on railway type
             string fillColor, strokeColor;
-            if (railwayType == "station" || railwayType == "halt")
+            if (stationType == StationTypes.Station)
             {
                 // Train station - green
                 fillColor = "#22c55e";
                 strokeColor = "#22c55e";
             }
-            else if (railwayType == "tram_stop")
+            else if (stationType == StationTypes.TramStop)
             {
                 // Tram stop - yellow
                 fillColor = "#eab308";
                 strokeColor = "#eab308";
             }
-            else if (railwayType == "trolleybus")
+            else if (stationType == StationTypes.TrolleybusStop)
             {
                 // Halt - blue
                 fillColor = "#3b82f6";
@@ -479,7 +703,7 @@ out body;";
                     writer.WriteString("stroke", strokeColor);
                     writer.WriteNumber("fill-opacity", fillOpacity);
                     writer.WriteNumber("stroke-width", strokeWidth);
-                    writer.WriteString("railway-type", railwayType ?? "unknown");
+                    writer.WriteString("railway-type", stationType.ToStringValue());
                     
                     writer.WriteEndObject(); // properties
                     writer.WriteEndObject(); // feature
@@ -758,8 +982,10 @@ out body;";
             }
             else
             {
+                var stationType = StationTypeExtensions.FromString(station.Railway);
+
                 // Generate isochrone data for the station
-                await GenerateAndSaveIsochroneAsync(areaId, stationId, station.Name, station.Latitude, station.Longitude, station.Railway, logger, configuration);
+                await GenerateAndSaveIsochroneAsync(areaId, stationId, station.Name, station.Latitude, station.Longitude, stationType, logger, configuration);
                 Console.WriteLine($"✓ Successfully generated isochrone data for station '{station.Name}'");
             }
         }
@@ -1064,7 +1290,8 @@ out body;";
 
                     // Generate new isochrones for this station
                     Console.WriteLine($"   🔄 Generating new isochrones...");
-                    await GenerateAndSaveIsochroneAsync(areaId, station.RowKey, station.Name, station.Latitude, station.Longitude, station.Railway, logger, configuration);
+                    var stationType = StationTypeExtensions.FromString(station.Railway);
+                    await GenerateAndSaveIsochroneAsync(areaId, station.RowKey, station.Name, station.Latitude, station.Longitude, stationType, logger, configuration);
                     
                     Console.WriteLine($"   ✅ Successfully regenerated isochrones for: {station.Name}");
                     successCount++;
@@ -1143,4 +1370,5 @@ out body;";
             throw;
         }
     }
-}
+
+    }
