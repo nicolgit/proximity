@@ -363,7 +363,7 @@ public class AreaFunction
             }
 
             // Validate station type parameter - must be station, trolleybus, or halt
-            var allowedStationTypes = new[] { "station", "trolleybus", "halt" };
+            var allowedStationTypes = new[] { "station", "trolleybus", "tram_stop" };
             if (!allowedStationTypes.Contains(stationType))
             {
                 return new BadRequestObjectResult(new { error = "Station type must be one of: station, trolleybus, halt" });

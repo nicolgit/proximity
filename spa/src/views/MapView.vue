@@ -514,13 +514,13 @@ const visibleStations = ref<Set<string>>(new Set())
 const showAllStations = ref(false)
 
 // Station type filtering
-type StationType = 'all' | 'station' | 'trolleybus' | 'halt' | 'none'
+type StationType = 'all' | 'station' | 'trolleybus' | 'tram_stop' | 'none'
 const selectedStationType = ref<StationType>('all')
 const stationTypeOptions = ref([
   { value: 'all' as const, label: 'all', icon: null },
   { value: 'station' as const, label: 'station', icon: '🚇' },
-  { value: 'trolleybus' as const, label: 'trolleybus', icon: '🚐' },
-  { value: 'halt' as const, label: 'halt', icon: '🚊' },
+  { value: 'trolleybus' as const, label: 'trolley bus', icon: '🚐' },
+  { value: 'tram_stop' as const, label: 'tram', icon: '🚊' },
   { value: 'none' as const, label: 'none', icon: '🚫' }
 ])
 
@@ -719,7 +719,7 @@ const allVisibleStations = computed(() => {
     switch (selectedStationType.value) {
       case 'station':
         return station.type === 'station' || station.type === 'halt'
-      case 'halt':
+      case 'tram_stop':
         return station.type === 'tram_stop'
       case 'trolleybus':
         return station.type === 'trolleybus'
@@ -798,7 +798,7 @@ const proximityLevelDescription = computed(() => {
       return `within <strong>${minutes} minutes</strong> from a train station`
     case 'trolleybus':
       return `within <strong>${minutes} minutes</strong> from a trolleybus stop`
-    case 'halt':
+    case 'tram_stop':
       return `within <strong>${minutes} minutes</strong> from a tram stop`
     case 'none':
       return `within <strong>${minutes} minutes</strong> (no station filter)`
@@ -911,8 +911,8 @@ const getIsochroneApiEndpoint = (country: string, areaId: string, timeInterval: 
       return `${baseUrl}/station/${timeInterval}`
     case 'trolleybus':
       return `${baseUrl}/trolleybus/${timeInterval}`
-    case 'halt':
-      return `${baseUrl}/halt/${timeInterval}`
+    case 'tram_stop':
+      return `${baseUrl}/tram_stop/${timeInterval}`
     case 'all':
     case 'none':
     default:

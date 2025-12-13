@@ -31,6 +31,7 @@ public static class StationManager
   node[""railway""=""halt""](around:{radiusMeters},{latitude.ToString(CultureInfo.InvariantCulture)},{longitude.ToString(CultureInfo.InvariantCulture)});
   node[""railway""=""tram_stop""](around:{radiusMeters},{latitude.ToString(CultureInfo.InvariantCulture)},{longitude.ToString(CultureInfo.InvariantCulture)});
   node[""highway""=""bus_stop""][""trolleybus""=""yes""](around:{radiusMeters},{latitude.ToString(CultureInfo.InvariantCulture)},{longitude.ToString(CultureInfo.InvariantCulture)});
+  rel[""route""=""trolleybus""](around:{radiusMeters},{latitude.ToString(CultureInfo.InvariantCulture)},{longitude.ToString(CultureInfo.InvariantCulture)});
 );
 out body;";
 
@@ -39,6 +40,8 @@ out body;";
             httpClient.Timeout = TimeSpan.FromSeconds(30);
 
             var requestBody = new StringContent(overpassQuery, System.Text.Encoding.UTF8, "text/plain");
+            Console.WriteLine("  🌐 Calling Overpass API request body...");
+            Console.WriteLine(overpassQuery);
             var response = await httpClient.PostAsync("https://overpass-api.de/api/interpreter", requestBody);
 
             if (!response.IsSuccessStatusCode)
@@ -92,12 +95,15 @@ out body;";
                          * node[""railway""=""station""]                          -> railway station
                          * node[""railway""=""halt""]                             -> railway station halt
                          * node[""railway""=""tram_stop"]                         -> tram stop
-                         * node[""highway""=""bus_stop""][""trolleybus""=""yes""] -> trolleybus stop
+                         * tutti gli altri                                        -> trolleybus stop
                          */
                         tags.TryGetProperty("railway", out var railwayPropertyOverpass);
 
-                        // Extract railwayType
-                        if (railwayPropertyOverpass.GetString() == "station")
+                        if (railwayPropertyOverpass.ValueKind == JsonValueKind.Undefined)
+                        {
+                            stationType = StationTypes.TrolleybusStop;
+                        }
+                        else if (railwayPropertyOverpass.GetString() == "station")
                         {
                             stationType = StationTypes.Station;
                         }
@@ -109,10 +115,11 @@ out body;";
                         {
                             stationType = StationTypes.TramStop;
                         }
-                        else 
+                        else
                         {
-                            stationType = StationTypes.TrolleybusStop;
+                            stationType = StationTypes.Undefined;
                         }
+
 
                         
                         // Try different Wikipedia tag formats
@@ -142,6 +149,7 @@ out body;";
                     if (string.IsNullOrWhiteSpace(stationName))
                     {
                         logger?.LogDebug("Skipping station {StationId} - no name found", stationId);
+                        Console.WriteLine($"  ⚠️ Skipping unnamed station (ID: {stationId})");
                         stationsSkipped++;
                         continue;
                     }
