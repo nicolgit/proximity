@@ -6,6 +6,19 @@ export const config = {
 } as const
 
 /**
+ * Runtime map key storage
+ */
+let mapKey: string | null = null
+
+export function setMapKey(key: string): void {
+    mapKey = key
+}
+
+export function getMapKey(): string | null {
+    return mapKey
+}
+
+/**
  * Helper function to build API URLs
  */
 export function getApiUrl(endpoint: string): string {

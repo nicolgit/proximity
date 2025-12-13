@@ -4,11 +4,12 @@
         "AzureWebJobsStorage": "UseDevelopmentStorage=true",
         "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
         "authentication": "identity|secret",
-        "tenantId": "<your-tenant-id>",            // required for clientSecret auth
-        "clientId": "<your-client-id>",            // required for clientSecret auth
-        "clientSecret": "<your-client-secret>",    // required for clientSecret auth
+        "tenantId": "<your-tenant-id>",            // required for authentication == secret
+        "clientId": "<your-client-id>",            // required for authentication == secret
+        "clientSecret": "<your-client-secret>",    // required for authentication == secret
         "blobUri": "https://<your-storage-account>.blob.core.windows.net/",
-        "tableUri": "https://<your-storage-account>.table.core.windows.net/"
+        "tableUri": "https://<your-storage-account>.table.core.windows.net/",
+        "mapKey": "<your-azure-maps-key>"
     },
     "Host": {
         "CORS": "<* in dev or nothing in production>"

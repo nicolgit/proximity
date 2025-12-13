@@ -9,6 +9,8 @@ param mainStorageAccountId string
 param applicationInsightsConnectionString string
 param applicationInsightsInstrumentationKey string
 param logAnalyticsWorkspaceId string
+@secure()
+param mapsAccountPrimaryKey string
 
 // Generate function app name
 var functionAppName = 'api-backend-${take(uniqueSuffix, 6)}'
@@ -111,6 +113,10 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
         {
           name: 'tableUri'
           value: 'https://${mainStorageAccountName}.table.${environment().suffixes.storage}/'
+        }
+        {
+          name: 'mapKey'
+          value: mapsAccountPrimaryKey
         }
       ]
     }

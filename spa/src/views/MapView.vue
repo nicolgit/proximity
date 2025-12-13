@@ -113,12 +113,12 @@
           </div>
         </div>
         
-        <!-- Isochrones Toggle Segmented Button -->
+        <!-- Range Toggle Segmented Button -->
         <div class="toolbar-section">
-          <div class="toolbar-section-label">isochrones</div>
+          <div class="toolbar-section-label">range</div>
           <div class="segmented-control">
             <button 
-              @click="setIsochronesVisibility(false)"
+              @click="setIsochronesVisibility('none')"
               class="segmented-button"
               :class="{ 'segmented-button--active': !areAllIsochronesVisible }"
               :disabled="areas.length === 0 || isAreasLoading"
@@ -126,7 +126,7 @@
               hide
             </button>
             <button 
-              @click="setIsochronesVisibility(true)"
+              @click="setIsochronesVisibility(selectedStationType)"
               class="segmented-button"
               :class="{ 'segmented-button--active': areAllIsochronesVisible }"
               :disabled="areas.length === 0 || isAreasLoading"
@@ -149,8 +149,7 @@
             @input="selectProximityLevelByIndex(($event.target as HTMLInputElement).value)"
             class="proximity-level-slider"
           />
-          <div class="proximity-level-current">
-             <strong>{{ pendingProximityLevel }}min</strong> isochrones
+          <div class="proximity-level-current" v-html="proximityLevelDescription">
           </div>
         </div>
         
@@ -179,7 +178,21 @@
 
     <!-- Map Container -->
     <div class="map-container">
+      <!-- Loading state for map key -->
+      <div v-if="isLoadingMapKey" class="map-loading">
+        <div class="loading-spinner"></div>
+        <p>Loading map...</p>
+      </div>
+      
+      <!-- Error state for map key -->
+      <div v-else-if="mapKeyError" class="map-error">
+        <p>Failed to load map: {{ mapKeyError }}</p>
+        <button @click="fetchMapKey" class="retry-button">Retry</button>
+      </div>
+      
+      <!-- Map when key is loaded -->
       <l-map
+        v-else-if="mapKey"
         ref="mapRef"
         v-model:zoom="zoom"
         :center="initialCenter"
@@ -188,6 +201,16 @@
         class="leaflet-map"
         @ready="onMapReady"
       >
+        <!-- Azure Maps Tile Layer with grayscale styling -->
+        <l-tile-layer
+          :url="azureMapsUrl"
+          :attribution="azureMapsAttribution"
+          :tile-size="256"
+          :max-zoom="19"
+          layer-type="base"
+          name="Azure Maps"
+          class-name="azure-maps-grayscale"
+        />
          <!-- Marker for selected location -->
          <l-marker
           v-if="selectedLocation"
@@ -353,11 +376,9 @@ import { useLocationSearch } from '@/composables/useLocationSearch'
 import { useStations } from '@/composables/useStations'
 import type { SearchResult, Station } from '@/types'
 import { searchLocationIconSvg, userLocationIconSvg, stationIconSvg, tramStopIconSvg, trolleyStopIconSvg } from '@/utils/mapIcons'
-import { getApiUrl } from '@/config/env'
-import { LCircle, LMap, LMarker, LPopup, LGeoJson } from '@vue-leaflet/vue-leaflet'
-import 'maplibre-gl/dist/maplibre-gl.css'
-import '@maplibre/maplibre-gl-leaflet'
-import * as L from 'leaflet'
+import { getApiUrl, setMapKey, getMapKey } from '@/config/env'
+import { MapKeyService } from '@/services/MapKeyService'
+import { LCircle, LMap, LMarker, LPopup, LGeoJson, LTileLayer } from '@vue-leaflet/vue-leaflet'
 import { onMounted, ref, computed, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import WelcomePopup from '@/components/WelcomePopup.vue'
@@ -405,12 +426,46 @@ const currentLocationClickLocation = ref<[number, number] | null>(null)
 // Area click state for reverse geocoding
 const areaClickLocation = ref<[number, number] | null>(null)
 
-// Map configuration
-// Use OpenFreeMap style (MapLibre GL) instead of raster tiles
-const openFreeMapStyleUrl = 'https://tiles.openfreemap.org/styles/positron'
+// Map key state
+const mapKey = ref<string | null>(null)
+const isLoadingMapKey = ref(true)
+const mapKeyError = ref<string | null>(null)
 
-// Reference for the added MapLibre GL layer so we can remove it on unmount
-const maplibreLayerRef = ref<any | null>(null)
+// Map configuration
+// Azure Maps tile layer configuration for grayscale_light style
+const azureMapsUrl = computed(() => {
+  if (!mapKey.value) {
+    return ''
+  }
+  return `https://atlas.microsoft.com/map/tile?subscription-key=${mapKey.value}&api-version=2024-04-01&tilesetId=microsoft.base.road&zoom={z}&x={x}&y={y}&tileSize=256`
+})
+const azureMapsAttribution = '© 2024 Microsoft Corporation, © 2024 TomTom, © OpenStreetMap contributors'
+
+// Fetch map key on component mount
+const fetchMapKey = async () => {
+  try {
+    isLoadingMapKey.value = true
+    mapKeyError.value = null
+    
+    // Check if key is already cached
+    const cachedKey = getMapKey()
+    if (cachedKey) {
+      mapKey.value = cachedKey
+      isLoadingMapKey.value = false
+      return
+    }
+    
+    // Fetch key from API
+    const key = await MapKeyService.fetchMapKey()
+    mapKey.value = key
+    setMapKey(key) // Cache the key
+    isLoadingMapKey.value = false
+  } catch (error) {
+    console.error('Failed to fetch map key:', error)
+    mapKeyError.value = error instanceof Error ? error.message : 'Failed to load map'
+    isLoadingMapKey.value = false
+  }
+}
 
 // Use composables
 const {
@@ -459,13 +514,14 @@ const visibleStations = ref<Set<string>>(new Set())
 const showAllStations = ref(false)
 
 // Station type filtering
-type StationType = 'all' | 'train' | 'trolley' | 'tram'
+type StationType = 'all' | 'station' | 'trolleybus' | 'tram_stop' | 'none'
 const selectedStationType = ref<StationType>('all')
 const stationTypeOptions = ref([
   { value: 'all' as const, label: 'all', icon: null },
-  { value: 'train' as const, label: 'train', icon: '🚇' },
-  { value: 'trolley' as const, label: 'trolley', icon: '🚐' },
-  { value: 'tram' as const, label: 'tram', icon: '🚊' }
+  { value: 'station' as const, label: 'station', icon: '🚇' },
+  { value: 'trolleybus' as const, label: 'trolley bus', icon: '🚐' },
+  { value: 'tram_stop' as const, label: 'tram', icon: '🚊' },
+  { value: 'none' as const, label: 'none', icon: '🚫' }
 ])
 
 // Area proximity/isochrone state
@@ -600,6 +656,9 @@ watch(
 onMounted(async () => {
   console.log('🚀 Component mounted')
   
+  // Fetch map key first
+  await fetchMapKey()
+  
   // Use the shared initialization function
   await initializeMapForArea(props.country, currentAreaId.value)
 })
@@ -652,13 +711,17 @@ const allVisibleStations = computed(() => {
     return stations
   }
   
+  if (selectedStationType.value === 'none') {
+    return []
+  }
+  
   return stations.filter(station => {
     switch (selectedStationType.value) {
-      case 'train':
+      case 'station':
         return station.type === 'station' || station.type === 'halt'
-      case 'tram':
+      case 'tram_stop':
         return station.type === 'tram_stop'
-      case 'trolley':
+      case 'trolleybus':
         return station.type === 'trolleybus'
       default:
         return true
@@ -726,6 +789,25 @@ const areaIsochronesWithBorderIndex = computed(() => {
   return result
 })
 
+// Computed property to get descriptive text based on station type
+const proximityLevelDescription = computed(() => {
+  const minutes = pendingProximityLevel.value
+  
+  switch (selectedStationType.value) {
+    case 'station':
+      return `within <strong>${minutes} minutes</strong> from a train station`
+    case 'trolleybus':
+      return `within <strong>${minutes} minutes</strong> from a trolleybus stop`
+    case 'tram_stop':
+      return `within <strong>${minutes} minutes</strong> from a tram stop`
+    case 'none':
+      return `within <strong>${minutes} minutes</strong> (no station filter)`
+    case 'all':
+    default:
+      return `within <strong>${minutes} minutes</strong> from any station`
+  }
+})
+
 // Toggle all stations functionality
 const toggleAllStations = async () => {
   if (areAllStationsVisible.value) {
@@ -746,8 +828,8 @@ const toggleAllStations = async () => {
 }
 
 // Set isochrones visibility functionality
-const setIsochronesVisibility = async (show: boolean) => {
-  if (!show) {
+const setIsochronesVisibility = async (stationType: StationType) => {
+  if (stationType === 'none') {
     // Hide all isochrones
     visibleAreaIsochrones.value.clear()
     // Remove all from map
@@ -755,9 +837,15 @@ const setIsochronesVisibility = async (show: boolean) => {
     // Clear any errors
     areaIsochroneErrors.value.clear()
   } else {
-    // Show isochrones for all areas
+    // Update the selected station type
+    selectedStationType.value = stationType
+    
+    // Show isochrones for all areas with the specified station type
     for (const area of areas.value) {
       if (!visibleAreaIsochrones.value.has(area.id)) {
+        await loadAreaIsochrones(props.country, area.id)
+      } else {
+        // Reload existing isochrones with new station type
         await loadAreaIsochrones(props.country, area.id)
       }
     }
@@ -765,12 +853,24 @@ const setIsochronesVisibility = async (show: boolean) => {
 }
 
 // Station type selection functionality
-const selectStationType = (type: StationType) => {
+const selectStationType = async (type: StationType) => {
   selectedStationType.value = type
   
   // Auto-load stations for all areas when switching types (if not already visible)
-  if (type !== 'all' && !areAllStationsVisible.value) {
+  // Skip auto-loading for 'none' since we don't want to show any stations
+  if (type !== 'all' && type !== 'none' && !areAllStationsVisible.value) {
     toggleAllStations()
+  }
+  
+  // Reload isochrones if they are currently visible, since different station types use different APIs
+  if (areAllIsochronesVisible.value) {
+    // Get all currently visible area isochrones
+    const visibleAreaIds = Array.from(visibleAreaIsochrones.value)
+    
+    // Reload isochrones for all visible areas with the new station type
+    for (const areaId of visibleAreaIds) {
+      await loadAreaIsochrones(props.country, areaId)
+    }
   }
 }
 
@@ -802,6 +902,24 @@ const getGeoJsonStyle = (isochrone: any, index: number = 0) => {
   })
 }
 
+// Function to get the appropriate isochrone API endpoint based on station type
+const getIsochroneApiEndpoint = (country: string, areaId: string, timeInterval: number, stationType: StationType): string => {
+  const baseUrl = `/area/${country}/${areaId}/isochrone`
+  
+  switch (stationType) {
+    case 'station':
+      return `${baseUrl}/station/${timeInterval}`
+    case 'trolleybus':
+      return `${baseUrl}/trolleybus/${timeInterval}`
+    case 'tram_stop':
+      return `${baseUrl}/tram_stop/${timeInterval}`
+    case 'all':
+    case 'none':
+    default:
+      return `${baseUrl}/${timeInterval}`
+  }
+}
+
 // Function to load area isochrones from API
 const loadAreaIsochrones = async (country: string, areaId: string) => {
   const selectedLevel = selectedProximityLevel.value
@@ -821,7 +939,9 @@ const loadAreaIsochrones = async (country: string, areaId: string) => {
   try {
     const promises = levelsToLoad.map(async (timeInterval) => {
       try {
-        const response = await fetch(getApiUrl(`/area/${country}/${areaId}/isochrone/${timeInterval}`))
+        // Use the appropriate API endpoint based on selected station type
+        const endpoint = getIsochroneApiEndpoint(country, areaId, timeInterval, selectedStationType.value)
+        const response = await fetch(getApiUrl(endpoint))
         
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`)
@@ -830,7 +950,7 @@ const loadAreaIsochrones = async (country: string, areaId: string) => {
         const geojson = await response.json()
         return { timeInterval, success: true, data: geojson }
       } catch (error) {
-        console.error(`Error fetching area isochrone for ${timeInterval} minutes:`, error)
+        console.error(`Error fetching area isochrone for ${timeInterval} minutes (station type: ${selectedStationType.value}):`, error)
         return { timeInterval, success: false, data: null }
       }
     })
@@ -1042,23 +1162,8 @@ const onSearchKeydown = (event: KeyboardEvent) => {
 // Map event handlers
 const onMapReady = () => {
   console.log('🗺️ Map is ready!', mapRef.value?.leafletObject)
-  // Add a MapLibre GL layer (OpenFreeMap) to the Leaflet map using maplibre-gl-leaflet
-  try {
-    if (mapRef.value?.leafletObject) {
-      // @ts-ignore - maplibreGL is injected into Leaflet by the maplibre-leaflet package
-      const maplibreLayer = (L as any).maplibreGL({
-        style: openFreeMapStyleUrl,
-        interactive: true
-      })
-
-      // Add to the Leaflet map
-      maplibreLayer.addTo(mapRef.value.leafletObject)
-      maplibreLayerRef.value = maplibreLayer
-      console.log('✅ MapLibre GL layer added (OpenFreeMap style)')
-    }
-  } catch (e) {
-    console.warn('⚠️ Could not add MapLibre GL layer:', e)
-  }
+  // Azure Maps tiles are now added via LTileLayer component in template
+  console.log('✅ Azure Maps tile layer ready with grayscale_light style')
 }
 
 const onIsochroneClick = async (event: any) => {
@@ -1237,21 +1342,56 @@ onUnmounted(() => {
     clearTimeout(proximityLevelDebounceTimer)
     proximityLevelDebounceTimer = null
   }
-
-  // Remove MapLibre GL layer if present
-  try {
-    if (maplibreLayerRef.value && mapRef.value?.leafletObject) {
-      mapRef.value.leafletObject.removeLayer(maplibreLayerRef.value)
-      maplibreLayerRef.value = null
-      console.log('🧹 Removed MapLibre GL layer on unmount')
-    }
-  } catch (e) {
-    console.warn('Error removing MapLibre GL layer on unmount', e)
-  }
 })
 </script>
 
 <style scoped>
+/* Map loading and error states */
+.map-loading,
+.map-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  background: #f8f9fa;
+  color: #495057;
+}
+
+.map-loading .loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #e9ecef;
+  border-top: 3px solid #007bff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+.map-error p {
+  margin-bottom: 1rem;
+  color: #dc3545;
+}
+
+.retry-button {
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.retry-button:hover {
+  background: #0056b3;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
 .map-view {
   height: 100vh;
   height: 100dvh; /* Dynamic viewport height for better mobile support */
@@ -1882,6 +2022,24 @@ onUnmounted(() => {
 
 .isochrone-popup strong {
   color: #333;
+}
+
+/* Azure Maps grayscale styling for grayscale_light appearance */
+:deep(.azure-maps-grayscale) {
+  filter: grayscale(100%) brightness(1.1) contrast(0.9);
+  transition: filter 0.3s ease;
+}
+
+/* Maintain interactivity on hover */
+:deep(.azure-maps-grayscale:hover) {
+  filter: grayscale(90%) brightness(1.05) contrast(0.95);
+}
+
+/* Hide zoom controls on mobile devices */
+@media screen and (max-width: 768px) {
+  :deep(.leaflet-control-zoom) {
+    display: none !important;
+  }
 }
 
 </style>

@@ -70,7 +70,7 @@ public static class AreaManager
             TableServiceClient tableServiceClient;
             try
             {
-                tableServiceClient = AzureStorageHelper.CreateTableServiceClient(configuration);
+                tableServiceClient = AzureStorageHelper.CreateTableServiceClient(configuration)!;
             }
             catch (Exception ex)
             {
@@ -79,8 +79,8 @@ public static class AreaManager
                 return;
             }
 
-            var areaTableClient = tableServiceClient.GetTableClient("area");
-            var stationTableClient = tableServiceClient.GetTableClient("station");
+            var areaTableClient = tableServiceClient.GetTableClient("area")!;
+            var stationTableClient = tableServiceClient.GetTableClient("station")!;
 
             // Create tables if they don't exist
             await areaTableClient.CreateIfNotExistsAsync();
@@ -156,7 +156,7 @@ public static class AreaManager
             BlobServiceClient blobServiceClient;
             try
             {
-                blobServiceClient = AzureStorageHelper.CreateBlobServiceClient(configuration);
+                blobServiceClient = AzureStorageHelper.CreateBlobServiceClient(configuration)!;
             }
             catch (Exception ex)
             {
@@ -165,7 +165,7 @@ public static class AreaManager
                 return;
             }
 
-            var containerClient = blobServiceClient.GetBlobContainerClient("isochrone");
+            var containerClient = blobServiceClient.GetBlobContainerClient("isochrone")!;
 
             // Check if container exists
             if (!await containerClient.ExistsAsync())
@@ -233,7 +233,7 @@ public static class AreaManager
             TableServiceClient tableServiceClient;
             try
             {
-                tableServiceClient = AzureStorageHelper.CreateTableServiceClient(configuration);
+                tableServiceClient = AzureStorageHelper.CreateTableServiceClient(configuration)!;
             }
             catch (Exception ex)
             {
@@ -243,8 +243,8 @@ public static class AreaManager
             }
 
             // Connect to Azure Table Storage
-            var areaTableClient = tableServiceClient.GetTableClient("area");
-            var stationTableClient = tableServiceClient.GetTableClient("station");
+            var areaTableClient = tableServiceClient.GetTableClient("area")!;
+            var stationTableClient = tableServiceClient.GetTableClient("station")!;
 
             // Get all areas (table will be created if it doesn't exist, but we'll handle empty results)
             var areas = new List<AreaEntity>();
@@ -335,7 +335,7 @@ public static class AreaManager
             TableServiceClient tableServiceClient;
             try
             {
-                tableServiceClient = AzureStorageHelper.CreateTableServiceClient(configuration);
+                tableServiceClient = AzureStorageHelper.CreateTableServiceClient(configuration)!;
             }
             catch (Exception ex)
             {
@@ -345,7 +345,7 @@ public static class AreaManager
             }
 
             // Connect to Azure Table Storage
-            var areaTableClient = tableServiceClient.GetTableClient("area");
+            var areaTableClient = tableServiceClient.GetTableClient("area")!;
             var stationTableClient = tableServiceClient.GetTableClient("station");
 
             // Try to get the area entity first to check if it exists
@@ -476,7 +476,7 @@ public static class AreaManager
             BlobServiceClient blobServiceClient;
             try
             {
-                blobServiceClient = AzureStorageHelper.CreateBlobServiceClient(configuration);
+                blobServiceClient = AzureStorageHelper.CreateBlobServiceClient(configuration)!;
             }
             catch (Exception ex)
             {
@@ -485,7 +485,7 @@ public static class AreaManager
                 return;
             }
 
-            var containerClient = blobServiceClient.GetBlobContainerClient("isochrone");
+            var containerClient = blobServiceClient.GetBlobContainerClient("isochrone")!;
 
             // Check if container exists
             if (!await containerClient.ExistsAsync())
@@ -550,11 +550,27 @@ public static class AreaManager
             logger?.LogInformation("Generating area-wide isochrone for area: {AreaId}, duration: {Duration}min", areaId, duration);
             Console.WriteLine($"  📍 Generating {duration}min area-wide isochrone...");
 
+            // Step 1: Generate isochrones for each station type
+            Console.WriteLine($"    🚉 Generating isochrones for each station type...");
+            foreach (StationTypes stationType in Enum.GetValues<StationTypes>())
+            {
+                if (stationType == StationTypes.Undefined) continue; // Skip undefined station type
+                
+                logger?.LogInformation("Generating isochrones for station type: {StationType}", stationType);
+                Console.WriteLine($"      - Processing {stationType.ToStringValue()} stations...");
+                
+                await StationManager.GenerateAndSaveStationTypeIsochroneAsync(areaId, stationType, duration, logger, configuration);
+            }
+
+            // Step 2: Read all station type isochrones and generate the area isochrone
+            logger?.LogInformation("Reading station type isochrones and generating area-wide isochrone");
+            Console.WriteLine($"    🔗 Combining station type isochrones into area-wide isochrone...");
+
             // Get Azure Storage connection using Azure AD
             BlobServiceClient blobServiceClient;
             try
             {
-                blobServiceClient = AzureStorageHelper.CreateBlobServiceClient(configuration);
+                blobServiceClient = AzureStorageHelper.CreateBlobServiceClient(configuration)!;
             }
             catch (Exception ex)
             {
@@ -574,34 +590,42 @@ public static class AreaManager
                 return;
             }
 
-            // Read all station isochrone files for this duration
-            var areaPrefix = $"{areaId.ToLowerInvariant()}/";
-            var isochroneFiles = new List<string>();
+            // Read station type isochrone files for this duration
+            var stationTypeFiles = new List<string>();
             var geoJsonReader = new GeoJsonReader();
             var geometries = new List<Geometry>();
 
-            // Find all station isochrone files for this duration
-            await foreach (var blobItem in containerClient.GetBlobsAsync(prefix: areaPrefix))
+            // Find station type isochrone files for this duration
+            foreach (StationTypes stationType in Enum.GetValues<StationTypes>())
             {
-                if (blobItem.Name.EndsWith($"/{duration}min.json") && 
-                    blobItem.Name.Count(c => c == '/') == 3) // Ensure it's a station file, not an area file
+                if (stationType == StationTypes.Undefined) continue;
+                
+                var stationTypeBlobPath = $"{areaId.ToLowerInvariant()}/{stationType.ToStringValue()}-{duration}min.json";
+                var stationTypeBlobClient = containerClient.GetBlobClient(stationTypeBlobPath);
+                
+                if (await stationTypeBlobClient.ExistsAsync())
                 {
-                    isochroneFiles.Add(blobItem.Name);
+                    stationTypeFiles.Add(stationTypeBlobPath);
+                    logger?.LogDebug("Found station type isochrone file: {BlobPath}", stationTypeBlobPath);
+                }
+                else
+                {
+                    logger?.LogWarning("Station type isochrone file not found: {BlobPath}", stationTypeBlobPath);
                 }
             }
 
-            if (!isochroneFiles.Any())
+            if (!stationTypeFiles.Any())
             {
-                logger?.LogWarning("No station isochrone files found for area: {AreaId}, duration: {Duration}min", areaId, duration);
-                Console.WriteLine($"    ⚠️ No station isochrone files found for {duration}min");
+                logger?.LogWarning("No station type isochrone files found for area: {AreaId}, duration: {Duration}min", areaId, duration);
+                Console.WriteLine($"    ⚠️ No station type isochrone files found for {duration}min");
                 return;
             }
 
-            logger?.LogInformation("Found {Count} station isochrone files for area: {AreaId}, duration: {Duration}min", 
-                isochroneFiles.Count, areaId, duration);
+            logger?.LogInformation("Found {Count} station type isochrone files for area: {AreaId}, duration: {Duration}min", 
+                stationTypeFiles.Count, areaId, duration);
 
-            // Read and parse each isochrone file
-            foreach (var blobPath in isochroneFiles)
+            // Read and parse each station type isochrone file
+            foreach (var blobPath in stationTypeFiles)
             {
                 try
                 {
@@ -610,31 +634,31 @@ public static class AreaManager
                     var geoJsonContent = response.Value.Content.ToString();
 
                     // Parse GeoJSON using NetTopologySuite
-                    var stationFeatureCollection = geoJsonReader.Read<FeatureCollection>(geoJsonContent);
+                    var stationTypeFeatureCollection = geoJsonReader.Read<FeatureCollection>(geoJsonContent);
                     
-                    if (stationFeatureCollection != null)
+                    if (stationTypeFeatureCollection != null)
                     {
-                        foreach (var stationFeature in stationFeatureCollection)
+                        foreach (var stationTypeFeature in stationTypeFeatureCollection)
                         {
-                            if (stationFeature.Geometry != null)
+                            if (stationTypeFeature.Geometry != null)
                             {
-                                geometries.Add(stationFeature.Geometry);
+                                geometries.Add(stationTypeFeature.Geometry);
                             }
                         }
                     }
 
-                    logger?.LogDebug("Successfully parsed isochrone file: {BlobPath}", blobPath);
+                    logger?.LogDebug("Successfully parsed station type isochrone file: {BlobPath}", blobPath);
                 }
                 catch (Exception ex)
                 {
-                    logger?.LogWarning(ex, "Failed to parse isochrone file: {BlobPath}", blobPath);
+                    logger?.LogWarning(ex, "Failed to parse station type isochrone file: {BlobPath}", blobPath);
                 }
             }
 
             if (!geometries.Any())
             {
-                logger?.LogWarning("No valid geometries found in isochrone files for area: {AreaId}, duration: {Duration}min", areaId, duration);
-                Console.WriteLine($"    ⚠️ No valid geometries found in isochrone files for {duration}min");
+                logger?.LogWarning("No valid geometries found in station type isochrone files for area: {AreaId}, duration: {Duration}min", areaId, duration);
+                Console.WriteLine($"    ⚠️ No valid geometries found in station type isochrone files for {duration}min");
                 return;
             }
 
@@ -665,10 +689,10 @@ public static class AreaManager
             // Create GeoJSON feature collection with the union geometry
             var resultFeature = new Feature(unionGeometry, new AttributesTable());
             
-            // Add properties similar to station isochrones
-            resultFeature.Attributes.Add("fill", "#3b82f6"); // Blue color for area-wide isochrone
-            resultFeature.Attributes.Add("stroke", "#3b82f6");
-            resultFeature.Attributes.Add("fill-opacity", 0.15); // Slightly more visible than station isochrones
+            // Add properties similar to station isochrones but with different styling for V2
+            resultFeature.Attributes.Add("fill", "#10b981"); // Green color for area-wide isochrone
+            resultFeature.Attributes.Add("stroke", "#10b981");
+            resultFeature.Attributes.Add("fill-opacity", 0.2); // Slightly more visible than regular area-wide isochrone
             resultFeature.Attributes.Add("stroke-width", 2);
             resultFeature.Attributes.Add("contour", duration);
             resultFeature.Attributes.Add("metric", "time");
@@ -680,7 +704,7 @@ public static class AreaManager
             var geoJsonWriter = new GeoJsonWriter();
             var geoJsonResult = geoJsonWriter.Write(resultFeatureCollection);
 
-            // Save the result to blob storage at /isochrone/areaid/ddmin.json
+            // Save the result to blob storage at /isochrone/areaid/ddmin-v2.json
             var areaIsochroneBlobPath = $"{areaId.ToLowerInvariant()}/{duration}min.json";
             var areaIsochroneBlobClient = containerClient.GetBlobClient(areaIsochroneBlobPath);
 
@@ -692,7 +716,7 @@ public static class AreaManager
         }
         catch (Exception ex)
         {
-            logger?.LogError(ex, "Failed to generate area-wide isochrone for area: {AreaId}, duration: {Duration}min", areaId, duration);
+            logger?.LogError(ex, "Failed to generate area-wide isochrone  for area: {AreaId}, duration: {Duration}min", areaId, duration);
             Console.WriteLine($"    ❌ Failed to generate {duration}min area-wide isochrone: {ex.Message}");
             // Don't throw here - we want to continue with other durations even if one fails
         }
@@ -709,7 +733,7 @@ public static class AreaManager
             BlobServiceClient blobServiceClient;
             try
             {
-                blobServiceClient = AzureStorageHelper.CreateBlobServiceClient(configuration);
+                blobServiceClient = AzureStorageHelper.CreateBlobServiceClient(configuration)!;
             }
             catch (Exception ex)
             {
@@ -719,7 +743,7 @@ public static class AreaManager
             }
 
             // Create blob service client and container
-            var containerClient = blobServiceClient.GetBlobContainerClient("isochrone");
+            var containerClient = blobServiceClient.GetBlobContainerClient("isochrone")!;
 
             // Check if container exists
             if (!await containerClient.ExistsAsync())
@@ -812,7 +836,7 @@ public static class AreaManager
             BlobServiceClient blobServiceClient;
             try
             {
-                blobServiceClient = AzureStorageHelper.CreateBlobServiceClient(configuration);
+                blobServiceClient = AzureStorageHelper.CreateBlobServiceClient(configuration)!;
             }
             catch (Exception ex)
             {

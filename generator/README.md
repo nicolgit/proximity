@@ -14,13 +14,13 @@ A .NET 8 console application for managing areas and generating station proximity
 # Area Management
 dotnet run -- area create italy/rome --center "41.9028,12.4964" --diameter 1000 --displayname "Rome City Center"
 dotnet run -- area create italy/rome --center "40,40" --diameter 1000 --displayname "Test Area" --developer --logging Debug
-dotnet run -- area isochrone italy/romerome
-dotnet run -- area isochrone italy/romerome --delete
+dotnet run -- area isochrone italy/rome
+dotnet run -- area isochrone italy/rome --delete
 dotnet run -- area delete "italy/rome"
 dotnet run -- area list
 
 # Station Management  
-dotnet run -- station list italy/romerome
+dotnet run -- station list italy/rome
 dotnet run -- station list rome --filter Roma
 dotnet run -- station isochrone italy/rome
 dotnet run -- station isochrone italy/milan --delete

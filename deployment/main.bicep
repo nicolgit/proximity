@@ -68,6 +68,7 @@ module functionApp 'modules/functionapp.bicep' = {
     applicationInsightsConnectionString: applicationInsights.outputs.applicationInsightsConnectionString
     applicationInsightsInstrumentationKey: applicationInsights.outputs.applicationInsightsInstrumentationKey
     logAnalyticsWorkspaceId: applicationInsights.outputs.logAnalyticsWorkspaceId
+    mapsAccountPrimaryKey: azureMaps.outputs.mapsAccountPrimaryKey
   }
 }
 
@@ -77,6 +78,15 @@ module staticWebApp 'modules/staticwebapp.bicep' = {
   params: {
     location: location
     functionAppId: functionApp.outputs.functionAppId
+    uniqueSuffix: uniqueSuffix
+  }
+}
+
+// Deploy Azure Maps
+module azureMaps 'modules/azuremaps.bicep' = {
+  name: 'azuremaps-deployment'
+  params: {
+    location: location
     uniqueSuffix: uniqueSuffix
   }
 }
@@ -123,6 +133,11 @@ output applicationInsightsConnectionString string = applicationInsights.outputs.
 output applicationInsightsInstrumentationKey string = applicationInsights.outputs.applicationInsightsInstrumentationKey
 output logAnalyticsWorkspaceId string = applicationInsights.outputs.logAnalyticsWorkspaceId
 output logAnalyticsWorkspaceName string = applicationInsights.outputs.logAnalyticsWorkspaceName
+
+// Azure Maps Outputs
+output mapsAccountId string = azureMaps.outputs.mapsAccountId
+output mapsAccountName string = azureMaps.outputs.mapsAccountName
+output mapsAccountClientId string = azureMaps.outputs.mapsAccountClientId
 
 
 
