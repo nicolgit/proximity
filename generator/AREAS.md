@@ -10,6 +10,9 @@ dotnet run -- area create italy/turin --center 45.0694185,7.661424 --diameter 15
 dotnet run -- area create italy/florence --center 43.771389,11.254167 --diameter 15000 --displayname "Firenze" 
 dotnet run -- area create italy/bologna --center 44.495054,11.3415394 --diameter 15000 --displayname "Bologna"
 
+dotnet run -- area create france/paris --center 48.854913,2.346852 --diameter 18000 --displayname "Paris" 
+dotnet run -- area create france/lyon --center 45.752856,4.838188 --diameter 15000 --displayname "Lyon" 
+
 ```
 
 # test
