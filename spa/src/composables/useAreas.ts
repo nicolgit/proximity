@@ -17,7 +17,7 @@ export function useAreas(country: string, selectedArea?: string) {
             if (areaToLoad) {
                 url = getApiUrl(`/area/${country}/${areaToLoad}`);
             } else {
-                url = getApiUrl('/area');
+                url = getApiUrl(`/area/${country}`);
             }
             const response = await fetch(url, {
                 method: 'GET',

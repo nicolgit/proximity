@@ -14,7 +14,7 @@
           <p v-if="isAreasLoading">Loading available areas... ⏳</p>
           <p v-else-if="areasError">Error loading areas: {{ areasError }}</p>
           <p v-else-if="areas && areas.length > 1">
-            Following metro areas are currently available:
+            The following metro areas are currently available in <b>{{ country }}</b>:
             <span v-for="(area) in areas" :key="area.id" class="area-item">
               <b 
                 @click="navigateToArea(area.id)"
@@ -49,10 +49,11 @@ import type { Area } from '@/types'
 const router = useRouter()
 
 // defineProps used to declare the component props for the template; avoid assigning to an unused variable
-defineProps<{
+const props = defineProps<{
   areas?: Array<Area>
   isAreasLoading?: boolean
   areasError?: string | null
+  country?: string
 }>()
 
 const emit = defineEmits<{
@@ -60,7 +61,7 @@ const emit = defineEmits<{
 }>()
 
 const navigateToArea = (areaId: string) => {
-  router.push(`/italy/${areaId}`)
+  router.push(`/${props.country}/${areaId}`)
   // Emit areaSelected event to notify parent
   emit('areaSelected', areaId)
 }

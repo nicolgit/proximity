@@ -77,6 +77,7 @@
       :areas="areas"
       :is-areas-loading="isAreasLoading"
       :areas-error="areasError"
+      :country="props.country"
       @areaSelected="handleAreaSelected"
     />
 

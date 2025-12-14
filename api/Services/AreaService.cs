@@ -69,6 +69,53 @@ public class AreaService
     }
 
     /// <summary>
+    /// Retrieves all areas from a specific country
+    /// </summary>
+    /// <param name="country">The country to filter areas by</param>
+    /// <returns>List of AreaDto objects for the specified country</returns>
+    public async Task<List<AreaDto>> GetAreasByCountryAsync(string country)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(country))
+                throw new ArgumentException("Country cannot be null or empty", nameof(country));
+
+            _logger.LogInformation("Retrieving areas for country: {Country}", country);
+
+            var tableClient = _storageService.GetTableClient(_tableName);
+
+            // Query entities with specific partition key (country)
+            var queryResults = tableClient.QueryAsync<AreaEntity>(
+                filter: $"PartitionKey eq '{country}'",
+                maxPerPage: 1000 // Adjust based on expected data size
+            );
+
+            var areas = new List<AreaDto>();
+
+            await foreach (var entity in queryResults)
+            {
+                areas.Add(new AreaDto
+                {
+                    Country = entity.PartitionKey ?? string.Empty,
+                    Id = entity.RowKey ?? string.Empty,
+                    Name = entity.DisplayName ?? entity.Name ?? string.Empty,
+                    Latitude = entity.Latitude,
+                    Longitude = entity.Longitude,
+                    Diameter = entity.DiameterMeters
+                });
+            }
+
+            _logger.LogInformation("Successfully retrieved {Count} areas for country: {Country}", areas.Count, country);
+            return areas;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to retrieve areas for country: {Country}", country);
+            throw new InvalidOperationException($"Failed to retrieve areas for country: {country}", ex);
+        }
+    }
+
+    /// <summary>
     /// Retrieves a specific area by ID
     /// </summary>
     /// <param name="id">The ID (RowKey) of the area</param>

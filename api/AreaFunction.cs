@@ -83,6 +83,66 @@ public class AreaFunction
     }
 
     /// <summary>
+    /// HTTP GET endpoint to retrieve all areas for a specific country
+    /// </summary>
+    /// <param name="req">HTTP request</param>
+    /// <param name="country">Country from route</param>
+    /// <returns>JSON array of areas for the specified country</returns>
+    [Function("GetAreasByCountry")]
+    public async Task<IActionResult> GetAreasByCountry(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "area/{country}")] HttpRequest req,
+        string country)
+    {
+        try
+        {
+            _logger.LogInformation("Processing request to get areas for country: {Country}", country);
+
+            if (string.IsNullOrWhiteSpace(country))
+            {
+                return new BadRequestObjectResult(new { error = "Country is required" });
+            }
+
+            var areas = await _areaService.GetAreasByCountryAsync(country);
+
+            // Generate ETag and check for conditional requests
+            var etag = CdnResponseService.GenerateETag(areas);
+            if (CdnResponseService.IsNotModified(req, etag))
+            {
+                _logger.LogInformation("Areas data not modified for country {Country}, returning 304", country);
+                CdnResponseService.ConfigureCacheableResponse(req.HttpContext.Response, areas);
+                CdnResponseService.ConfigureCorsHeaders(req.HttpContext.Response);
+                return CdnResponseService.CreateNotModifiedResponse(etag);
+            }
+
+            // Configure CDN-friendly headers for cacheable area data
+            CdnResponseService.ConfigureCacheableResponse(req.HttpContext.Response, areas);
+            CdnResponseService.ConfigureCorsHeaders(req.HttpContext.Response);
+
+            _logger.LogInformation("Successfully returned {Count} areas for country: {Country}", areas.Count, country);
+
+            return new OkObjectResult(areas);
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Bad request for get areas by country: {Message}", ex.Message);
+            CdnResponseService.ConfigureNoCacheResponse(req.HttpContext.Response);
+            return new BadRequestObjectResult(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "Storage operation failed for get areas by country: {Message}", ex.Message);
+            CdnResponseService.ConfigureNoCacheResponse(req.HttpContext.Response);
+            return new StatusCodeResult(503); // Service Unavailable
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error occurred while getting areas for country: {Country}", country);
+            CdnResponseService.ConfigureNoCacheResponse(req.HttpContext.Response);
+            return new StatusCodeResult(500); // Internal Server Error
+        }
+    }
+
+    /// <summary>
     /// HTTP GET endpoint to retrieve a specific area by ID
     /// </summary>
     /// <param name="req">HTTP request</param>
