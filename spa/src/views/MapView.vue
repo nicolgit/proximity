@@ -516,7 +516,7 @@ const showAllStations = ref(false)
 
 // Station type filtering
 type StationType = 'all' | 'station' | 'trolleybus' | 'tram_stop' | 'none'
-const selectedStationType = ref<StationType>('all')
+const selectedStationType = ref<StationType>('none')
 const stationTypeOptions = ref([
   { value: 'all' as const, label: 'all', icon: null },
   { value: 'station' as const, label: 'station', icon: '🚇' },
