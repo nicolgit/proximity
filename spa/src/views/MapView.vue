@@ -116,7 +116,7 @@
         
         <!-- Range Toggle Segmented Button -->
         <div class="toolbar-section">
-          <div class="toolbar-section-label">range</div>
+          <div class="toolbar-section-label">Area RANGE</div>
           <div class="segmented-control">
             <button 
               @click="setIsochronesVisibility('none')"
@@ -136,7 +136,7 @@
             </button>
           </div>
         </div>
-        <div v-if="areAllIsochronesVisible" class="proximity-level-slider-container">
+        <div class="proximity-level-slider-container">
           <div class="proximity-level-slider-labels">
             <span v-for="level in proximityLevelOptions" :key="level" class="slider-label">
               {{ level }}m
@@ -802,7 +802,7 @@ const proximityLevelDescription = computed(() => {
     case 'tram_stop':
       return `within <strong>${minutes} minutes</strong> from a tram stop`
     case 'none':
-      return `within <strong>${minutes} minutes</strong> (no station filter)`
+      return `within <strong>${minutes} minutes</strong>`
     case 'all':
     default:
       return `within <strong>${minutes} minutes</strong> from any station`
@@ -830,6 +830,12 @@ const toggleAllStations = async () => {
 
 // Set isochrones visibility functionality
 const setIsochronesVisibility = async (stationType: StationType) => {
+  
+  //remove existing station's isochrone 
+  selectedStationForIsochrone.value = null
+  isochroneCircles.value = []
+  isochroneGeoJson.value = []
+
   if (stationType === 'none') {
     // Hide all isochrones
     visibleAreaIsochrones.value.clear()
@@ -994,7 +1000,18 @@ const onStationClick = async (country: string, station: Station, areaId: string)
     selectedStationForIsochrone.value = null
     isochroneCircles.value = []
     isochroneGeoJson.value = []
+    
+    //// Show area isochrones again if range is set to show
+    //if (areAllIsochronesVisible.value || visibleAreaIsochrones.value.size > 0) {
+    //  await setIsochronesVisibility(selectedStationType.value)
+    //}
   } else {
+    // Hide area isochrones when showing station isochrones
+    const hadAreaIsochrones = areAllIsochronesVisible.value || visibleAreaIsochrones.value.size > 0
+    if (hadAreaIsochrones) {
+      await setIsochronesVisibility('none')
+    }
+    
     // Show isochrones for the new station
     selectedStationForIsochrone.value = station
     await loadIsochronesForStation(country, station, areaId)
@@ -1005,7 +1022,7 @@ const onStationClick = async (country: string, station: Station, areaId: string)
 const loadIsochronesForStation = async (country: string, station: Station, areaId: string) => {
   // Only load time intervals up to the selected proximity level
   const timeIntervals = proximityLevelOptions.value.filter(level => level <= selectedProximityLevel.value)
-  const baseColor = (station.type === 'station' || station.type === 'halt') ? '#22c55e' : 
+  const baseColor = (station.type === 'station') ? '#22c55e' : 
                    (station.type === 'tram_stop') ? '#eab308' : 
                    (station.type === 'trolleybus') ? '#3b82f6' : '#22c55e' 
                    // green for station/halt, yellow for tram_stop, blue for trolleybus
