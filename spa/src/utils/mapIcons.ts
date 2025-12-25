@@ -59,6 +59,51 @@ export const tramStopIconSvg = L.divIcon({
     popupAnchor: [0, -24]
 })
 
+// Metro station icons
+export const metroStationIconSvg = L.divIcon({
+    className: 'custom-marker metro-station-marker-svg',
+    html: `
+    <svg width="16" height="24" viewBox="0 0 16 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M8 0C3.582 0 0 3.582 0 8C0 14 8 24 8 24S16 14 16 8C16 3.582 12.418 0 8 0Z" fill="#06B6D4"/>
+      <circle cx="8" cy="8" r="4" fill="white"/>
+      <circle cx="8" cy="8" r="2.5" fill="#0891B2"/>
+    </svg>
+  `,
+    iconSize: [16, 24],
+    iconAnchor: [8, 24],
+    popupAnchor: [0, -24]
+})
+
+// Bus station icons
+export const busStationIconSvg = L.divIcon({
+    className: 'custom-marker bus-station-marker-svg',
+    html: `
+    <svg width="16" height="24" viewBox="0 0 16 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M8 0C3.582 0 0 3.582 0 8C0 14 8 24 8 24S16 14 16 8C16 3.582 12.418 0 8 0Z" fill="#8B5A2B"/>
+      <circle cx="8" cy="8" r="4" fill="white"/>
+      <rect x="5.5" y="5.5" width="5" height="5" rx="1" fill="#92400E"/>
+    </svg>
+  `,
+    iconSize: [16, 24],
+    iconAnchor: [8, 24],
+    popupAnchor: [0, -24]
+})
+
+// Unknown/fallback station icons
+export const unknownStationIconSvg = L.divIcon({
+    className: 'custom-marker unknown-station-marker-svg',
+    html: `
+    <svg width="16" height="24" viewBox="0 0 16 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M8 0C3.582 0 0 3.582 0 8C0 14 8 24 8 24S16 14 16 8C16 3.582 12.418 0 8 0Z" fill="#6B7280"/>
+      <circle cx="8" cy="8" r="4" fill="white"/>
+      <text x="8" y="11" text-anchor="middle" fill="#4B5563" font-family="Arial, sans-serif" font-size="6" font-weight="bold">?</text>
+    </svg>
+  `,
+    iconSize: [16, 24],
+    iconAnchor: [8, 24],
+    popupAnchor: [0, -24]
+})
+
 // Trolleybus stop icons
 export const trolleyStopIconSvg = L.divIcon({
     className: 'custom-marker trolley-stop-marker-svg',
