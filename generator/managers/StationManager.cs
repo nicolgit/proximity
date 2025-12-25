@@ -10,6 +10,58 @@ namespace Generator.Managers;
 
 public static class StationManager
 {
+    private static string GetOverpassQueryForStationType(StationTypes stationType, int radiusMeters, double latitude, double longitude)
+    {
+        var lat = latitude.ToString(CultureInfo.InvariantCulture);
+        var lon = longitude.ToString(CultureInfo.InvariantCulture);
+        var around = $"(around:{radiusMeters},{lat},{lon})";
+
+        return stationType switch
+        {
+            StationTypes.MetroStation => $@"[out:json][timeout:30];
+(
+  node[railway=subway][public_transport=stop_position]{around};
+  node[railway=subway][public_transport=platform]{around};
+  node[railway=station][subway=yes]{around};
+);
+out body;",
+
+            StationTypes.TramStop => $@"[out:json][timeout:30];
+(
+  node[railway=tram][public_transport=stop_position]{around};
+  node[railway=tram][public_transport=platform]{around};
+  node[railway=tram_stop]{around};
+);
+out body;",
+
+            StationTypes.Station => $@"[out:json][timeout:30];
+(
+  node[railway=rail][public_transport=stop_position]{around};
+  node[railway=rail][public_transport=platform]{around};
+  node[railway=station][!subway][!tram]{around};
+);
+out body;",
+
+            StationTypes.TrolleybusStop => $@"[out:json][timeout:30];
+(
+  node[highway=bus_stop][trolleybus=yes]{around};
+  node[public_transport=stop_position][trolleybus=yes]{around};
+  node[public_transport=platform][trolleybus=yes]{around};
+);
+out body;",
+
+            StationTypes.BusStop => $@"[out:json][timeout:30];
+(
+  node[highway=bus_stop][!trolleybus]{around};
+  node[public_transport=stop_position][bus=yes][!trolleybus]{around};
+  node[public_transport=platform][bus=yes][!trolleybus]{around};
+);
+out body;",
+
+            _ => throw new ArgumentException($"Unknown station type: {stationType}")
+        };
+    }
+
     public static async Task RetrieveAndStoreStationsAsync(string areaName, double latitude, double longitude,
         int diameterMeters, bool developerMode, bool noIsochrone, TableClient stationTableClient, ILogger? logger, IConfiguration? configuration)
     {  
@@ -24,46 +76,22 @@ public static class StationManager
             // Calculate radius (diameter / 2)
             var radiusMeters = diameterMeters / 2;
 
-            // Build Overpass QL query
-            var overpassQuery = $@"[out:json][timeout:25];
-(
-  node[""railway""=""station""](around:{radiusMeters},{latitude.ToString(CultureInfo.InvariantCulture)},{longitude.ToString(CultureInfo.InvariantCulture)});
-  node[""railway""=""halt""](around:{radiusMeters},{latitude.ToString(CultureInfo.InvariantCulture)},{longitude.ToString(CultureInfo.InvariantCulture)});
-  node[""railway""=""tram_stop""](around:{radiusMeters},{latitude.ToString(CultureInfo.InvariantCulture)},{longitude.ToString(CultureInfo.InvariantCulture)});
-  node[""highway""=""bus_stop""][""trolleybus""=""yes""](around:{radiusMeters},{latitude.ToString(CultureInfo.InvariantCulture)},{longitude.ToString(CultureInfo.InvariantCulture)});
-  rel[""route""=""trolleybus""](around:{radiusMeters},{latitude.ToString(CultureInfo.InvariantCulture)},{longitude.ToString(CultureInfo.InvariantCulture)});
-);
-out body;";
-
-            // Call Overpass API
             var httpClient = new HttpClient();
             httpClient.Timeout = TimeSpan.FromSeconds(30);
 
-            var requestBody = new StringContent(overpassQuery, System.Text.Encoding.UTF8, "text/plain");
-            Console.WriteLine("  🌐 Calling Overpass API request body...");
-            Console.WriteLine(overpassQuery);
-            var response = await httpClient.PostAsync("https://overpass-api.de/api/interpreter", requestBody);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                logger?.LogError("Overpass API request failed with status: {StatusCode}", response.StatusCode);
-                Console.WriteLine($"❌ Failed to retrieve stations from Overpass API (Status: {response.StatusCode})");
-                return;
-            }
-
-            var jsonContent = await response.Content.ReadAsStringAsync();
-            logger?.LogDebug("Overpass API response: {Response}", jsonContent);
-
-            // Parse JSON response
-            var jsonDoc = JsonDocument.Parse(jsonContent);
-            var elements = jsonDoc.RootElement.GetProperty("elements");
+            var allElements = new List<JsonElement>();
 
             var stationsProcessed = 0;
             var stationsSkipped = 0;
 
-            var railwayStationCount = 0;
-            var tramStopCount = 0;
-            var trolleybusStopCount = 0;
+            var stationTypeCounts = new Dictionary<StationTypes, int>
+            {
+                { StationTypes.Station, 0 },
+                { StationTypes.TramStop, 0 },
+                { StationTypes.TrolleybusStop, 0 },
+                { StationTypes.BusStop, 0 },
+                { StationTypes.MetroStation, 0 }
+            };
 
             if (developerMode)
             {
@@ -71,7 +99,56 @@ out body;";
                 Console.WriteLine($"🔧 Developer mode: limiting to first 3 stations per stationType");
             }
 
-            foreach (var element in elements.EnumerateArray())
+            // Process each station type with its specific Overpass query
+            var stationTypesToProcess = new[] { StationTypes.MetroStation, StationTypes.TramStop, StationTypes.Station, StationTypes.TrolleybusStop, StationTypes.BusStop };
+            
+            foreach (var stationType in stationTypesToProcess)
+            {
+                // Skip if developer mode limit reached
+                if (developerMode && stationTypeCounts[stationType] >= 3)
+                {
+                    logger?.LogDebug("Skipping {StationType} - developer limit reached (3)", stationType);
+                    continue;
+                }
+
+                // Build station type specific Overpass query
+                var overpassQuery = GetOverpassQueryForStationType(stationType, radiusMeters, latitude, longitude);
+                
+                logger?.LogInformation("Retrieving {StationType} stations from Overpass API", stationType);
+                Console.WriteLine($"🔍 Retrieving {stationType.ToStringValue()} stations...");
+
+                var requestBody = new StringContent(overpassQuery, System.Text.Encoding.UTF8, "text/plain");
+                logger?.LogDebug("Overpass query for {StationType}: {Query}", stationType, overpassQuery);
+                
+                var response = await httpClient.PostAsync("https://overpass-api.de/api/interpreter", requestBody);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    logger?.LogError("Overpass API request failed for {StationType} with status: {StatusCode}", stationType, response.StatusCode);
+                    Console.WriteLine($"❌ Failed to retrieve {stationType.ToStringValue()} stations from Overpass API (Status: {response.StatusCode})");
+                    continue;
+                }
+
+                var jsonContent = await response.Content.ReadAsStringAsync();
+                logger?.LogDebug("Overpass API response for {StationType}: {Response}", stationType, jsonContent);
+
+                // Parse JSON response
+                JsonDocument jsonDoc;
+                try
+                {
+                    jsonDoc = JsonDocument.Parse(jsonContent);
+                }
+                catch (JsonException ex)
+                {
+                    logger?.LogError(ex, "Failed to parse Overpass API response for {StationType}", stationType);
+                    Console.WriteLine($"❌ Failed to parse Overpass API response for {stationType.ToStringValue()}");
+                    continue;
+                }
+                
+                var elements = jsonDoc.RootElement.GetProperty("elements");
+                var stationTypeCount = 0;
+
+                foreach (var element in elements.EnumerateArray())
             {
                 try
                 {
@@ -82,42 +159,13 @@ out body;";
                     // Extract station name from tags
                     string? stationName = null;
                     string? wikipediaLink = null;
-                    StationTypes stationType = StationTypes.Undefined;
+                    // Station type is already known from the query
                     
                     if (element.TryGetProperty("tags", out var tags))
                     {
                         if (tags.TryGetProperty("name", out var nameProperty))
                         {
                             stationName = nameProperty.GetString();
-                        }
-
-                        /* railway types mapping:
-                         * node[""railway""=""station""]                          -> railway station
-                         * node[""railway""=""halt""]                             -> railway station halt
-                         * node[""railway""=""tram_stop"]                         -> tram stop
-                         * tutti gli altri                                        -> trolleybus stop
-                         */
-                        tags.TryGetProperty("railway", out var railwayPropertyOverpass);
-
-                        if (railwayPropertyOverpass.ValueKind == JsonValueKind.Undefined)
-                        {
-                            stationType = StationTypes.TrolleybusStop;
-                        }
-                        else if (railwayPropertyOverpass.GetString() == "station")
-                        {
-                            stationType = StationTypes.Station;
-                        }
-                        else if (railwayPropertyOverpass.GetString() == "halt")
-                        {
-                            stationType = StationTypes.Station;
-                        }
-                        else if (railwayPropertyOverpass.GetString() == "tram_stop")
-                        {
-                            stationType = StationTypes.TramStop;
-                        }
-                        else
-                        {
-                            stationType = StationTypes.Undefined;
                         }
 
 
@@ -154,28 +202,13 @@ out body;";
                         continue;
                     }
 
-                    // Apply developer mode limits
-                    if (developerMode)
-                    {
-                        if (stationType == StationTypes.Station && railwayStationCount >= 3)
+                        // Apply developer mode limits
+                        if (developerMode && stationTypeCounts[stationType] >= 3)
                         {
-                            logger?.LogDebug("Skipping railway station {StationName} - developer limit reached (3)", stationName);
+                            logger?.LogDebug("Skipping {StationType} station {StationName} - developer limit reached (3)", stationType, stationName);
                             stationsSkipped++;
                             continue;
                         }
-                        if (stationType == StationTypes.TramStop && tramStopCount >= 3)
-                        {
-                            logger?.LogDebug("Skipping tram stop {StationName} - developer limit reached (3)", stationName);
-                            stationsSkipped++;
-                            continue;
-                        }
-                        if (stationType == StationTypes.TrolleybusStop && trolleybusStopCount >= 3)
-                        {
-                            logger?.LogDebug("Skipping trolleybus stop {StationName} - developer limit reached (3)", stationName);
-                            stationsSkipped++;
-                            continue;
-                        }
-                    }
 
                     string stationPartitionKey = areaName.Replace("/", "-").ToLowerInvariant();
 
@@ -206,25 +239,28 @@ out body;";
                         Console.WriteLine($"  {stationName,-30} {stationType.ToStringValue(),-10} ⏭️ Skipping isochrone generation (--noisochrone flag)");
                     }
 
-                    // Update counters for developer mode
-                    if (developerMode)
-                    {
-                        if (stationType == StationTypes.Station)
-                            railwayStationCount++;
-                        else if (stationType == StationTypes.TramStop)
-                            tramStopCount++;
-                        else if (stationType == StationTypes.TrolleybusStop)
-                            trolleybusStopCount++;
-                    }
+                        // Update counters
+                        if (developerMode)
+                        {
+                            stationTypeCounts[stationType]++;
+                            stationTypeCount++;
+                        }
 
-                    logger?.LogDebug("Stored station: {Name} (ID: {Id}, Railway: {Railway}) at ({Lat}, {Lon})",
-                        stationName, stationId, stationType.ToStringValue(), stationLat, stationLon);
+                        logger?.LogDebug("Stored station: {Name} (ID: {Id}, Railway: {Railway}) at ({Lat}, {Lon})",
+                            stationName, stationId, stationType.ToStringValue(), stationLat, stationLon);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger?.LogWarning(ex, "Failed to process {StationType} station from Overpass API response", stationType);
+                        stationsSkipped++;
+                    }
                 }
-                catch (Exception ex)
-                {
-                    logger?.LogWarning(ex, "Failed to process station from Overpass API response");
-                    stationsSkipped++;
-                }
+
+                Console.WriteLine($"  ✓ Processed {stationTypeCount} {stationType.ToStringValue()} stations");
+                logger?.LogInformation("Completed processing {Count} {StationType} stations", stationTypeCount, stationType);
+                
+                // Add delay between different station type queries to avoid rate limiting
+                await Task.Delay(200);
             }
 
             logger?.LogInformation("Station retrieval completed for area {AreaName}: {Processed} processed, {Skipped} skipped",
@@ -240,7 +276,10 @@ out body;";
             }
             if (developerMode)
             {
-                Console.WriteLine($"  🔧 Developer mode: limited to {railwayStationCount} railway stations and {tramStopCount} tram stops");
+                var summary = string.Join(", ", stationTypeCounts
+                    .Where(kvp => kvp.Value > 0)
+                    .Select(kvp => $"{kvp.Value} {kvp.Key.ToStringValue()}"));
+                Console.WriteLine($"  🔧 Developer mode: limited to {summary}");
             }
             if (stationsSkipped > 0)
             {

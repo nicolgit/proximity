@@ -1,12 +1,9 @@
 using Azure.Data.Tables;
-using Azure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Globalization;
-using System.Text.Json;
 using Generator.Types;
 using Azure.Storage.Blobs;
-using Azure.Identity;
 using NetTopologySuite.Geometries;
 using NetTopologySuite.IO;
 using NetTopologySuite.Operation.Union;
