@@ -422,11 +422,11 @@ public class AreaFunction
                 return new BadRequestObjectResult(new { error = "Time parameter is required" });
             }
 
-            // Validate station type parameter - must be station, trolleybus, or halt
-            var allowedStationTypes = new[] { "station", "trolleybus", "tram_stop" };
+            // Validate station type parameter - must be station, trolleybus, tram_stop, metro, or bus
+            var allowedStationTypes = new[] { "station", "trolleybus", "tram_stop", "metro", "bus" };
             if (!allowedStationTypes.Contains(stationType))
             {
-                return new BadRequestObjectResult(new { error = "Station type must be one of: station, trolleybus, halt" });
+                return new BadRequestObjectResult(new { error = "Station type must be one of: station, trolleybus, tram_stop, metro, bus" });
             }
 
             // Validate time parameter - must be 5, 10, 15, 20, or 30
