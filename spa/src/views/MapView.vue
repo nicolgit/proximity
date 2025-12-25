@@ -84,7 +84,7 @@
     <!-- Area Proximity advanced tools -->
     <div class="proximity-toolbar">
       <div class="proximity-level-header">
-        <span class="proximity-level-title">🏙️ advanced tools</span>
+        <span class="proximity-level-title">🏙️ filters</span>
         <button 
           @click="toggleProximityToolbar"
           class="proximity-level-toggle"
@@ -99,7 +99,7 @@
       <div v-show="showProximityToolbar" class="proximity-level-selector">
         <!-- Station Type Filter Segmented Button -->
         <div class="toolbar-section">
-          <div class="toolbar-section-label">stations</div>
+          <div class="toolbar-section-label">transport type</div>
           <div class="segmented-control">
             <button 
               v-for="stationType in stationTypeOptions"
