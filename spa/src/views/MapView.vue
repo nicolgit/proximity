@@ -346,6 +346,9 @@
             <div class="station-popup" @click="closeAreaPopupOnOutsideClick($event)">
               <h4>
                 <span v-if="station.type === 'station' ">🚇</span>
+                <span v-else-if="station.type === 'metro' ">🚇</span>
+                <span v-else-if="station.type === 'bus' ">🚌</span>
+                <span v-else-if="station.type === 'trolleybus' ">🚐</span>
                 <span v-else>🚊</span>
                 <span 
                   v-if="station.wikipediaLink"
@@ -357,7 +360,9 @@
                 <span v-else class="station-name">{{ station.name }}</span>
               </h4>
               <p>type: <strong>{{ 
-                (station.type === 'station' || station.type === 'halt') ? 'Train/Metro Station' : 
+                (station.type === 'station') ? 'Train Station' : 
+                (station.type === 'metro') ? 'Metro Station' : 
+                (station.type === 'bus') ? 'Bus Stop' : 
                 (station.type === 'tram_stop') ? 'Tram Stop' : 
                 (station.type === 'trolleybus') ? 'Trolleybus Stop' : 'Unknown'
               }}</strong></p>
@@ -515,14 +520,16 @@ const visibleStations = ref<Set<string>>(new Set())
 const showAllStations = ref(false)
 
 // Station type filtering
-type StationType = 'all' | 'station' | 'trolleybus' | 'tram_stop' | 'none'
+type StationType = 'all' | 'station' | 'trolleybus' | 'tram_stop' | 'metro' | 'bus' | 'none'
 const selectedStationType = ref<StationType>('none')
 const stationTypeOptions = ref([
-  { value: 'all' as const, label: 'all', icon: null },
+  { value: 'all' as const, label: 'show all', icon: null },
   { value: 'station' as const, label: 'station', icon: '🚇' },
+  { value: 'metro' as const, label: 'metro', icon: '🚇' },
+  { value: 'bus' as const, label: 'bus', icon: '🚌' },
   { value: 'trolleybus' as const, label: 'trolley bus', icon: '🚐' },
   { value: 'tram_stop' as const, label: 'tram', icon: '🚊' },
-  { value: 'none' as const, label: 'none', icon: '🚫' }
+  { value: 'none' as const, label: 'hide all', icon: null }
 ])
 
 // Area proximity/isochrone state
@@ -719,7 +726,11 @@ const allVisibleStations = computed(() => {
   return stations.filter(station => {
     switch (selectedStationType.value) {
       case 'station':
-        return station.type === 'station' || station.type === 'halt'
+        return station.type === 'station'
+      case 'metro':
+        return station.type === 'metro'
+      case 'bus':
+        return station.type === 'bus'
       case 'tram_stop':
         return station.type === 'tram_stop'
       case 'trolleybus':
@@ -885,6 +896,10 @@ const selectStationType = async (type: StationType) => {
 const getStationIcon = (type: string) => {
   if (type === 'station' || type === 'halt') {
     return stationIconSvg
+  } else if (type === 'metro') {
+    return stationIconSvg // use same icon as station for metro
+  } else if (type === 'bus') {
+    return stationIconSvg // use station icon for bus (can be customized later)
   } else if (type === 'tram_stop') {
     return tramStopIconSvg
   } else if (type === 'trolleybus') {
@@ -916,6 +931,10 @@ const getIsochroneApiEndpoint = (country: string, areaId: string, timeInterval: 
   switch (stationType) {
     case 'station':
       return `${baseUrl}/station/${timeInterval}`
+    case 'metro':
+      return `${baseUrl}/metro/${timeInterval}`
+    case 'bus':
+      return `${baseUrl}/bus/${timeInterval}`
     case 'trolleybus':
       return `${baseUrl}/trolleybus/${timeInterval}`
     case 'tram_stop':
@@ -1023,9 +1042,11 @@ const loadIsochronesForStation = async (country: string, station: Station, areaI
   // Only load time intervals up to the selected proximity level
   const timeIntervals = proximityLevelOptions.value.filter(level => level <= selectedProximityLevel.value)
   const baseColor = (station.type === 'station') ? '#22c55e' : 
+                   (station.type === 'metro') ? '#06b6d4' : 
+                   (station.type === 'bus') ? '#a16207' : 
                    (station.type === 'tram_stop') ? '#eab308' : 
                    (station.type === 'trolleybus') ? '#3b82f6' : '#22c55e' 
-                   // green for station/halt, yellow for tram_stop, blue for trolleybus
+                   // green for station/halt, cyan for metro, brown for bus, yellow for tram_stop, blue for trolleybus
   
   // Clear existing isochrones
   isochroneCircles.value = []
@@ -1104,7 +1125,12 @@ const generateIsochroneCircles = (station: Station) => {
     .sort((a, b) => b - a)
   
   // Determine color based on station type
-  const baseColor = station.type === 'station' ? '#22c55e' : '#eab308' // green for metro, yellow for tram
+  const baseColor = station.type === 'station' ? '#22c55e' : 
+                   station.type === 'metro' ? '#06b6d4' : 
+                   station.type === 'bus' ? '#a16207' : 
+                   station.type === 'tram_stop' ? '#eab308' : 
+                   station.type === 'trolleybus' ? '#3b82f6' : '#22c55e' 
+                   // green for station, cyan for metro, brown for bus, yellow for tram, blue for trolleybus
   
   // Clear existing circles
   isochroneCircles.value = []
