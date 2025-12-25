@@ -19,8 +19,8 @@ public static class StationTypeExtensions
             StationTypes.Station => "station",
             StationTypes.TramStop => "tram_stop",
             StationTypes.TrolleybusStop => "trolleybus",
-            StationTypes.BusStop => "bus_stop",
-            StationTypes.MetroStation => "metro_station",
+            StationTypes.BusStop => "bus",
+            StationTypes.MetroStation => "metro",
             StationTypes.Undefined => "undefined",
             _ => "unknown"
         };
