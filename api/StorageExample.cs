@@ -3,11 +3,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using api.Services;
-using System.Threading.Tasks;
-using System.Text.Json;
-using System.Text;
-using System.IO;
-
 namespace api;
 
 public class StorageTester

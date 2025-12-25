@@ -84,7 +84,7 @@
     <!-- Area Proximity advanced tools -->
     <div class="proximity-toolbar">
       <div class="proximity-level-header">
-        <span class="proximity-level-title">🏙️ filters</span>
+        <span class="proximity-level-title">🏙️ More filters</span>
         <button 
           @click="toggleProximityToolbar"
           class="proximity-level-toggle"
@@ -381,7 +381,7 @@ import { useGeolocation } from '@/composables/useGeolocation'
 import { useLocationSearch } from '@/composables/useLocationSearch'
 import { useStations } from '@/composables/useStations'
 import type { SearchResult, Station } from '@/types'
-import { searchLocationIconSvg, userLocationIconSvg, stationIconSvg, tramStopIconSvg, trolleyStopIconSvg } from '@/utils/mapIcons'
+import { searchLocationIconSvg, userLocationIconSvg, stationIconSvg, tramStopIconSvg, trolleyStopIconSvg, metroStationIconSvg, busStationIconSvg, unknownStationIconSvg } from '@/utils/mapIcons'
 import { getApiUrl, setMapKey, getMapKey } from '@/config/env'
 import { MapKeyService } from '@/services/MapKeyService'
 import { LCircle, LMap, LMarker, LPopup, LGeoJson, LTileLayer } from '@vue-leaflet/vue-leaflet'
@@ -526,9 +526,9 @@ const stationTypeOptions = ref([
   { value: 'all' as const, label: 'show all', icon: null },
   { value: 'station' as const, label: 'station', icon: '🚇' },
   { value: 'metro' as const, label: 'metro', icon: '🚇' },
-  { value: 'bus' as const, label: 'bus', icon: '🚌' },
   { value: 'trolleybus' as const, label: 'trolley bus', icon: '🚐' },
   { value: 'tram_stop' as const, label: 'tram', icon: '🚊' },
+  { value: 'bus' as const, label: 'bus', icon: '🚌' },
   { value: 'none' as const, label: 'hide all', icon: null }
 ])
 
@@ -894,18 +894,18 @@ const selectStationType = async (type: StationType) => {
 
 // Helper function to get icon for station type
 const getStationIcon = (type: string) => {
-  if (type === 'station' || type === 'halt') {
+  if (type === 'station') {
     return stationIconSvg
   } else if (type === 'metro') {
-    return stationIconSvg // use same icon as station for metro
+    return metroStationIconSvg
   } else if (type === 'bus') {
-    return stationIconSvg // use station icon for bus (can be customized later)
+    return busStationIconSvg 
   } else if (type === 'tram_stop') {
     return tramStopIconSvg
   } else if (type === 'trolleybus') {
     return trolleyStopIconSvg
   }
-  return stationIconSvg // fallback
+  return unknownStationIconSvg // grey warning fallback
 }
 
 // Helper function to open Wikipedia link
