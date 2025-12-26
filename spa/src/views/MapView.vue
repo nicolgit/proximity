@@ -385,6 +385,7 @@ import { searchLocationIconSvg, userLocationIconSvg, stationIconSvg, tramStopIco
 import { getApiUrl, setMapKey, getMapKey } from '@/config/env'
 import { MapKeyService } from '@/services/MapKeyService'
 import { LCircle, LMap, LMarker, LPopup, LGeoJson, LTileLayer } from '@vue-leaflet/vue-leaflet'
+import L from 'leaflet'
 import { onMounted, ref, computed, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import WelcomePopup from '@/components/WelcomePopup.vue'
@@ -703,15 +704,67 @@ const isochroneGeoJson = ref<Array<{
   color: string
 }>>([])
 
-// Computed property for all visible stations across all areas, filtered by type
+
+// Computed property for all visible stations across all areas, filtered by type and optimized for performance
 const allVisibleStations = computed(() => {
   const stations: (Station & { areaId: string })[] = []
+  
+  // Make sure this computed property reacts to zoom changes
+  zoom.value
+  
+  // Get map bounds for spatial filtering
+  const map = mapRef.value?.leafletObject
+  if (!map) {
+    // If map is not ready, return empty array
+    return []
+  }
+  
+  const mapBounds = map.getBounds()
+  
+  // Station deduplication distance threshold in pixels
+  const STATION_DEDUPLICATION_DISTANCE_PX = 60
+  
+  // Calculate station deduplication threshold using Leaflet's built-in methods
+  // This properly accounts for screen DPI and map projection
+  const mapCenter = map.getCenter()
+  const centerPoint = map.latLngToContainerPoint(mapCenter)
+  
+  // Create a point at the deduplication distance away from center
+  const offsetPoint = L.point(centerPoint.x + STATION_DEDUPLICATION_DISTANCE_PX, centerPoint.y)
+  
+  // Convert back to geographic coordinates
+  const offsetLatLng = map.containerPointToLatLng(offsetPoint)
+  
+  // Calculate the geographic distance equivalent to the pixel threshold
+  const degreeThreshold = Math.abs(offsetLatLng.lng - mapCenter.lng)
+  
   for (const areaId of visibleStations.value) {
-    const areaStations = getStationsForArea(areaId).map(station => ({
-      ...station,
-      areaId
-    }))
-    stations.push(...areaStations)
+    const areaStations = getStationsForArea(areaId)
+    
+    for (const station of areaStations) {
+      // Check if station is within visible map bounds
+      const stationLatLng = { lat: station.latitude, lng: station.longitude }
+      if (!mapBounds.contains(stationLatLng)) {
+        continue // Skip stations outside visible area
+      }
+      
+      // Check if a similar station already exists within the deduplication distance
+      const isDuplicate = stations.some(existingStation => {
+        const latDiff = Math.abs(existingStation.latitude - station.latitude)
+        const lngDiff = Math.abs(existingStation.longitude - station.longitude)
+        
+        // Use simple distance check (good enough for deduplication)
+        const distance = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff)
+        return distance < degreeThreshold
+      })
+      
+      if (!isDuplicate) {
+        stations.push({
+          ...station,
+          areaId
+        })
+      }
+    }
   }
   
   // Filter by selected station type
