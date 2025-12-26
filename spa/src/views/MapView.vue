@@ -385,6 +385,7 @@ import { searchLocationIconSvg, userLocationIconSvg, stationIconSvg, tramStopIco
 import { getApiUrl, setMapKey, getMapKey } from '@/config/env'
 import { MapKeyService } from '@/services/MapKeyService'
 import { LCircle, LMap, LMarker, LPopup, LGeoJson, LTileLayer } from '@vue-leaflet/vue-leaflet'
+import L from 'leaflet'
 import { onMounted, ref, computed, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import WelcomePopup from '@/components/WelcomePopup.vue'
@@ -411,6 +412,7 @@ const mapRef = ref<InstanceType<typeof LMap> | null>(null)
 const zoom = ref(7)
 const minZoom = ref<number | undefined>(undefined) // Minimum zoom level when targeting a specific area
 const initialCenter = ref<[number, number]>([41.9028, 12.4964]) // Default to Rome
+const mapCenter = ref<[number, number]>([41.9028, 12.4964]) // Reactive map center for triggering station recalculation
 const selectedLocation = ref<[number, number] | null>(null)
 const selectedLocationName = ref('')
 
@@ -703,18 +705,81 @@ const isochroneGeoJson = ref<Array<{
   color: string
 }>>([])
 
-// Computed property for all visible stations across all areas, filtered by type
+
+// Computed property for all visible stations across all areas, filtered by type and optimized for performance
 const allVisibleStations = computed(() => {
   const stations: (Station & { areaId: string })[] = []
-  for (const areaId of visibleStations.value) {
-    const areaStations = getStationsForArea(areaId).map(station => ({
-      ...station,
-      areaId
-    }))
-    stations.push(...areaStations)
+  
+  // Get map bounds for spatial filtering
+  const map = mapRef.value?.leafletObject
+  if (!map) {
+    // If map is not ready, return empty array
+    return []
   }
   
-  // Filter by selected station type
+  // Make sure this computed property reacts to zoom and position changes
+  zoom.value
+  mapCenter.value
+  
+  const mapCenterPos = map.getCenter()
+  
+  const mapBounds = map.getBounds()
+  
+  // Station deduplication distance threshold in pixels
+  const STATION_DEDUPLICATION_DISTANCE_PX = 30
+  
+  // Calculate station deduplication threshold using Leaflet's built-in methods
+  // This properly accounts for screen DPI and map projection
+
+  const centerPoint = map.latLngToContainerPoint(mapCenterPos)
+  
+  // Create a point at the deduplication distance away from center
+  const offsetPoint = L.point(centerPoint.x + STATION_DEDUPLICATION_DISTANCE_PX, centerPoint.y)
+  
+  // Convert back to geographic coordinates
+  const offsetLatLng = map.containerPointToLatLng(offsetPoint)
+  
+  // Calculate the geographic distance equivalent to the pixel threshold
+  const degreeThreshold = Math.abs(offsetLatLng.lng - mapCenterPos.lng)
+  
+  for (const areaId of visibleStations.value) {
+    const areaStations = getStationsForArea(areaId)
+    
+    for (const station of areaStations) {
+      // Filter by selected station type first to avoid unnecessary processing
+      if (selectedStationType.value !== 'all' && selectedStationType.value !== 'none') {
+        const matchesType = selectedStationType.value === station.type
+        if (!matchesType) {
+          continue // Skip stations that don't match the selected type
+        }
+      }
+      
+      // Check if station is within visible map bounds
+      const stationLatLng = { lat: station.latitude, lng: station.longitude }
+      if (!mapBounds.contains(stationLatLng)) {
+        continue // Skip stations outside visible area
+      }
+      
+      // Check if a similar station already exists within the deduplication distance
+      const isDuplicate = stations.some(existingStation => {
+        const latDiff = Math.abs(existingStation.latitude - station.latitude)
+        const lngDiff = Math.abs(existingStation.longitude - station.longitude)
+        
+        // Use simple distance check (good enough for deduplication)
+        const distance = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff)
+        return distance < degreeThreshold
+      })
+      
+      if (!isDuplicate) {
+        stations.push({
+          ...station,
+          areaId
+        })
+      }
+    }
+  }
+  
+  // Return all stations if 'all' is selected, empty array if 'none' is selected
   if (selectedStationType.value === 'all') {
     return stations
   }
@@ -723,22 +788,8 @@ const allVisibleStations = computed(() => {
     return []
   }
   
-  return stations.filter(station => {
-    switch (selectedStationType.value) {
-      case 'station':
-        return station.type === 'station'
-      case 'metro':
-        return station.type === 'metro'
-      case 'bus':
-        return station.type === 'bus'
-      case 'tram_stop':
-        return station.type === 'tram_stop'
-      case 'trolleybus':
-        return station.type === 'trolleybus'
-      default:
-        return true
-    }
-  })
+  // If we reach here, stations are already filtered by type above
+  return stations
 })
 
 // Computed property to check if all areas have stations visible
@@ -918,7 +969,7 @@ const getGeoJsonStyle = (isochrone: any, index: number = 0) => {
   return () => ({
       color: isochrone.color,
       fillColor: isochrone.color,
-      fillOpacity: 0.1,
+      fillOpacity: 0.2,
       weight: index === 0 ? 2 : 0,
       opacity: 1.0
   })
@@ -1206,6 +1257,20 @@ const onSearchKeydown = (event: KeyboardEvent) => {
 // Map event handlers
 const onMapReady = () => {
   console.log('🗺️ Map is ready!', mapRef.value?.leafletObject)
+  
+  const map = mapRef.value?.leafletObject
+  if (map) {    
+    // Listen for map move end to update reactive center
+    map.on('moveend', () => {
+      const center = map.getCenter()
+      mapCenter.value = [center.lat, center.lng]
+    })
+    
+    // Initialize reactive center
+    const initialMapCenter = map.getCenter()
+    mapCenter.value = [initialMapCenter.lat, initialMapCenter.lng]
+  }
+  
   // Azure Maps tiles are now added via LTileLayer component in template
   console.log('✅ Azure Maps tile layer ready with grayscale_light style')
 }
