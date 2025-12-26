@@ -742,6 +742,14 @@ const allVisibleStations = computed(() => {
     const areaStations = getStationsForArea(areaId)
     
     for (const station of areaStations) {
+      // Filter by selected station type first to avoid unnecessary processing
+      if (selectedStationType.value !== 'all' && selectedStationType.value !== 'none') {
+        const matchesType = selectedStationType.value === station.type
+        if (!matchesType) {
+          continue // Skip stations that don't match the selected type
+        }
+      }
+      
       // Check if station is within visible map bounds
       const stationLatLng = { lat: station.latitude, lng: station.longitude }
       if (!mapBounds.contains(stationLatLng)) {
@@ -767,7 +775,7 @@ const allVisibleStations = computed(() => {
     }
   }
   
-  // Filter by selected station type
+  // Return all stations if 'all' is selected, empty array if 'none' is selected
   if (selectedStationType.value === 'all') {
     return stations
   }
@@ -776,22 +784,8 @@ const allVisibleStations = computed(() => {
     return []
   }
   
-  return stations.filter(station => {
-    switch (selectedStationType.value) {
-      case 'station':
-        return station.type === 'station'
-      case 'metro':
-        return station.type === 'metro'
-      case 'bus':
-        return station.type === 'bus'
-      case 'tram_stop':
-        return station.type === 'tram_stop'
-      case 'trolleybus':
-        return station.type === 'trolleybus'
-      default:
-        return true
-    }
-  })
+  // If we reach here, stations are already filtered by type above
+  return stations
 })
 
 // Computed property to check if all areas have stations visible
