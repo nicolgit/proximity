@@ -412,6 +412,7 @@ const mapRef = ref<InstanceType<typeof LMap> | null>(null)
 const zoom = ref(7)
 const minZoom = ref<number | undefined>(undefined) // Minimum zoom level when targeting a specific area
 const initialCenter = ref<[number, number]>([41.9028, 12.4964]) // Default to Rome
+const mapCenter = ref<[number, number]>([41.9028, 12.4964]) // Reactive map center for triggering station recalculation
 const selectedLocation = ref<[number, number] | null>(null)
 const selectedLocationName = ref('')
 
@@ -709,9 +710,6 @@ const isochroneGeoJson = ref<Array<{
 const allVisibleStations = computed(() => {
   const stations: (Station & { areaId: string })[] = []
   
-  // Make sure this computed property reacts to zoom changes
-  zoom.value
-  
   // Get map bounds for spatial filtering
   const map = mapRef.value?.leafletObject
   if (!map) {
@@ -719,15 +717,21 @@ const allVisibleStations = computed(() => {
     return []
   }
   
+  // Make sure this computed property reacts to zoom and position changes
+  zoom.value
+  mapCenter.value
+  
+  const mapCenterPos = map.getCenter()
+  
   const mapBounds = map.getBounds()
   
   // Station deduplication distance threshold in pixels
-  const STATION_DEDUPLICATION_DISTANCE_PX = 60
+  const STATION_DEDUPLICATION_DISTANCE_PX = 30
   
   // Calculate station deduplication threshold using Leaflet's built-in methods
   // This properly accounts for screen DPI and map projection
-  const mapCenter = map.getCenter()
-  const centerPoint = map.latLngToContainerPoint(mapCenter)
+
+  const centerPoint = map.latLngToContainerPoint(mapCenterPos)
   
   // Create a point at the deduplication distance away from center
   const offsetPoint = L.point(centerPoint.x + STATION_DEDUPLICATION_DISTANCE_PX, centerPoint.y)
@@ -736,7 +740,7 @@ const allVisibleStations = computed(() => {
   const offsetLatLng = map.containerPointToLatLng(offsetPoint)
   
   // Calculate the geographic distance equivalent to the pixel threshold
-  const degreeThreshold = Math.abs(offsetLatLng.lng - mapCenter.lng)
+  const degreeThreshold = Math.abs(offsetLatLng.lng - mapCenterPos.lng)
   
   for (const areaId of visibleStations.value) {
     const areaStations = getStationsForArea(areaId)
@@ -1253,6 +1257,20 @@ const onSearchKeydown = (event: KeyboardEvent) => {
 // Map event handlers
 const onMapReady = () => {
   console.log('🗺️ Map is ready!', mapRef.value?.leafletObject)
+  
+  const map = mapRef.value?.leafletObject
+  if (map) {    
+    // Listen for map move end to update reactive center
+    map.on('moveend', () => {
+      const center = map.getCenter()
+      mapCenter.value = [center.lat, center.lng]
+    })
+    
+    // Initialize reactive center
+    const initialMapCenter = map.getCenter()
+    mapCenter.value = [initialMapCenter.lat, initialMapCenter.lng]
+  }
+  
   // Azure Maps tiles are now added via LTileLayer component in template
   console.log('✅ Azure Maps tile layer ready with grayscale_light style')
 }
