@@ -10,6 +10,8 @@ namespace Generator.Managers;
 
 public static class StationManager
 {
+    private const double MinimumStationDistanceMeters = 200.0;
+
     private static string GetOverpassQueryForStationType(StationTypes stationType, int radiusMeters, double latitude, double longitude)
     {
         var lat = latitude.ToString(CultureInfo.InvariantCulture);
@@ -62,6 +64,23 @@ out body;",
         };
     }
 
+    private static double CalculateDistanceInMeters(double lat1, double lon1, double lat2, double lon2)
+    {
+        const double R = 6371000; // Earth's radius in meters
+        var dLat = ToRadians(lat2 - lat1);
+        var dLon = ToRadians(lon2 - lon1);
+        var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                Math.Cos(ToRadians(lat1)) * Math.Cos(ToRadians(lat2)) *
+                Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+        var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+        return R * c;
+    }
+
+    private static double ToRadians(double degrees)
+    {
+        return degrees * (Math.PI / 180);
+    }
+
     public static async Task RetrieveAndStoreStationsAsync(string areaName, double latitude, double longitude,
         int diameterMeters, bool developerMode, bool noIsochrone, TableClient stationTableClient, ILogger? logger, IConfiguration? configuration)
     {  
@@ -104,6 +123,8 @@ out body;",
             
             foreach (var stationType in stationTypesToProcess)
             {
+                var processedStations = new List<StationEntity>();
+
                 // Skip if developer mode limit reached
                 if (developerMode && stationTypeCounts[stationType] >= 3)
                 {
@@ -202,13 +223,26 @@ out body;",
                         continue;
                     }
 
-                        // Apply developer mode limits
-                        if (developerMode && stationTypeCounts[stationType] >= 3)
-                        {
-                            logger?.LogDebug("Skipping {StationType} station {StationName} - developer limit reached (3)", stationType, stationName);
-                            stationsSkipped++;
-                            continue;
-                        }
+                    // Apply developer mode limits
+                    if (developerMode && stationTypeCounts[stationType] >= 3)
+                    {
+                        logger?.LogDebug("Skipping {StationType} station {StationName} - developer limit reached (3)", stationType, stationName);
+                        stationsSkipped++;
+                        continue;
+                    }
+
+                    // Check if station already exists within minimum distance
+                    var existingNearbyStation = processedStations.FirstOrDefault(s => 
+                        CalculateDistanceInMeters(stationLat, stationLon, s.Latitude, s.Longitude) < MinimumStationDistanceMeters);
+                    
+                    if (existingNearbyStation != null)
+                    {
+                        logger?.LogDebug("Skipping station {StationName} - too close to existing station {ExistingStationName} ({Distance:F1}m)", 
+                            stationName, existingNearbyStation.Name, CalculateDistanceInMeters(stationLat, stationLon, existingNearbyStation.Latitude, existingNearbyStation.Longitude));
+                        Console.WriteLine($"  ⚠️ Skipping {stationName} - too close to {existingNearbyStation.Name} ({CalculateDistanceInMeters(stationLat, stationLon, existingNearbyStation.Latitude, existingNearbyStation.Longitude):F1}m)");
+                        stationsSkipped++;
+                        continue;
+                    }
 
                     string stationPartitionKey = areaName.Replace("/", "-").ToLowerInvariant();
 
@@ -227,6 +261,9 @@ out body;",
                     // Store in Azure Table Storage
                     await stationTableClient.UpsertEntityAsync(station, TableUpdateMode.Replace);
                     stationsProcessed++;
+                    
+                    // Add station to processed list
+                    processedStations.Add(station);
 
                     // Generate and save isochrone data (unless skipped)
                     if (!noIsochrone)
