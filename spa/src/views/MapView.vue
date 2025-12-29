@@ -109,7 +109,7 @@
               :class="{ 'segmented-button--active': selectedStationType === stationType.value }"
               :disabled="areas.length === 0 || isAreasLoading"
             >
-              {{ stationType.icon }} {{ stationType.label }}
+              {{ stationType.icon }}<br/>{{ stationType.label }}
             </button>
           </div>
         </div>
@@ -526,7 +526,7 @@ type StationType = 'all' | 'station' | 'trolleybus' | 'tram_stop' | 'metro' | 'b
 const selectedStationType = ref<StationType>('none')
 const stationTypeOptions = ref([
   { value: 'all' as const, label: 'show all', icon: null },
-  { value: 'station' as const, label: 'station', icon: '🚇' },
+  { value: 'station' as const, label: 'train', icon: '🚇' },
   { value: 'metro' as const, label: 'metro', icon: '🚇' },
   { value: 'trolleybus' as const, label: 'trolley bus', icon: '🚐' },
   { value: 'tram_stop' as const, label: 'tram', icon: '🚊' },
