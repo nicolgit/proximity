@@ -29,12 +29,17 @@ You can explore **The Proximity Project** at:
 
 access specific metropolitan areas using the following URLs:
 
-- 🏢 [Rome](https://proximity.duckiesfarm/italy/rome)
-- 🏢 [Milan](https://proximity.duckiesfarm/italy/milan)
-- 🏢 [Naples](https://proximity.duckiesfarm/italy/naples)
-- 🏢 [Turin](https://proximity.duckiesfarm/italy/turin)
-- 🏢 [Bologna](https://proximity.duckiesfarm/italy/bologna)
-- 🏢 [Florence](https://proximity.duckiesfarm/italy/florence)
+**Italy:**
+- 🏢 [Rome](https://proximity.duckiesfarm.com/italy/rome)
+- 🏢 [Milan](https://proximity.duckiesfarm.com/italy/milan)
+- 🏢 [Naples](https://proximity.duckiesfarm.com/italy/naples)
+- 🏢 [Turin](https://proximity.duckiesfarm.com/italy/turin)
+- 🏢 [Bologna](https://proximity.duckiesfarm.com/italy/bologna)
+- 🏢 [Florence](https://proximity.duckiesfarm.com/italy/florence)
+
+**France:**
+- 🏢 [Paris](https://proximity.duckiesfarm.com/france/paris)
+- 🏢 [Lyon](https://proximity.duckiesfarm.com/france/lyon)
 
 
 ## 🛠️ Technologies Used
@@ -57,4 +62,7 @@ Maintaining and improving this project takes time, effort, and resources. Your c
 * Milanorama: [Quale stazione della metro è la più veloce da raggiungere?](https://milanorama.com/articles/metro-pi%C3%B9-vicina.html)
 
 # 📄 License
+
 This project is licensed under the [MIT License](LICENSE).
+
+
