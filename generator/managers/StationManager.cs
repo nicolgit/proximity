@@ -10,6 +10,8 @@ namespace Generator.Managers;
 
 public static class StationManager
 {
+    private const double MinimumStationDistanceMeters = 200.0;
+
     private static string GetOverpassQueryForStationType(StationTypes stationType, int radiusMeters, double latitude, double longitude)
     {
         var lat = latitude.ToString(CultureInfo.InvariantCulture);
@@ -62,6 +64,23 @@ out body;",
         };
     }
 
+    private static double CalculateDistanceInMeters(double lat1, double lon1, double lat2, double lon2)
+    {
+        const double R = 6371000; // Earth's radius in meters
+        var dLat = ToRadians(lat2 - lat1);
+        var dLon = ToRadians(lon2 - lon1);
+        var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                Math.Cos(ToRadians(lat1)) * Math.Cos(ToRadians(lat2)) *
+                Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+        var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+        return R * c;
+    }
+
+    private static double ToRadians(double degrees)
+    {
+        return degrees * (Math.PI / 180);
+    }
+
     public static async Task RetrieveAndStoreStationsAsync(string areaName, double latitude, double longitude,
         int diameterMeters, bool developerMode, bool noIsochrone, TableClient stationTableClient, ILogger? logger, IConfiguration? configuration)
     {  
@@ -104,6 +123,8 @@ out body;",
             
             foreach (var stationType in stationTypesToProcess)
             {
+                var processedStations = new List<StationEntity>();
+
                 // Skip if developer mode limit reached
                 if (developerMode && stationTypeCounts[stationType] >= 3)
                 {
@@ -120,12 +141,76 @@ out body;",
                 var requestBody = new StringContent(overpassQuery, System.Text.Encoding.UTF8, "text/plain");
                 logger?.LogDebug("Overpass query for {StationType}: {Query}", stationType, overpassQuery);
                 
-                var response = await httpClient.PostAsync("https://overpass-api.de/api/interpreter", requestBody);
-
-                if (!response.IsSuccessStatusCode)
+                // Implement exponential backoff with 6 retries
+                HttpResponseMessage? response = null;
+                var maxRetries = 5;
+                var baseDelayMs = 1000; // Start with 1 second
+                
+                for (int retry = 0; retry <= maxRetries; retry++)
                 {
-                    logger?.LogError("Overpass API request failed for {StationType} with status: {StatusCode}", stationType, response.StatusCode);
-                    Console.WriteLine($"❌ Failed to retrieve {stationType.ToStringValue()} stations from Overpass API (Status: {response.StatusCode})");
+                    try
+                    {
+                        if (retry > 0)
+                        {
+                            var delayMs = (int)(baseDelayMs * Math.Pow(2, retry - 1));
+                            logger?.LogInformation("Retrying Overpass API request for {StationType} (attempt {Attempt}/{MaxAttempts}) after {DelayMs}ms delay", 
+                                stationType, retry + 1, maxRetries + 1, delayMs);
+                            Console.WriteLine($"  🔄 Retry {retry}/{maxRetries} for {stationType.ToStringValue()} after {delayMs}ms delay...");
+                            await Task.Delay(delayMs);
+                        }
+                        
+                        response = await httpClient.PostAsync("https://overpass-api.de/api/interpreter", requestBody);
+                        
+                        if (response.IsSuccessStatusCode)
+                        {
+                            if (retry > 0)
+                            {
+                                logger?.LogInformation("Overpass API request for {StationType} succeeded on retry {Attempt}", stationType, retry + 1);
+                                Console.WriteLine($"  ✓ {stationType.ToStringValue()} request succeeded on retry {retry + 1}");
+                            }
+                            break; // Success, exit retry loop
+                        }
+                        else if (retry == maxRetries)
+                        {
+                            // Last attempt failed
+                            logger?.LogError("Overpass API request failed for {StationType} after {MaxRetries} retries with final status: {StatusCode}", 
+                                stationType, maxRetries, response.StatusCode);
+                            Console.WriteLine($"❌ Failed to retrieve {stationType.ToStringValue()} stations from Overpass API after {maxRetries} retries (Final Status: {response.StatusCode})");
+                        }
+                        else
+                        {
+                            // Retry will happen
+                            logger?.LogWarning("Overpass API request failed for {StationType} on attempt {Attempt} with status: {StatusCode}, will retry", 
+                                stationType, retry + 1, response.StatusCode);
+                        }
+                    }
+                    catch (TaskCanceledException ex) when (ex.InnerException is TimeoutException)
+                    {
+                        if (retry == maxRetries)
+                        {
+                            logger?.LogError(ex, "Overpass API request timed out for {StationType} after {MaxRetries} retries", stationType, maxRetries);
+                            Console.WriteLine($"❌ Overpass API request for {stationType.ToStringValue()} timed out after {maxRetries} retries");
+                            response = null;
+                            break;
+                        }
+                        logger?.LogWarning("Overpass API request timed out for {StationType} on attempt {Attempt}, will retry", stationType, retry + 1);
+                    }
+                    catch (HttpRequestException ex)
+                    {
+                        if (retry == maxRetries)
+                        {
+                            logger?.LogError(ex, "Overpass API request failed for {StationType} after {MaxRetries} retries", stationType, maxRetries);
+                            Console.WriteLine($"❌ Failed to connect to Overpass API for {stationType.ToStringValue()} after {maxRetries} retries: {ex.Message}");
+                            response = null;
+
+                            throw new Exception($"critical error, OVERPASS API is not working right now", ex);
+                        }
+                        logger?.LogWarning(ex, "Overpass API request failed for {StationType} on attempt {Attempt}, will retry", stationType, retry + 1);
+                    }
+                }
+
+                if (response == null || !response.IsSuccessStatusCode)
+                {
                     continue;
                 }
 
@@ -202,13 +287,26 @@ out body;",
                         continue;
                     }
 
-                        // Apply developer mode limits
-                        if (developerMode && stationTypeCounts[stationType] >= 3)
-                        {
-                            logger?.LogDebug("Skipping {StationType} station {StationName} - developer limit reached (3)", stationType, stationName);
-                            stationsSkipped++;
-                            continue;
-                        }
+                    // Apply developer mode limits
+                    if (developerMode && stationTypeCounts[stationType] >= 3)
+                    {
+                        logger?.LogDebug("Skipping {StationType} station {StationName} - developer limit reached (3)", stationType, stationName);
+                        stationsSkipped++;
+                        continue;
+                    }
+
+                    // Check if station already exists within minimum distance
+                    var existingNearbyStation = processedStations.FirstOrDefault(s => 
+                        CalculateDistanceInMeters(stationLat, stationLon, s.Latitude, s.Longitude) < MinimumStationDistanceMeters);
+                    
+                    if (existingNearbyStation != null)
+                    {
+                        logger?.LogDebug("Skipping station {StationName} - too close to existing station {ExistingStationName} ({Distance:F1}m)", 
+                            stationName, existingNearbyStation.Name, CalculateDistanceInMeters(stationLat, stationLon, existingNearbyStation.Latitude, existingNearbyStation.Longitude));
+                        Console.WriteLine($"  ⚠️ Skipping {stationName} - too close to {existingNearbyStation.Name} ({CalculateDistanceInMeters(stationLat, stationLon, existingNearbyStation.Latitude, existingNearbyStation.Longitude):F1}m)");
+                        stationsSkipped++;
+                        continue;
+                    }
 
                     string stationPartitionKey = areaName.Replace("/", "-").ToLowerInvariant();
 
@@ -227,6 +325,9 @@ out body;",
                     // Store in Azure Table Storage
                     await stationTableClient.UpsertEntityAsync(station, TableUpdateMode.Replace);
                     stationsProcessed++;
+                    
+                    // Add station to processed list
+                    processedStations.Add(station);
 
                     // Generate and save isochrone data (unless skipped)
                     if (!noIsochrone)
@@ -286,25 +387,11 @@ out body;",
                 Console.WriteLine($"  ({stationsSkipped} stations skipped due to missing data or limits)");
             }
         }
-        catch (HttpRequestException ex)
-        {
-            logger?.LogError(ex, "Failed to connect to Overpass API");
-            Console.WriteLine($"❌ Failed to retrieve stations from Overpass API: {ex.Message}");
-        }
-        catch (TaskCanceledException ex)
-        {
-            logger?.LogError(ex, "Overpass API request timed out");
-            Console.WriteLine("❌ Overpass API request timed out");
-        }
-        catch (JsonException ex)
-        {
-            logger?.LogError(ex, "Failed to parse Overpass API response");
-            Console.WriteLine($"❌ Failed to parse Overpass API response: {ex.Message}");
-        }
         catch (Exception ex)
         {
             logger?.LogError(ex, "Unexpected error while retrieving stations");
             Console.WriteLine($"❌ Unexpected error while retrieving stations: {ex.Message}");
+            throw;
         }
     }
 

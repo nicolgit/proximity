@@ -21,7 +21,7 @@ function Convert-JpegsToGif {
     $outputMp4 = Join-Path $OutputDir "$OutputFileName.mp4"
     $outputGif = Join-Path $OutputDir "$OutputFileName.gif"
 
-    echo xx $inputPattern
+    Write-Output xx $inputPattern
     echo xx $outputMp4
     echo xx $outputGif
 

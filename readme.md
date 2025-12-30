@@ -1,12 +1,10 @@
 # 🗺️ The Proximity Project 🗺️
 
-**The Proximity Project** is a browser-based single-page application (SPA) that visualizes a map with isochrones—areas reachable within a certain distance or time—from the nearest railway or tram station. Currently focused on selected metropolitan areas in 2 countries (Italy and France), the project aims to help users understand how well-connected a location is via reliable rail-based public transport.
+**The Proximity Project** is a browser-based single-page application (SPA) that visualizes a map with isochrones—areas reachable within a certain distance or time—from the nearest public transport stop or station. Currently focused on selected metropolitan areas in Italy and France, the project aims to help users understand how well-connected a location is to different public transport types.
 
 ![into](video/welcome.gif)
 
-## 🌍 Why This Project?
-
-In many parts of Italy—and often elsewhere—rail-based public transport (trains and trams) is significantly more reliable and punctual than road-based alternatives. This is largely due to the absence of traffic-related delays.
+In many parts of Italy—and often elsewhere—rail-based public transport (trains and trams) is significantly more reliable and punctual than road-based alternatives. With this tool, you can quickly understand at a glance how well different areas are actually connected with various types of public transport.
 
 **The Proximity Project** is useful for:
 
@@ -19,17 +17,17 @@ In many parts of Italy—and often elsewhere—rail-based public transport (trai
 - 🔍 **Address search**: Quickly find any location by typing an address.
 - 📍 **Current location detection**: Automatically centers the map on your current position.
 - 🗺️ **Global isochrone visualization**: Displays isochrones for the entire covered area, using color gradients to indicate distance from the nearest station—ideal for a quick visual overview.
-- 🚉 **Station and stop display**: View all railway and tram stations/stops in the selected area.
-- 🎯 **Station-specific isochrones**: Select a specific station or stop to view its individual isochrone.
-- 🪧 **Interactive isochrones**: Click on any isochrone (global or station-specific) to see a popup showing the distance (in time) from the selected or nearest station.
+- 🚉 **station/stop type selector**: View all transports type coverage or a specific public transport type in the selected area.
+- 🎯 **Station/stop-specific isochrones**: Select a station or stop to view its individual isochrone.
+- 🪧 **Interactive isochrones**: Click on any isochrone to see a popup showing the distance (in time) from the selected or nearest station.
 
 ## 🌐 Access the Application 🌐
 
-You can explore **The Proximity Project** directly at:
+You can explore **The Proximity Project** at:
 
 👉 [https://proximity.duckiesfarm.com](https://proximity.duckiesfarm.com) 
 
-access specific metropolitan areas directly using the following URLs:
+access specific metropolitan areas using the following URLs:
 
 **Italy:**
 - 🏢 [Rome](https://proximity.duckiesfarm.com/italy/rome)

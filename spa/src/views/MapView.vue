@@ -109,7 +109,7 @@
               :class="{ 'segmented-button--active': selectedStationType === stationType.value }"
               :disabled="areas.length === 0 || isAreasLoading"
             >
-              {{ stationType.icon }} {{ stationType.label }}
+              {{ stationType.icon }}<br/>{{ stationType.label }}
             </button>
           </div>
         </div>
@@ -526,7 +526,7 @@ type StationType = 'all' | 'station' | 'trolleybus' | 'tram_stop' | 'metro' | 'b
 const selectedStationType = ref<StationType>('none')
 const stationTypeOptions = ref([
   { value: 'all' as const, label: 'show all', icon: null },
-  { value: 'station' as const, label: 'station', icon: '🚇' },
+  { value: 'station' as const, label: 'train', icon: '🚇' },
   { value: 'metro' as const, label: 'metro', icon: '🚇' },
   { value: 'trolleybus' as const, label: 'trolley bus', icon: '🚐' },
   { value: 'tram_stop' as const, label: 'tram', icon: '🚊' },
@@ -970,7 +970,7 @@ const getGeoJsonStyle = (isochrone: any, index: number = 0) => {
       color: isochrone.color,
       fillColor: isochrone.color,
       fillOpacity: 0.2,
-      weight: index === 0 ? 2 : 0,
+      weight: index === 0 ? 1 : 0,
       opacity: 1.0
   })
 }

@@ -676,7 +676,7 @@
 
 /* Azure Maps grayscale styling for grayscale_light appearance */
 :deep(.azure-maps-grayscale) {
-  filter: grayscale(100%) brightness(1.1) contrast(0.9);
+  filter: grayscale(100%) brightness(1.0) contrast(1.0);
   transition: filter 0.3s ease;
 }
 
