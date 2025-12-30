@@ -1,6 +1,6 @@
 # 🗺️ The Proximity Project 🗺️
 
-**The Proximity Project** is a browser-based single-page application (SPA) that visualizes a map with isochrones—areas reachable within a certain distance or time—from the nearest railway or tram station. Currently focused on selected metropolitan areas in Italy, the project aims to help users understand how well-connected a location is via reliable rail-based public transport.
+**The Proximity Project** is a browser-based single-page application (SPA) that visualizes a map with isochrones—areas reachable within a certain distance or time—from the nearest railway or tram station. Currently focused on selected metropolitan areas in 2 countries (Italy and France), the project aims to help users understand how well-connected a location is via reliable rail-based public transport.
 
 ![into](video/welcome.gif)
 
@@ -31,12 +31,17 @@ You can explore **The Proximity Project** directly at:
 
 access specific metropolitan areas directly using the following URLs:
 
-- 🏢 [Rome](https://proximity.duckiesfarm/italy/rome)
-- 🏢 [Milan](https://proximity.duckiesfarm/italy/milan)
-- 🏢 [Naples](https://proximity.duckiesfarm/italy/naples)
-- 🏢 [Turin](https://proximity.duckiesfarm/italy/turin)
-- 🏢 [Bologna](https://proximity.duckiesfarm/italy/bologna)
-- 🏢 [Florence](https://proximity.duckiesfarm/italy/florence)
+**Italy:**
+- 🏢 [Rome](https://proximity.duckiesfarm.com/italy/rome)
+- 🏢 [Milan](https://proximity.duckiesfarm.com/italy/milan)
+- 🏢 [Naples](https://proximity.duckiesfarm.com/italy/naples)
+- 🏢 [Turin](https://proximity.duckiesfarm.com/italy/turin)
+- 🏢 [Bologna](https://proximity.duckiesfarm.com/italy/bologna)
+- 🏢 [Florence](https://proximity.duckiesfarm.com/italy/florence)
+
+**France:**
+- 🏢 [Paris](https://proximity.duckiesfarm.com/france/paris)
+- 🏢 [Lyon](https://proximity.duckiesfarm.com/france/lyon)
 
 
 ## 🛠️ Technologies Used
@@ -59,4 +64,7 @@ Maintaining and improving this project takes time, effort, and resources. Your c
 * Milanorama: [Quale stazione della metro è la più veloce da raggiungere?](https://milanorama.com/articles/metro-pi%C3%B9-vicina.html)
 
 # 📄 License
+
 This project is licensed under the [MIT License](LICENSE).
+
+
