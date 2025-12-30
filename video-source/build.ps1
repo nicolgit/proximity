@@ -25,7 +25,7 @@ function Convert-JpegsToGif {
     echo xx $outputMp4
     echo xx $outputGif
 
-    ffmpeg -framerate $FramesPerSecond -i $inputPattern -c:v libvpx-vp9 -lossless 1 -vf "scale=1024:768" -y $outputMp4
+    ffmpeg -framerate $FramesPerSecond -i $inputPattern -c:v libvpx-vp9 -lossless 1 -vf "scale=1143:1100" -y $outputMp4
     $palette = "palette.png"
     $filters = "fps=12,scale=1072:-1:flags=lanczos"
     ffmpeg -v warning -i $outputMp4 -vf "$filters,palettegen" -y $palette
