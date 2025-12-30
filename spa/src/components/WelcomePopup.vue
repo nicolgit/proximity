@@ -8,9 +8,9 @@
       <div class="welcome-content">
         <p>Welcome to the Proximity project!</p>
         <p v-if="areas && areas.length === 1">
-          A tool that helps you understand how far you are from a metro, train or tram stop in the <b>{{ areas[0].name }}</b> metro area!
+          A tool that allows you to assess the distance from public transportation in the <b>{{ areas[0].name }}</b> metro area!
         </p>
-        <p v-else-if="areas && areas.length !== 1">a tool that helps you understand how far you are from a metro, train or tram stop!</p>
+        <p v-else-if="areas && areas.length !== 1">A tool that allows you to assess the distance from public transportation in your area!</p>
           <p v-if="isAreasLoading">Loading available areas... ⏳</p>
           <p v-else-if="areasError">Error loading areas: {{ areasError }}</p>
           <p v-else-if="areas && areas.length > 1">
@@ -42,7 +42,6 @@
 </template>
 
 <script setup lang="ts">
-import { defineProps, defineEmits } from 'vue'
 import { useRouter } from 'vue-router'
 import type { Area } from '@/types'
 
