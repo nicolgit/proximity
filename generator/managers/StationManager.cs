@@ -40,7 +40,8 @@ out body;",
 (
   node[railway=rail][public_transport=stop_position]{around};
   node[railway=rail][public_transport=platform]{around};
-  node[railway=station][!subway][!tram]{around};
+  node[railway=station][!subway][!tram][station!=subway]{around};
+  node[railway=stop][train=yes]{around};
 );
 out body;",
 
