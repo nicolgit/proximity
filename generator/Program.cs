@@ -21,13 +21,12 @@ public class Program
         var rootCommand = new RootCommand("Metro Proximity Generator - Manage areas and generate station proximity data");
 
         // Define logging option (available for all commands)
-        var loggingOption = new Option<string>(
-            aliases: new[] { "--logging", "-l" },
-            description: "Set the minimum log level (Trace, Debug, Information, Warning, Error, Critical, None)")
+        var loggingOption = new Option<string>("--logging", "-l")
         {
-            ArgumentHelpName = "level"
+            Description = "Set the minimum log level (Trace, Debug, Information, Warning, Error, Critical, None)",
+            HelpName = "level",
+            DefaultValueFactory = _ => "None"
         };
-        loggingOption.SetDefaultValue("None");
 
         // Add area command group
         var areaCommand = new Command("area", "Manage areas for proximity calculations");
@@ -35,97 +34,109 @@ public class Program
         // Create area create command
         var createCommand = new Command("create", "Create a new area");
 
-        var nameArgument = new Argument<string>("name", "The name of the area");
-        var centerOption = new Option<string>(
-            aliases: new[] { "--center" },
-            description: "Center coordinates as 'latitude,longitude'")
+        var nameArgument = new Argument<string>("name")
         {
-            IsRequired = true,
-            ArgumentHelpName = "lat,lon"
+            Description = "The name of the area"
         };
-        var diameterOption = new Option<int>(
-            aliases: new[] { "--diameter" },
-            description: "Diameter in meters")
+        var centerOption = new Option<string>("--center")
         {
-            IsRequired = true,
-            ArgumentHelpName = "meters"
+            Description = "Center coordinates as 'latitude,longitude'",
+            Required = true,
+            HelpName = "lat,lon"
         };
-        var displayNameOption = new Option<string>(
-            aliases: new[] { "--displayname" },
-            description: "Display name for the area")
+        var diameterOption = new Option<int>("--diameter")
         {
-            IsRequired = true,
-            ArgumentHelpName = "display_name"
+            Description = "Diameter in meters",
+            Required = true,
+            HelpName = "meters"
         };
-        var developerOption = new Option<bool>(
-            aliases: new[] { "--developer" },
-            description: "Developer mode: limit to first 3 stations and 3 tram stops")
+        var displayNameOption = new Option<string>("--displayname")
         {
-            ArgumentHelpName = "developer"
+            Description = "Display name for the area",
+            Required = true,
+            HelpName = "display_name"
         };
-        var noIsochroneOption = new Option<bool>(
-            aliases: new[] { "--noisochrone" },
-            description: "Skip isochrone generation when creating the area")
+        var developerOption = new Option<bool>("--developer")
         {
-            ArgumentHelpName = "noisochrone"
+            Description = "Developer mode: limit to first 3 stations and 3 tram stops",
+            HelpName = "developer"
+        };
+        var noIsochroneOption = new Option<bool>("--noisochrone")
+        {
+            Description = "Skip isochrone generation when creating the area",
+            HelpName = "noisochrone"
         };
 
-        createCommand.AddArgument(nameArgument);
-        createCommand.AddOption(centerOption);
-        createCommand.AddOption(diameterOption);
-        createCommand.AddOption(displayNameOption);
-        createCommand.AddOption(developerOption);
-        createCommand.AddOption(noIsochroneOption);
-        createCommand.AddOption(loggingOption);
+        createCommand.Add(nameArgument);
+        createCommand.Add(centerOption);
+        createCommand.Add(diameterOption);
+        createCommand.Add(displayNameOption);
+        createCommand.Add(developerOption);
+        createCommand.Add(noIsochroneOption);
+        createCommand.Add(loggingOption);
 
-        createCommand.SetHandler(async (string name, string center, int diameter, string displayName, bool developer, bool noIsochrone, string loggingLevel) =>
+        createCommand.SetAction(async parseResult =>
         {
-            await InitializeLoggingAndConfigurationAsync(loggingLevel);
-            await AreaManager.CreateAreaAsync(name, center, diameter, displayName, developer, noIsochrone, _logger, _configuration);
-        }, nameArgument, centerOption, diameterOption, displayNameOption, developerOption, noIsochroneOption, loggingOption);
+            await InitializeLoggingAndConfigurationAsync(parseResult.GetValue(loggingOption)!);
+            await AreaManager.CreateAreaAsync(
+                parseResult.GetValue(nameArgument)!,
+                parseResult.GetValue(centerOption)!,
+                parseResult.GetValue(diameterOption),
+                parseResult.GetValue(displayNameOption)!,
+                parseResult.GetValue(developerOption),
+                parseResult.GetValue(noIsochroneOption),
+                _logger,
+                _configuration);
+        });
 
         // Create area delete command
         var deleteCommand = new Command("delete", "Delete an area");
-        var deleteNameArgument = new Argument<string>("name", "The name of the area to delete");
-
-        deleteCommand.AddArgument(deleteNameArgument);
-        deleteCommand.AddOption(loggingOption);
-
-        deleteCommand.SetHandler(async (string name, string loggingLevel) =>
+        var deleteNameArgument = new Argument<string>("name")
         {
-            await InitializeLoggingAndConfigurationAsync(loggingLevel);
-            await AreaManager.DeleteAreaAsync(name, _logger, _configuration);
-        }, deleteNameArgument, loggingOption);
+            Description = "The name of the area to delete"
+        };
+
+        deleteCommand.Add(deleteNameArgument);
+        deleteCommand.Add(loggingOption);
+
+        deleteCommand.SetAction(async parseResult =>
+        {
+            await InitializeLoggingAndConfigurationAsync(parseResult.GetValue(loggingOption)!);
+            await AreaManager.DeleteAreaAsync(parseResult.GetValue(deleteNameArgument)!, _logger, _configuration);
+        });
 
         // Create area list command
         var listCommand = new Command("list", "List all areas");
 
-        listCommand.AddOption(loggingOption);
+        listCommand.Add(loggingOption);
 
-        listCommand.SetHandler(async (string loggingLevel) =>
+        listCommand.SetAction(async parseResult =>
         {
-            await InitializeLoggingAndConfigurationAsync(loggingLevel);
+            await InitializeLoggingAndConfigurationAsync(parseResult.GetValue(loggingOption)!);
             await AreaManager.ListAreasAsync(_logger, _configuration);
-        }, loggingOption);
+        });
 
         // Create area isochrone command
         var areaIsochroneCommand = new Command("isochrone", "Recreate or delete area-wide isochrones using existing station isochrones");
-        var areaNameArgument = new Argument<string>("areaname", "The name of the area to regenerate isochrones for");
-        var deleteAreaIsochroneOption = new Option<bool>(
-            aliases: new[] { "--delete" },
-            description: "Delete area-wide isochrones instead of creating them")
+        var areaNameArgument = new Argument<string>("areaname")
         {
-            ArgumentHelpName = "delete"
+            Description = "The name of the area to regenerate isochrones for"
+        };
+        var deleteAreaIsochroneOption = new Option<bool>("--delete")
+        {
+            Description = "Delete area-wide isochrones instead of creating them",
+            HelpName = "delete"
         };
 
-        areaIsochroneCommand.AddArgument(areaNameArgument);
-        areaIsochroneCommand.AddOption(deleteAreaIsochroneOption);
-        areaIsochroneCommand.AddOption(loggingOption);
+        areaIsochroneCommand.Add(areaNameArgument);
+        areaIsochroneCommand.Add(deleteAreaIsochroneOption);
+        areaIsochroneCommand.Add(loggingOption);
 
-        areaIsochroneCommand.SetHandler(async (string areaName, bool delete, string loggingLevel) =>
+        areaIsochroneCommand.SetAction(async parseResult =>
         {
-            await InitializeLoggingAndConfigurationAsync(loggingLevel);
-            if (delete)
+            await InitializeLoggingAndConfigurationAsync(parseResult.GetValue(loggingOption)!);
+            var areaName = parseResult.GetValue(areaNameArgument)!;
+            if (parseResult.GetValue(deleteAreaIsochroneOption))
             {
                 await AreaManager.DeleteAreaIsochronesAsync(areaName, _logger, _configuration);
             }
@@ -133,148 +144,52 @@ public class Program
             {
                 await AreaManager.RecreateAreaIsochronesAsync(areaName, _logger, _configuration);
             }
-        }, areaNameArgument, deleteAreaIsochroneOption, loggingOption);
+        });
 
         // Add commands to area group
-        areaCommand.AddCommand(createCommand);
-        areaCommand.AddCommand(deleteCommand);
-        areaCommand.AddCommand(listCommand);
-        areaCommand.AddCommand(areaIsochroneCommand);
+        areaCommand.Add(createCommand);
+        areaCommand.Add(deleteCommand);
+        areaCommand.Add(listCommand);
+        areaCommand.Add(areaIsochroneCommand);
 
         // Add station command group
         var stationCommand = new Command("station", "Manage stations for areas");
 
         // Create station list command
         var stationListCommand = new Command("list", "List all stations for a specific area");
-        var areaIdArgument = new Argument<string>("areaid", "The area ID to list stations for");
-        var filterOption = new Option<string>(
-            aliases: new[] { "--filter" },
-            description: "Filter stations by rowkey or name containing the specified text")
+        var areaIdArgument = new Argument<string>("areaid")
         {
-            ArgumentHelpName = "text"
+            Description = "The area ID to list stations for"
+        };
+        var filterOption = new Option<string?>("--filter")
+        {
+            Description = "Filter stations by rowkey or name containing the specified text",
+            HelpName = "text"
         };
 
-        stationListCommand.AddArgument(areaIdArgument);
-        stationListCommand.AddOption(filterOption);
-        stationListCommand.AddOption(loggingOption);
+        stationListCommand.Add(areaIdArgument);
+        stationListCommand.Add(filterOption);
+        stationListCommand.Add(loggingOption);
 
-        stationListCommand.SetHandler(async (string areaId, string filter, string loggingLevel) =>
+        stationListCommand.SetAction(async parseResult =>
         {
-            await InitializeLoggingAndConfigurationAsync(loggingLevel);
-            await StationManager.ListStationsAsync(areaId, filter, _logger, _configuration);
-        }, areaIdArgument, filterOption, loggingOption);
+            await InitializeLoggingAndConfigurationAsync(parseResult.GetValue(loggingOption)!);
+            await StationManager.ListStationsAsync(
+                parseResult.GetValue(areaIdArgument)!,
+                parseResult.GetValue(filterOption),
+                _logger,
+                _configuration);
+        });
 
         // Add commands to station group
-        stationCommand.AddCommand(stationListCommand);
-
-        // Create station isochrone command
-        var stationIsochroneCommand = new Command("isochrone", "Generate isochrone data for a specific station or all stations in an area");
-        
-        // When called with <areaid> <stationid>, it processes a specific station
-        var areaIdIsochroneArgument = new Argument<string>("areaid", "The area ID containing the station");
-        var stationIdArgument = new Argument<string?>("stationid", "The station ID to generate isochrones for (optional - if not provided, processes all stations in the area)")
-        {
-            Arity = ArgumentArity.ZeroOrOne
-        };
-        
-        var deleteOption = new Option<string?>(
-            aliases: new[] { "--delete" },
-            parseArgument: result =>
-            {
-                // If --delete is specified without a value, return empty string (delete all)
-                // If --delete is specified with a value, return that value
-                // If --delete is not specified, return null
-                if (result.Tokens.Count == 0)
-                {
-                    return "";  // Delete all
-                }
-                return result.Tokens[0].Value;
-            },
-            description: "Delete isochrone(s). When used with area only: deletes all station isochrones in the area. When used with area and station: deletes isochrones for that specific station. Use without value to delete all durations, or specify duration (5, 10, 15, 20, 30) to delete specific isochrone")
-        {
-            ArgumentHelpName = "duration",
-            Arity = ArgumentArity.ZeroOrOne
-        };
-
-        stationIsochroneCommand.AddArgument(areaIdIsochroneArgument);
-        stationIsochroneCommand.AddArgument(stationIdArgument);
-        stationIsochroneCommand.AddOption(deleteOption);
-        stationIsochroneCommand.AddOption(loggingOption);
-
-        stationIsochroneCommand.SetHandler(async (string areaId, string? stationId, string? deleteValue, string loggingLevel) =>
-        {
-            await InitializeLoggingAndConfigurationAsync(loggingLevel);
-            
-            if (string.IsNullOrWhiteSpace(stationId))
-            {
-                // No station ID provided
-                if (deleteValue != null)
-                {
-                    // Delete mode - delete all station isochrones in the area
-                    await StationManager.DeleteAllStationIsochronesAsync(areaId, _logger, _configuration);
-                }
-                else
-                {
-                    // Regenerate mode - regenerate all stations in the area
-                    await StationManager.RegenerateAllStationIsochronesAsync(areaId, _logger, _configuration);
-                }
-            }
-            else
-            {
-                // Station ID provided - process specific station
-                // Parse delete option
-                int? deleteDuration = null;
-                bool isDeleteMode = false;
-                
-                if (deleteValue != null)
-                {
-                    isDeleteMode = true;
-                    if (!string.IsNullOrEmpty(deleteValue))
-                    {
-                        if (int.TryParse(deleteValue, out var parsedDuration))
-                        {
-                            deleteDuration = parsedDuration;
-                        }
-                        else
-                        {
-                            Console.WriteLine($"❌ Invalid duration value '{deleteValue}'. Valid values are: 5, 10, 15, 20, 30");
-                            Environment.Exit(1);
-                            return;
-                        }
-                    }
-                    else
-                    {
-                        deleteDuration = 0; // 0 means delete all
-                    }
-                }
-                
-                await StationManager.GenerateStationIsochroneAsync(areaId, stationId, isDeleteMode, deleteDuration, _logger, _configuration);
-            }
-        }, areaIdIsochroneArgument, stationIdArgument, deleteOption, loggingOption);
-
-        stationCommand.AddCommand(stationIsochroneCommand);
-
-        // Create station regenerate command for area-wide regeneration
-        var stationRegenerateCommand = new Command("regenerate", "Regenerate isochrones for all stations in an area");
-        var areaIdRegenerateArgument = new Argument<string>("areaid", "The area ID to regenerate all station isochrones for");
-
-        stationRegenerateCommand.AddArgument(areaIdRegenerateArgument);
-        stationRegenerateCommand.AddOption(loggingOption);
-
-        stationRegenerateCommand.SetHandler(async (string areaId, string loggingLevel) =>
-        {
-            await InitializeLoggingAndConfigurationAsync(loggingLevel);
-            await StationManager.RegenerateAllStationIsochronesAsync(areaId, _logger, _configuration);
-        }, areaIdRegenerateArgument, loggingOption);
-
-        stationCommand.AddCommand(stationRegenerateCommand);
+        stationCommand.Add(stationListCommand);
 
         // Add commands to root
-        rootCommand.AddCommand(areaCommand);
-        rootCommand.AddCommand(stationCommand);
+        rootCommand.Add(areaCommand);
+        rootCommand.Add(stationCommand);
 
         // Parse and invoke the command
-        return await rootCommand.InvokeAsync(args);
+        return await rootCommand.Parse(args).InvokeAsync();
     }
 
     private static async Task InitializeLoggingAndConfigurationAsync(string loggingLevel)

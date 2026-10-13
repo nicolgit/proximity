@@ -19,11 +19,14 @@ dotnet run -- area create france/lyon --center 45.752856,4.838188 --diameter 150
 
 ```bash
 
+dotnet run -- area create italytest/padua --center 45.407778,11.873333 --diameter 10000 --displayname "Padova (test)" --noisochrone --developer
+
+
 
 dotnet run -- area create italy/naples --center 40.8585186,14.2543934 --diameter 20000 --displayname "Napoli" --developer --noisochrone --logging debug
 dotnet run -- area create italy/rome --center 41.8902142,12.489656 --diameter 45000 --displayname "Roma" --developer --noisochrone --logging debug
 dotnet run -- area create italy/milan --center 45.4627338,9.1777322 --diameter 15000 --displayname "Milano" --developer --noisochrone --logging debug
 
 dotnet run -- area create italy/bologna --center 44.495054,11.3415394 --diameter 12000 --displayname "Bologna (test)" --developer
-dotnet run -- area create italy/padua --center 45.407778,11.873333 --diameter 10000 --displayname "Padova (test)" --noisochrone
+
 ```

@@ -1,10 +1,10 @@
 # Generator - Metro Proximity Generator
 
-A .NET 8 console application for managing areas and generating station proximity data using Azure Maps or MapBox APIs.
+A .NET 10 console application for managing areas and generating station proximity data using Azure Maps or MapBox APIs.
 
 ## Prerequisites
 
-- .NET 8.0 SDK
+- .NET 10.0 SDK
 - Azure Storage Account (for area storage, station data, and isochrone polygons)
 - MapBox API Key (for geographical services and isochrone generation)
 
