@@ -6,7 +6,7 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build-generator",
-            "program": "${workspaceFolder}/generator/bin/Debug/net8.0/generator.dll",
+            "program": "${workspaceFolder}/generator/bin/Debug/net10.0/generator.dll",
             "args": [
                 "area",
                 "create",
@@ -34,7 +34,7 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build-generator",
-            "program": "${workspaceFolder}/generator/bin/Debug/net8.0/generator.dll",
+            "program": "${workspaceFolder}/generator/bin/Debug/net10.0/generator.dll",
             "args": [
                 "--logging",
                 "Debug"
@@ -55,7 +55,7 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build-generator",
-            "program": "${workspaceFolder}/generator/bin/Debug/net8.0/generator.dll",
+            "program": "${workspaceFolder}/generator/bin/Debug/net10.0/generator.dll",
             "args": [
                 "--logging",
                 "Warning"
