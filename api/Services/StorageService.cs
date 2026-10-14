@@ -144,7 +144,7 @@ namespace api.Services
                 _logger.LogInformation("Isochrone container exists, checking for blobs...");
 
                 // Attempt to list blobs in the isochrone container - this requires Storage Blob Data Reader permission
-                var blobs = containerClient.GetBlobsAsync(prefix: null);
+                var blobs = containerClient.GetBlobsAsync();
                 int blobCount = 0;
                 
                 await foreach (var blob in blobs)
