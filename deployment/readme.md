@@ -8,7 +8,7 @@ This document provides comprehensive instructions for deploying the Proximity ap
 
 The Proximity solution consists of:
 
-- **Azure Functions** (Flex Consumption plan) - Backend API with secure storage integration
+- **Azure Functions** (.NET 10 isolated worker, Flex Consumption plan) - Backend API with secure storage integration
 - **Azure Static Web Apps** - Frontend SPA hosting with integrated CI/CD
 - **Azure Storage Accounts** - Secure data storage with private endpoints
 - **Virtual Network** - Private networking with subnet isolation
@@ -43,6 +43,10 @@ Before starting the deployment, ensure you have:
    ```
 
 4. **GitHub repository** forked and ready for CI/CD setup
+
+5. **.NET 10 SDK** installed for local API builds. The API deployment workflow also uses .NET 10.
+
+   For an existing Function App, update its runtime to **.NET 10 (isolated)** before deploying the upgraded API. The Bicep template configures runtime version `10.0`.
 
 ## Step 1: Infrastructure Deployment
 
