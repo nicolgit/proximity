@@ -24,7 +24,7 @@ on:
         type: string
 
 env:
-  AZURE_FUNCTIONAPP_NAME: "proximity-backend-api" # set this to your function app name on Azure
+  AZURE_FUNCTIONAPP_NAME: "api-backend-a7hqd7" # set this to your function app name on Azure
   AZURE_FUNCTIONAPP_PACKAGE_PATH: "./api" # set this to the path to your function app project, defaults to the repository root
   DOTNET_VERSION: "10.*"
 
