@@ -137,33 +137,32 @@ Update the GitHub workflow files to match your deployed resource names:
 2. **SPA Deployment** (`.github/workflows/deploy-spa.yml`):
    - No changes needed - uses the API token for deployment
 
-## Step 3: Trigger Deployments
+## Step 3: Save Deployment Configuration
 
-### 3.1 Deploy the API
-
-The API deployment workflow is triggered by changes to the workflow file. To trigger the first deployment:
+Commit and push any workflow configuration changes to the branch you want to deploy:
 
 ```powershell
-# Make a small change to trigger deployment
 git add .github/workflows/deploy-api.yml
 git commit -m "Configure API deployment"
-git push origin develop
+git push origin main
 ```
 
-### 3.2 Deploy the SPA
+Both deployment workflows use `workflow_dispatch` only. Pushing changes does not trigger a deployment; run the workflows manually as described in Step 4.
 
-Similarly, trigger the SPA deployment:
+## Step 4: Manual Deployment and Verification
 
-```powershell
-# Make a small change to trigger deployment
-git add .github/workflows/deploy-spa.yml
-git commit -m "Configure SPA deployment"
-git push origin develop
-```
+### 4.1 Run GitHub Actions Manually
 
-## Step 4: Verification
+1. Open your GitHub repository and select the **Actions** tab.
+2. Select the **Deploy API** workflow.
+3. Click **Run workflow** and select `main` under **Use workflow from**.
+4. Set **Branch to deploy** to `main`, choose the **Deployment environment** (for example, `production`), and optionally enter a **Reason for deployment**.
+5. Click **Run workflow** to start the deployment and wait for the run to complete successfully. Check the run logs if it fails.
+6. Repeat the same steps for the **Deploy SPA** workflow.
 
-### 4.1 Verify API Deployment
+If deploying another branch, select that branch in both **Use workflow from** and **Branch to deploy**. The workflow must be present on the repository's default branch for the **Run workflow** button to be available.
+
+### 4.2 Verify API Deployment
 
 1. Check the Function App in Azure Portal
 2. Navigate to **Functions** and verify your functions are listed
@@ -172,13 +171,13 @@ git push origin develop
    curl https://api-backend-xxxxxx.azurewebsites.net/api/area
    ```
 
-### 4.2 Verify SPA Deployment
+### 4.3 Verify SPA Deployment
 
 1. Navigate to your Static Web App URL (found in Azure Portal)
 2. Verify the application loads correctly
 3. Test API integration functionality
 
-### 4.3 Verify Monitoring
+### 4.4 Verify Monitoring
 
 1. Go to **Application Insights** in Azure Portal
 2. Check **Live Metrics** for real-time telemetry
