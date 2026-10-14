@@ -17,6 +17,5 @@
   "editor.codeActionsOnSave": {
     "source.fixAll": "explicit",
     "source.organizeImports": "explicit"
-  },
-  "dotnet.defaultSolution": "generator/generator.csproj"
+  }
 }

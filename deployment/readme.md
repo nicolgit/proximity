@@ -99,16 +99,15 @@ After the Bicep deployment completes successfully, configure the CI/CD pipelines
 ### 2.1 Download Publishing Profiles
 
 1. **Azure Functions Publishing Profile**:
-   - Go to **Azure Portal** → **Resource Groups** → **rg-proximity**
+   - Go to **Azure Portal** → **Resource Groups** → **proximity-playground**
    - Navigate to the Function App (name: `api-backend-xxxxxx`)
-   - Go to **Deployment** → **Deployment Center**
-   - Click **Manage publish profile** → **Download publish profile**
+   - Go to **Overview** → **Get publish profile**
    - Save this file as you'll need it for GitHub secrets
 
 2. **Static Web Apps API Token**:
-   - Go to **Azure Portal** → **Resource Groups** → **rg-proximity**
+   - Go to **Azure Portal** → **Resource Groups** → **proximity-playground**
    - Navigate to the Static Web App (name: `proximity-spa-xxxxxx`)
-   - Go to **Settings** → **Configuration**
+   - Go to **Overview** → **Manage deployment token**
    - Copy the **Deployment token** value
 
 ### 2.2 Configure GitHub Secrets
@@ -239,7 +238,7 @@ After successful deployment:
 To remove all deployed resources:
 
 ```powershell
-az group delete --name rg-proximity --yes --no-wait
+az group delete --name proximity-playground --yes --no-wait
 ```
 
 **Warning**: This action is irreversible and will delete all resources in the resource group.
