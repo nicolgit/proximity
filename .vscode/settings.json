@@ -1,5 +1,4 @@
 {
-  "omnisharp.defaultLaunchSolution": "generator/generator.csproj",
   "files.exclude": {
     "**/bin": true,
     "**/obj": true,

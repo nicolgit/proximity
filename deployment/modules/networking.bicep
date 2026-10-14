@@ -18,6 +18,10 @@ var vnetConfig = {
       name: 'backend-subnet'
       addressPrefix: '10.10.1.128/26'
     }
+    sre: {
+      name: 'sre-subnet'
+      addressPrefix: '10.10.1.192/26'
+    }
   }
 }
 
@@ -59,6 +63,12 @@ resource vnet 'Microsoft.Network/virtualNetworks@2023-09-01' = {
           addressPrefix: vnetConfig.subnets.backend.addressPrefix
         }
       }
+      {
+        name: vnetConfig.subnets.sre.name
+        properties: {
+          addressPrefix: vnetConfig.subnets.sre.addressPrefix
+        }
+      }
     ]
   }
 }
@@ -69,3 +79,4 @@ output vnetName string = vnet.name
 output functionsSubnetId string = '${vnet.id}/subnets/${vnetConfig.subnets.functions.name}'
 output integrationSubnetId string = '${vnet.id}/subnets/${vnetConfig.subnets.integration.name}'
 output backendSubnetId string = '${vnet.id}/subnets/${vnetConfig.subnets.backend.name}'
+output sreSubnetId string = '${vnet.id}/subnets/${vnetConfig.subnets.sre.name}'

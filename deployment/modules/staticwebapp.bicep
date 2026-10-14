@@ -1,5 +1,6 @@
 // Static Web App module - Azure Static Web Apps configuration
 param location string
+param backendLocation string
 param functionAppId string
 param uniqueSuffix string
 
@@ -13,7 +14,6 @@ resource staticWebApp 'Microsoft.Web/staticSites@2023-01-01' = {
   }
   properties: {
     // Repository configuration will be set up manually after deployment
-    enterpriseGradeCdnStatus: 'Enabled' // Enable CDN for both static content and API routes
     publicNetworkAccess: 'Enabled'
   }
 }
@@ -24,7 +24,7 @@ resource staticWebAppApiBackend 'Microsoft.Web/staticSites/linkedBackends@2023-0
   parent: staticWebApp
   properties: {
     backendResourceId: functionAppId
-    region: location
+    region: backendLocation
   }
 }
 

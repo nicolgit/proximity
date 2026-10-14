@@ -1,11 +1,6 @@
 name: Deploy SPA
 
 on:
-  push:
-    branches:
-      - develop
-    paths:
-      - ".github/workflows/deploy-spa.yml"
   workflow_dispatch:
     inputs:
       branch:

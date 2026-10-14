@@ -27,6 +27,10 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
     supportsHttpsTrafficOnly: true
     minimumTlsVersion: 'TLS1_2'
     publicNetworkAccess: 'Disabled' // Disable internet access
+    networkAcls: {
+      bypass: 'None'
+      defaultAction: 'Deny'
+    }
   }
 }
 
@@ -45,6 +49,10 @@ resource functionAppStorageAccount 'Microsoft.Storage/storageAccounts@2023-01-01
     supportsHttpsTrafficOnly: true
     minimumTlsVersion: 'TLS1_2'
     publicNetworkAccess: 'Disabled' // Disable internet access, will use private endpoints
+    networkAcls: {
+      bypass: 'None'
+      defaultAction: 'Deny'
+    }
   }
 }
 

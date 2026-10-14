@@ -1,6 +1,8 @@
 // Main template - Proximity application infrastructure
 // Parameters
 param location string = resourceGroup().location
+param azureMapsLocation string = 'westus2'
+param staticWebAppLocation string = 'westus2'
 
 // NOTE: For Flex Consumption plans with VNet integration, ensure that the 
 // Microsoft.App resource provider is registered in your subscription.
@@ -10,7 +12,6 @@ var vnetName string = 'proximity-net'
 
 // Generate unique suffix for storage account name (must be globally unique)
 var uniqueSuffix = uniqueString(resourceGroup().id)
-
 
 // Deploy networking infrastructure
 module networking 'modules/networking.bicep' = {
@@ -76,7 +77,8 @@ module functionApp 'modules/functionapp.bicep' = {
 module staticWebApp 'modules/staticwebapp.bicep' = {
   name: 'staticwebapp-deployment'
   params: {
-    location: location
+    location: staticWebAppLocation
+    backendLocation: location
     functionAppId: functionApp.outputs.functionAppId
     uniqueSuffix: uniqueSuffix
   }
@@ -86,7 +88,7 @@ module staticWebApp 'modules/staticwebapp.bicep' = {
 module azureMaps 'modules/azuremaps.bicep' = {
   name: 'azuremaps-deployment'
   params: {
-    location: location
+    location: azureMapsLocation
     uniqueSuffix: uniqueSuffix
   }
 }
@@ -97,6 +99,7 @@ output vnetName string = networking.outputs.vnetName
 output functionsSubnetId string = networking.outputs.functionsSubnetId
 output integrationSubnetId string = networking.outputs.integrationSubnetId
 output backendSubnetId string = networking.outputs.backendSubnetId
+output sreSubnetId string = networking.outputs.sreSubnetId
 output storageAccountName string = storage.outputs.storageAccountName
 output storageAccountId string = storage.outputs.storageAccountId
 output storageTablePrivateEndpointId string = storage.outputs.storageTablePrivateEndpointId
@@ -138,7 +141,3 @@ output logAnalyticsWorkspaceName string = applicationInsights.outputs.logAnalyti
 output mapsAccountId string = azureMaps.outputs.mapsAccountId
 output mapsAccountName string = azureMaps.outputs.mapsAccountName
 output mapsAccountClientId string = azureMaps.outputs.mapsAccountClientId
-
-
-
-
