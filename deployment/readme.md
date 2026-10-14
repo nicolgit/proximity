@@ -7,6 +7,7 @@ This document provides comprehensive instructions for deploying the Proximity ap
 ## Architecture Overview
 
 The Proximity solution consists of:
+
 - **Azure Functions** (Flex Consumption plan) - Backend API with secure storage integration
 - **Azure Static Web Apps** - Frontend SPA hosting with integrated CI/CD
 - **Azure Storage Accounts** - Secure data storage with private endpoints
@@ -19,6 +20,7 @@ The Proximity solution consists of:
 Before starting the deployment, ensure you have:
 
 1. **Azure CLI** installed and logged in
+
    ```powershell
    az login
    ```
@@ -28,11 +30,16 @@ Before starting the deployment, ensure you have:
    - Ability to create service principals and role assignments
 
 3. **Resource providers registered**:
+
    ```powershell
-   az provider register --namespace Microsoft.App
-   az provider register --namespace Microsoft.Web
-   az provider register --namespace Microsoft.Storage
-   az provider register --namespace Microsoft.Insights
+   az provider register --namespace Microsoft.App --wait
+   az provider register --namespace Microsoft.Authorization --wait
+   az provider register --namespace Microsoft.Insights --wait
+   az provider register --namespace Microsoft.Maps --wait
+   az provider register --namespace Microsoft.Network --wait
+   az provider register --namespace Microsoft.OperationalInsights --wait
+   az provider register --namespace Microsoft.Storage --wait
+   az provider register --namespace Microsoft.Web --wait
    ```
 
 4. **GitHub repository** forked and ready for CI/CD setup
@@ -41,20 +48,45 @@ Before starting the deployment, ensure you have:
 
 Deploy the Azure infrastructure using the provided Bicep template:
 
-```powershell
+```sh
+# List the available tenants
+az rest \
+    --method get \
+    --url "https://management.azure.com/tenants?api-version=2022-12-01" \
+    --query "value[].{Name:displayName, TenantId:tenantId}" \
+    --output table
+
+# Set the target tenant ID
+TENANT_ID="<tenant-id>"
+
+# Log in to the target tenant
+az login --tenant "$TENANT_ID"
+
+# List only the subscriptions for the target tenant
+az account list --query "[?tenantId=='$TENANT_ID']" --output table
+
+# Select the target subscription
+az account set --subscription "<subscription-name-or-id>"
+
+# Verify the selected subscription
+az account show --output table
+
 # Create resource group (if not exists)
-az group create --name rg-proximity --location "West Europe"
+RG="proximity-playground"
+az group create --name "$RG" --location "Italy North"
 
 # Deploy infrastructure
 az deployment group create \
-    --resource-group rg-proximity \
+    --resource-group "$RG" \
     --template-file main.bicep \
-    --parameters location="West Europe"
+    --parameters location="Italy North" \
+    --verbose
 ```
 
 **Expected deployment time:** 10-15 minutes
 
 The deployment will create all necessary Azure resources with secure defaults:
+
 - Private networking configuration
 - Managed identity authentication
 - Private endpoints for storage accounts
@@ -74,7 +106,7 @@ After the Bicep deployment completes successfully, configure the CI/CD pipelines
    - Save this file as you'll need it for GitHub secrets
 
 2. **Static Web Apps API Token**:
-   - Go to **Azure Portal** → **Resource Groups** → **rg-proximity** 
+   - Go to **Azure Portal** → **Resource Groups** → **rg-proximity**
    - Navigate to the Static Web App (name: `proximity-spa-xxxxxx`)
    - Go to **Settings** → **Configuration**
    - Copy the **Deployment token** value
@@ -87,16 +119,17 @@ Navigate to your GitHub repository and set up the following secrets:
 
 Add these secrets:
 
-| Secret Name | Value | Description |
-|-------------|--------|-------------|
+| Secret Name                         | Value                                  | Description                         |
+| ----------------------------------- | -------------------------------------- | ----------------------------------- |
 | `AZURE_FUNCTIONAPP_PUBLISH_PROFILE` | Contents of downloaded publish profile | Function App deployment credentials |
-| `AZURE_STATIC_WEB_APPS_API_TOKEN` | Deployment token from Static Web App | SPA deployment token |
+| `AZURE_STATIC_WEB_APPS_API_TOKEN`   | Deployment token from Static Web App   | SPA deployment token                |
 
 ### 2.3 Update Workflow Configuration
 
 Update the GitHub workflow files to match your deployed resource names:
 
 1. **API Deployment** (`.github/workflows/deploy-api.yml`):
+
    ```yaml
    env:
      AZURE_FUNCTIONAPP_NAME: "api-backend-xxxxxx" # Replace with your actual Function App name
@@ -167,6 +200,7 @@ The deployment includes several security best practices:
 ### Common Issues
 
 1. **Deployment Fails with "Resource Provider Not Registered"**:
+
    ```powershell
    az provider register --namespace Microsoft.App
    ```
@@ -209,4 +243,3 @@ az group delete --name rg-proximity --yes --no-wait
 ```
 
 **Warning**: This action is irreversible and will delete all resources in the resource group.
-

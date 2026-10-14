@@ -1,5 +1,4 @@
 {
-  "omnisharp.defaultLaunchSolution": "generator/generator.csproj",
   "files.exclude": {
     "**/bin": true,
     "**/obj": true,
@@ -18,5 +17,6 @@
   "editor.codeActionsOnSave": {
     "source.fixAll": "explicit",
     "source.organizeImports": "explicit"
-  }
+  },
+  "dotnet.defaultSolution": "generator/generator.csproj"
 }
