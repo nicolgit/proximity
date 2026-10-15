@@ -105,6 +105,7 @@ After the Bicep deployment completes successfully, configure the CI/CD pipelines
 1. **Azure Functions Publishing Profile**:
    - Go to **Azure Portal** → **Resource Groups** → **proximity-playground**
    - Navigate to the Function App (name: `api-backend-xxxxxx`)
+   - The Bicep template enables **SCM Basic Auth Publishing Credentials**, required by the publish-profile deployment workflow. FTP authentication is unchanged. For deployments without Basic Auth, migrate the workflow to OIDC.
    - Go to **Overview** → **Get publish profile**
    - Save this file as you'll need it for GitHub secrets
 

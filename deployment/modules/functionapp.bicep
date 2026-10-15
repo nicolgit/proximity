@@ -123,6 +123,14 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
   }
 }
 
+resource scmBasicAuthPolicy 'Microsoft.Web/sites/basicPublishingCredentialsPolicies@2023-12-01' = {
+  parent: functionApp
+  name: 'scm'
+  properties: {
+    allow: true
+  }
+}
+
 // Get reference to the function app storage account for role assignments
 resource functionAppStorageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' existing = {
   name: functionAppStorageAccountName
