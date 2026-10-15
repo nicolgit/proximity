@@ -98,6 +98,27 @@ The deployment will create all necessary Azure resources with secure defaults:
 
 ## Step 2: Post-Deployment Configuration
 
+### Generator application identity
+
+The deployment creates the single-tenant Entra application **proximity-generator-app** and its service principal. Its stable unique name is derived from the resource group ID, so repeated deployments reuse the same application while different resource groups get separate identities.
+
+The service principal receives **Storage Blob Data Contributor** and **Storage Table Data Contributor**, scoped only to the main data storage account. The generic Contributor role is not needed and would not grant data access.
+
+This requires a Bicep CLI version supporting the Microsoft Graph extension configured in `bicepconfig.json`, plus tenant permissions to create/manage applications and service principals (for example, Application Administrator for an interactive deployment). Automated deployment identities need suitable Microsoft Graph application permissions, typically `Application.ReadWrite.OwnedBy` for applications they own, with admin consent. Azure role assignments additionally require permission such as Role Based Access Control Administrator at the relevant scope; Contributor alone is insufficient.
+
+Deployment outputs include `generatorTenantId`, `generatorClientId`, `generatorApplicationObjectId`, and `generatorPrincipalId`. The client ID is a generated GUID; `proximity-generator-app` is the display name.
+
+No secret is created or exposed by the template. To use application credentials locally, open **Microsoft Entra ID > App registrations**, locate the application using `generatorClientId`, and create a short-lived client secret under **Certificates & secrets**. Copy its value once into the local generator configuration together with the tenant and client IDs. Do not commit the secret. See [generator authentication](../generator/README.md#configuration-and-authentication).
+
+Deleting the resource group removes Storage and its scoped role assignments, **not the Entra application or service principal**. Record both IDs before deleting the resource group. When the identity is no longer needed, explicitly remove it:
+
+```powershell
+az ad sp delete --id "<generatorPrincipalId>"
+if ($LASTEXITCODE -ne 0) { throw "Failed to delete the generator service principal." }
+az ad app delete --id "<generatorClientId>"
+if ($LASTEXITCODE -ne 0) { throw "Failed to delete the generator application." }
+```
+
 ### SPA telemetry configuration endpoint
 
 `GET /api/application-insights/connection-string` anonymously returns the Function App's

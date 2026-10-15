@@ -21,7 +21,7 @@ public static class TestManager
             
             if (blobServiceClient == null || tableServiceClient == null)
             {
-                logger?.LogInformation("Azure AD credentials or storage URIs not configured. Skipping storage test.");
+                logger?.LogInformation("Azure authentication configuration or storage URIs are invalid. Skipping storage test.");
                 Console.WriteLine("⚠️ Azure configuration not complete - storage test skipped");
                 Console.WriteLine();
                 return false; // This is a critical failure since we need these for the app to work
@@ -62,7 +62,7 @@ public static class TestManager
             {
                 logger?.LogError("Storage Blob Data Contributor permissions test failed - access denied");
                 Console.WriteLine("    ❌ Storage Blob Data Contributor permissions missing");
-                Console.WriteLine("       The service principal needs 'Storage Blob Data Contributor' role assignment");
+                Console.WriteLine("       The authenticated identity needs 'Storage Blob Data Contributor' role assignment");
                 return false;
             }
             catch (Exception ex)
@@ -117,7 +117,7 @@ public static class TestManager
             {
                 logger?.LogError("Storage Table Data Contributor permissions test failed - access denied");
                 Console.WriteLine("    ❌ Storage Table Data Contributor permissions missing");
-                Console.WriteLine("       The service principal needs 'Storage Table Data Contributor' role assignment");
+                Console.WriteLine("       The authenticated identity needs 'Storage Table Data Contributor' role assignment");
                 return false;
             }
             catch (Exception ex)

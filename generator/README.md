@@ -8,6 +8,49 @@ A .NET 10 console application for managing areas and generating station proximit
 - Azure Storage Account (for area storage, station data, and isochrone polygons)
 - MapBox API Key (for geographical services and isochrone generation)
 
+## Configuration and authentication
+
+Copy `generator.config.template.json` to `generator.config.json` in the generator directory and set the MapBox key and storage account URLs. Run the generator from this directory: configuration is loaded from the current working directory.
+
+Azure Storage authentication supports two options:
+
+### Azure CLI (local development, no application secret)
+
+Install Azure CLI and sign in with the identity that should access Storage:
+
+```powershell
+az login --tenant "<tenant-id>"
+az account set --subscription "<subscription-id>"
+```
+
+In `AppSettings`, omit all three credential settings (`tenantId`, `clientId`, and `clientSecret`), or set them to null or empty strings. For example, replace the template's credential placeholders with:
+
+```json
+"tenantId": "",
+"clientId": "",
+"clientSecret": ""
+```
+
+The generator uses `AzureCliCredential` and Azure CLI's current tenant and login, not automatically the Windows or VPN session. All three credential settings must be absent, null, empty, or whitespace for this mode. Template placeholders are not treated as missing values.
+
+### Service principal (application credentials)
+
+Set all three values in `AppSettings`:
+
+```json
+"tenantId": "<tenant-id>",
+"clientId": "<application-client-id>",
+"clientSecret": "<client-secret-value>"
+```
+
+The generator uses `ClientSecretCredential`. Use the secret's **value**, not its ID. If any credential setting is supplied, all three are required; partial configuration fails explicitly. An authentication failure does not fall back to another identity.
+
+The infrastructure deployment creates **proximity-generator-app** and assigns its service principal the required Storage data roles. Use the deployment's `generatorTenantId` and `generatorClientId` outputs, then create a client secret as described in the [deployment guide](../deployment/readme.md#generator-application-identity). The template does not generate a secret; the Entra identity requires separate cleanup when the resource group is deleted.
+
+For either option, grant the selected identity (your Azure CLI user or the service principal) **Storage Blob Data Contributor** and **Storage Table Data Contributor** on the target storage account. Private endpoints also require network connectivity and DNS resolution; VPN authentication does not grant Storage data permissions.
+
+Do not commit `generator.config.json` containing secrets. The generator currently reads this JSON file only; environment variables and .NET User Secrets are not loaded.
+
 ## Quick Reference
 
 ```bash

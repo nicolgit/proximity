@@ -46,6 +46,18 @@ module storage 'modules/storage.bicep' = {
   }
 }
 
+module generatorIdentity 'modules/generatoridentity.bicep' = {
+  name: 'generatoridentity-deployment'
+}
+
+module generatorRoles 'modules/generatorroles.bicep' = {
+  name: 'generatorroles-deployment'
+  params: {
+    storageAccountName: storage.outputs.storageAccountName
+    principalId: generatorIdentity.outputs.principalId
+  }
+}
+
 // Deploy Application Insights
 module applicationInsights 'modules/applicationinsights.bicep' = {
   name: 'applicationinsights-deployment'
@@ -102,6 +114,10 @@ output backendSubnetId string = networking.outputs.backendSubnetId
 output sreSubnetId string = networking.outputs.sreSubnetId
 output storageAccountName string = storage.outputs.storageAccountName
 output storageAccountId string = storage.outputs.storageAccountId
+output generatorTenantId string = tenant().tenantId
+output generatorClientId string = generatorIdentity.outputs.clientId
+output generatorApplicationObjectId string = generatorIdentity.outputs.applicationObjectId
+output generatorPrincipalId string = generatorIdentity.outputs.principalId
 output storageTablePrivateEndpointId string = storage.outputs.storageTablePrivateEndpointId
 output storageBlobPrivateEndpointId string = storage.outputs.storageBlobPrivateEndpointId
 output staticWebAppId string = staticWebApp.outputs.staticWebAppId

@@ -36,7 +36,7 @@ flowchart LR
     hubVnet <-->|"VNet peering<br/>Gateway transit"| proximityVnet
 ```
 
-The deployment intentionally excludes virtual machines, Azure Firewall, and Azure Bastion. It must include the VPN gateway because the gateway terminates the P2S connection.
+The deployment intentionally excludes virtual machines and Azure Bastion. It includes the VPN gateway to terminate the P2S connection and Azure Firewall Standard with DNS Proxy to resolve private storage names.
 
 ## Prerequisites
 
@@ -46,7 +46,7 @@ The deployment intentionally excludes virtual machines, Azure Firewall, and Azur
 - The Proximity infrastructure already deployed to the `proximity-playground` resource group.
 - The workstation address space, `proximity-net` (`10.10.1.0/24`), the hub (`10.12.0.0/16`), and the P2S client pool must not overlap.
 
-> Azure VPN Gateway is a billable resource and can take 30 minutes or longer to provision. Delete the temporary resource group when it is no longer required.
+> Azure VPN Gateway and Azure Firewall Standard are billable resources. The gateway can take 30 minutes or longer to provision. Delete the temporary resource group when it is no longer required.
 
 ## 1. Clone the hub-and-spoke playground
 
@@ -90,7 +90,9 @@ Confirm that the displayed tenant and subscription are correct before continuing
 
 ## 3. Deploy the temporary hub
 
-The `hub-01.bicep` template is deployed at resource-group scope. Use explicit parameter values so that the deployment is repeatable and does not accidentally create the playground's default VMs, firewall, or Bastion host.
+The `hub-01.bicep` template is deployed at resource-group scope. Use explicit parameter values to deploy Azure Firewall Standard while excluding the playground's default VMs and Bastion host.
+
+Set `enableFirewallDnsProxy=true` to enable the firewall DNS proxy and configure the hub VNet to distribute the firewall's private IP (`10.12.3.4`) as its DNS server. Keep `anyToAnyRouting=false`: using the DNS proxy does not require routing application traffic through the firewall. Update the playground checkout with `git pull` before deploying.
 
 Set `configureP2sVpn=true` together with `deployGateway=true` to configure Point-to-Site access using OpenVPN and Microsoft Entra ID authentication in the subscription's tenant. The template uses the client address pool `172.20.0.0/24`; ensure it does not overlap with the workstation or connected networks.
 
@@ -111,7 +113,8 @@ az deployment group create \
   --parameters \
     location="$LOCATION" \
     locationSpoke03="$LOCATION" \
-    firewallTier=None \
+    firewallTier=Standard \
+    enableFirewallDnsProxy=true \
     deployBastion=false \
     deployGateway=true \
     configureP2sVpn=true \
@@ -247,12 +250,6 @@ Disconnect the VPN, then remove the local connection from PowerShell as the Wind
 
 ```powershell
 Remove-VpnConnection -Name 'proximity enviroment' -Force -ErrorAction Stop
-```
-
-If an earlier setup created a connection named `hub-lab-net`, remove that connection as well:
-
-```powershell
-Remove-VpnConnection -Name 'hub-lab-net' -Force -ErrorAction Stop
 ```
 
 These commands remove the local Windows VPN profiles, including when deletion from Azure VPN Client does not work. Close and reopen the client if its connection list has not refreshed. Removing a local profile does not delete the Azure VPN gateway.
