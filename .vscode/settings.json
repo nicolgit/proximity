@@ -1,6 +1,4 @@
 {
-  "dotnet.defaultSolution": "generator/generator.csproj",
-  "omnisharp.defaultLaunchSolution": "generator/generator.csproj",
   "files.exclude": {
     "**/bin": true,
     "**/obj": true,
