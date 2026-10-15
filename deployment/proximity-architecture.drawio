@@ -1,6 +1,6 @@
 <mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.0.3 Chrome/140.0.7339.249 Electron/38.7.0 Safari/537.36">
   <diagram name="Page-1" id="o_94vid7xFebRi_YSR5-">
-    <mxGraphModel dx="2528" dy="1013" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+    <mxGraphModel dx="2873" dy="1219" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -107,7 +107,7 @@
           </mxGeometry>
         </mxCell>
         <mxCell id="iYKLwUi34a5PwU0SG7X0-10" parent="1" style="verticalLabelPosition=bottom;html=1;verticalAlign=top;align=center;strokeColor=none;fillColor=#00BEF2;shape=mxgraph.azure.github_code;pointerEvents=1;labelPosition=center;" value="&lt;div&gt;&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;https://github.com/nicolgit/proximity&lt;/span&gt;&lt;/div&gt;" vertex="1">
-          <mxGeometry height="40" width="40" x="-730" y="85.9" as="geometry" />
+          <mxGeometry height="40" width="40" x="-660" y="189.26" as="geometry" />
         </mxCell>
         <mxCell id="GV5Pj42Ep5QnTts1L2Bw-1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=3;strokeColor=none;fillColor=#E6E6E6;align=left;verticalAlign=top;fontColor=#333333;fontFamily=Helvetica;" value="" vertex="1">
           <mxGeometry height="293" width="100" x="43.190000000000055" y="123.80000000000001" as="geometry" />
@@ -246,10 +246,11 @@
           <mxGeometry height="30" width="32.6" x="200" y="321.9" as="geometry" />
         </mxCell>
         <mxCell id="HgoxtP_zVUr5RUEpUTKT-7" parent="1" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/storage/Storage_Accounts.svg;" value="proxdata&amp;lt;####&amp;gt;" vertex="1">
-          <mxGeometry height="26.9" width="33.62" x="486.9200000000001" y="295" as="geometry" />
+          <mxGeometry height="26.9" width="33.62" x="484.1600000000001" y="299.72" as="geometry" />
         </mxCell>
         <mxCell id="HgoxtP_zVUr5RUEpUTKT-8" edge="1" parent="1" style="endArrow=none;html=1;rounded=1;curved=0;strokeColor=#7EA6E0;endFill=0;startArrow=classic;startFill=1;" value="Storage Blob Data&lt;div&gt;contributor&lt;/div&gt;">
           <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint as="offset" />
             <Array as="points">
               <mxPoint x="444.23" y="311.9" />
               <mxPoint x="444.23" y="231.9" />
@@ -276,7 +277,7 @@
           <mxGeometry height="80" width="120" x="294.23" y="371.9" as="geometry" />
         </mxCell>
         <mxCell id="HgoxtP_zVUr5RUEpUTKT-14" parent="1" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/storage/Storage_Accounts.svg;" value="proxfn&amp;lt;####&amp;gt;" vertex="1">
-          <mxGeometry height="26.9" width="33.62" x="487.4200000000001" y="361.9" as="geometry" />
+          <mxGeometry height="26.9" width="33.62" x="484.6600000000001" y="364.65999999999997" as="geometry" />
         </mxCell>
         <mxCell id="HgoxtP_zVUr5RUEpUTKT-15" edge="1" parent="1" style="endArrow=none;html=1;rounded=1;curved=0;strokeColor=#7EA6E0;endFill=0;startArrow=classic;startFill=1;" value="Storage Account&amp;nbsp;&lt;br&gt;&lt;span style=&quot;background-color: light-dark(#ffffff, var(--ge-dark-color, #121212)); color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;contributor&lt;/span&gt;">
           <mxGeometry height="50" relative="1" width="50" x="-0.0625" as="geometry">
@@ -305,23 +306,23 @@
           </mxGeometry>
         </mxCell>
         <mxCell id="FxRjEdKYXGra20SssN0z-2" edge="1" parent="1" style="endArrow=none;html=1;rounded=1;curved=0;strokeColor=#97D077;endFill=0;startArrow=classic;startFill=1;dashed=1;" value="deploy-api.yml">
-          <mxGeometry height="50" relative="1" width="50" as="geometry">
+          <mxGeometry height="50" relative="1" width="50" x="-0.4028" as="geometry">
             <mxPoint as="offset" />
             <Array as="points">
-              <mxPoint x="-690" y="424.9" />
+              <mxPoint x="-630" y="424.9" />
             </Array>
             <mxPoint x="-460" y="424.9" as="sourcePoint" />
-            <mxPoint x="-690" y="154.9" as="targetPoint" />
+            <mxPoint x="-630" y="260" as="targetPoint" />
           </mxGeometry>
         </mxCell>
         <mxCell id="FxRjEdKYXGra20SssN0z-3" edge="1" parent="1" style="endArrow=none;html=1;rounded=1;curved=0;strokeColor=#97D077;exitX=-0.03;exitY=0.143;exitDx=0;exitDy=0;endFill=0;exitPerimeter=0;startArrow=classic;startFill=1;dashed=1;" value="deploy-spa.yml">
           <mxGeometry height="50" relative="1" width="50" as="geometry">
             <mxPoint as="offset" />
             <Array as="points">
-              <mxPoint x="-730" y="516.9" />
+              <mxPoint x="-650" y="516.9" />
             </Array>
             <mxPoint x="-463" y="516.4900000000001" as="sourcePoint" />
-            <mxPoint x="-730" y="154.9" as="targetPoint" />
+            <mxPoint x="-650" y="260" as="targetPoint" />
           </mxGeometry>
         </mxCell>
         <mxCell id="CfFRR-ND3HyhzvkOBMYP-1" parent="1" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/iot/Azure_Maps_Accounts.svg;" value="proximity-maps-&amp;lt;####&amp;gt;" vertex="1">
@@ -349,6 +350,32 @@
         </mxCell>
         <mxCell id="TtOBABH_PDdFwL-sDQQe-1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;arcSize=3;strokeColor=none;fillColor=#E6E6E6;align=left;verticalAlign=top;fontColor=#333333;fontFamily=Helvetica;" value="sre-subnet&lt;br&gt;10.10.1.192/26" vertex="1">
           <mxGeometry height="82" width="142" x="-300" y="247.9" as="geometry" />
+        </mxCell>
+        <mxCell id="8VXfe19DZYQ6mkSXBoo8-1" parent="1" style="image;aspect=fixed;html=1;align=center;fontSize=12;image=img/lib/azure2/identity/Managed_Identities.svg;points=[[0.5,0.01,0],[0.5,0.941,0],[0.089,0.5,0],[1,0.608,0],[0.748,0.307,0],[0.762,0.994,0],[0.003,0.613,0],[0.247,0.307,0]];" value="proximity&lt;br&gt;generator-app" vertex="1">
+          <mxGeometry height="40" width="41.21" x="210" y="63.769999999999975" as="geometry" />
+        </mxCell>
+        <mxCell id="8VXfe19DZYQ6mkSXBoo8-2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;labelPosition=center;verticalLabelPosition=top;align=center;verticalAlign=bottom;fillColor=#f5f5f5;fontColor=#333333;strokeColor=#999999;dashed=1;" value="RBAC" vertex="1">
+          <mxGeometry height="100" width="120" x="294" y="46.900000000000006" as="geometry" />
+        </mxCell>
+        <mxCell id="8VXfe19DZYQ6mkSXBoo8-6" edge="1" parent="1" style="endArrow=none;html=1;rounded=1;curved=0;strokeColor=#7EA6E0;endFill=0;startArrow=classic;startFill=1;" value="Storage Blob Data&lt;div&gt;contributor&lt;/div&gt;">
+          <mxGeometry height="50" relative="1" width="50" x="0.5652" as="geometry">
+            <mxPoint as="offset" />
+            <Array as="points">
+              <mxPoint x="510" y="80" />
+            </Array>
+            <mxPoint x="510" y="290" as="sourcePoint" />
+            <mxPoint x="260" y="80" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="8VXfe19DZYQ6mkSXBoo8-7" edge="1" parent="1" style="endArrow=none;html=1;rounded=1;curved=0;strokeColor=#7EA6E0;endFill=0;startArrow=classic;startFill=1;" value="Storage Blob Data&lt;div&gt;contributor&lt;/div&gt;">
+          <mxGeometry height="50" relative="1" width="50" x="0.5122" as="geometry">
+            <mxPoint as="offset" />
+            <Array as="points">
+              <mxPoint x="490" y="110" />
+            </Array>
+            <mxPoint x="490" y="290" as="sourcePoint" />
+            <mxPoint x="260" y="110" as="targetPoint" />
+          </mxGeometry>
         </mxCell>
       </root>
     </mxGraphModel>

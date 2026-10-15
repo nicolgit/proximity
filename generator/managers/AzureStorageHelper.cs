@@ -1,21 +1,27 @@
 using Azure.Data.Tables;
 using Azure.Storage.Blobs;
 using Azure.Identity;
+using Azure.Core;
 using Microsoft.Extensions.Configuration;
 
 namespace Generator.Managers;
 
 public static class AzureStorageHelper
 {
-    public static ClientSecretCredential GetAzureCredential(IConfiguration? configuration)
+    public static TokenCredential GetAzureCredential(IConfiguration? configuration)
     {
         var tenantId = configuration?.GetSection("AppSettings")[ConfigurationKeys.TenantId];
         var clientId = configuration?.GetSection("AppSettings")[ConfigurationKeys.ClientId];
         var clientSecret = configuration?.GetSection("AppSettings")[ConfigurationKeys.ClientSecret];
 
+        if (string.IsNullOrWhiteSpace(tenantId) && string.IsNullOrWhiteSpace(clientId) && string.IsNullOrWhiteSpace(clientSecret))
+        {
+            return new AzureCliCredential();
+        }
+
         if (string.IsNullOrWhiteSpace(tenantId) || string.IsNullOrWhiteSpace(clientId) || string.IsNullOrWhiteSpace(clientSecret))
         {
-            throw new InvalidOperationException("Azure AD credentials (tenantId, clientId, clientSecret) not configured");
+            throw new InvalidOperationException("Service principal authentication requires tenantId, clientId, and clientSecret. Omit all three to use Azure CLI authentication.");
         }
 
         return new ClientSecretCredential(tenantId, clientId, clientSecret);
