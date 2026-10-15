@@ -98,6 +98,23 @@ The deployment will create all necessary Azure resources with secure defaults:
 
 ## Step 2: Post-Deployment Configuration
 
+### SPA telemetry configuration endpoint
+
+`GET /api/application-insights/connection-string` anonymously returns the Function App's
+`APPLICATIONINSIGHTS_CONNECTION_STRING` as JSON:
+
+```json
+{
+  "connectionString": "InstrumentationKey=<instrumentation-key>;IngestionEndpoint=https://<ingestion-endpoint>/"
+}
+```
+
+The Bicep template already sets this application setting. If it is missing, empty,
+or whitespace, the endpoint returns `404` with an `error` message. The value is
+intended for public browser telemetry ingestion, not authorization to read telemetry;
+it is not logged by the endpoint. The SPA does not yet consume this endpoint or
+initialize browser telemetry. A sample request is available in [api.http](../api/api.http).
+
 After the Bicep deployment completes successfully, configure the CI/CD pipelines:
 
 ### 2.1 Download Publishing Profiles

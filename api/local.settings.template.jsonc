@@ -3,6 +3,7 @@
     "Values": {
         "AzureWebJobsStorage": "UseDevelopmentStorage=true",
         "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
+        "APPLICATIONINSIGHTS_CONNECTION_STRING": "", // Set to the Application Insights connection string to enable telemetry
         "authentication": "identity|secret",
         "tenantId": "<your-tenant-id>",            // required for authentication == secret
         "clientId": "<your-client-id>",            // required for authentication == secret
