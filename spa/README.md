@@ -103,8 +103,57 @@ Le configurazioni principali si trovano in:
 - `tsconfig.json` - Configurazione TypeScript
 - `src/types/index.ts` - Tipi personalizzati
 
-## Contribuire
+## Application Insights: tracciamento minimo
 
+All'avvio la SPA richiede `GET <VITE_API_ROOT>/application-insights/connection-string`
+e inizializza l'SDK JavaScript di Application Insights in background. Il backend deve
+essere aggiornato con questo endpoint e avere `APPLICATIONINSIGHTS_CONNECTION_STRING`
+configurata. La connessione e' pubblica per l'invio della telemetria, non permette
+di leggere i log.
+
+Il tracciamento comprende soltanto:
+
+- **Page view** iniziale e cambi di percorso Vue Router completati, senza duplicare
+  redirect o modifiche alla sola query string/fragment.
+- **MapReady**, una volta per caricamento del paese/area: Leaflet deve essere pronto,
+  le aree caricate e, per una specifica area, le richieste iniziali di stazioni e
+  isocrone completate senza errori segnalati. La misura `durationMs` parte dall'avvio
+  della vista o dal cambio di paese/area. Non misura il caricamento di tutte le tile.
+
+Entrambi includono il percorso senza query string o fragment; il ruolo cloud e'
+`proximity-spa`. Non raccogliamo automaticamente eccezioni, chiamate HTTP, clic,
+ricerche, coordinate o movimenti della mappa. Cookie e storage dell'SDK sono
+disabilitati e gli identificativi utente/sessione e il referrer sono rimossi dalla
+telemetria. Le visite sono page view, non un conteggio affidabile di utenti unici.
+La telemetria non sostituisce una valutazione degli obblighi di privacy/consenso.
+Il tag Google Analytics gia' presente in `index.html` e' indipendente e non viene
+modificato da questa integrazione.
+
+La richiesta di configurazione ha un timeout di 5 secondi. Fino all'inizializzazione
+vengono conservati in memoria al massimo 50 eventi; in caso di errore la raccolta si
+disattiva con un avviso in console, senza impedire l'uso della SPA. Ad blocker e
+restrizioni di rete possono impedire l'invio.
+
+Per verificare, aprire la SPA e navigare tra paese e aree, poi controllare in
+Application Insights:
+
+```kusto
+pageViews
+| where cloud_RoleName == "proximity-spa"
+| project timestamp, name, url
+```
+
+```kusto
+customEvents
+| where cloud_RoleName == "proximity-spa" and name == "MapReady"
+| project timestamp, path = customDimensions.path,
+    durationMs = customMeasurements.durationMs
+```
+
+Attendere alcuni minuti per l'ingestione. Le richieste verso Azure Maps e i parametri
+di ricerca non devono comparire nella telemetria inviata.
+
+## Contribuire
 1. Fork del repository
 2. Crea un branch per la feature (`git checkout -b feature/nome-feature`)
 3. Commit delle modifiche (`git commit -am 'Aggiungi nuova feature'`)

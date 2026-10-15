@@ -11,6 +11,7 @@
         "type-check": "vue-tsc --build --force"
     },
     "dependencies": {
+        "@microsoft/applicationinsights-web": "^3.3.0",
         "@vue-leaflet/vue-leaflet": "^0.10.1",
         "leaflet": "^1.9.4",
         "vue": "^3.4.0",

@@ -384,6 +384,7 @@ import type { SearchResult, Station } from '@/types'
 import { searchLocationIconSvg, userLocationIconSvg, stationIconSvg, tramStopIconSvg, trolleyStopIconSvg, metroStationIconSvg, busStationIconSvg, unknownStationIconSvg } from '@/utils/mapIcons'
 import { getApiUrl, setMapKey, getMapKey } from '@/config/env'
 import { MapKeyService } from '@/services/MapKeyService'
+import { trackMapReady } from '@/services/TelemetryService'
 import { LCircle, LMap, LMarker, LPopup, LGeoJson, LTileLayer } from '@vue-leaflet/vue-leaflet'
 import L from 'leaflet'
 import { onMounted, ref, computed, onUnmounted, watch } from 'vue'
@@ -406,6 +407,21 @@ const props = withDefaults(defineProps<Props>(), {
 
 // Route setup
 const route = useRoute()
+
+let mapLoad = {
+  path: route.path,
+  startedAt: performance.now(),
+  dataReady: false,
+  reported: false
+}
+let leafletReady = false
+let disposed = false
+
+const reportMapReady = () => {
+  if (!leafletReady || !mapLoad.dataReady || mapLoad.reported || mapKeyError.value) return
+  mapLoad.reported = true
+  trackMapReady(mapLoad.path, Math.round(performance.now() - mapLoad.startedAt))
+}
 
 // Map setup
 const mapRef = ref<InstanceType<typeof LMap> | null>(null)
@@ -503,11 +519,12 @@ const {
   isLoading: isAreasLoading,
   error: areasError,
   load: loadAreas
-} = useAreas(props.country)
+} = useAreas(() => props.country)
 
 const {
   loadStations,
-  getStationsForArea
+  getStationsForArea,
+  getErrorForArea
 } = useStations()
 
 // Search UI state
@@ -556,12 +573,15 @@ let proximityLevelDebounceTimer: number | null = null
 
 // Function to initialize map for a specific area
 const initializeMapForArea = async (country: string, areaId: string | undefined) => {
-  // Load areas - if areaId is specified, load that specific area, otherwise load all
-  if (areaId) {
-    await loadAreas(areaId)
-  } else if (areas.value.length === 0) {
-    await loadAreas()
+  const load = mapLoad
+  const finishMapLoad = () => {
+    if (disposed || load !== mapLoad || areasError.value) return
+    load.dataReady = true
+    reportMapReady()
   }
+  // Load areas - if areaId is specified, load that specific area, otherwise load all
+  await loadAreas(areaId)
+  if (disposed || load !== mapLoad) return
 
   if (!areaId) {
     // No area specified, use current location or default
@@ -583,6 +603,7 @@ const initializeMapForArea = async (country: string, areaId: string | undefined)
     } else {
       // No user location, just remove constraints
     }
+    finishMapLoad()
     return
   }
 
@@ -612,12 +633,14 @@ const initializeMapForArea = async (country: string, areaId: string | undefined)
 
     // Automatically show stations and isochrones for the target area
     setTimeout(async () => {
+      if (disposed || load !== mapLoad) return
       console.log(`🚇 Automatically loading stations and isochrones for area: ${targetArea.name}`)
       
       // Load stations if not already visible
       if (!visibleStations.value.has(areaId)) {
         if (getStationsForArea(areaId).length === 0) {
           await loadStations(country, areaId)
+          if (disposed || load !== mapLoad) return
         }
         visibleStations.value.add(areaId)
         console.log(`✅ Stations loaded for area: ${targetArea.name}`)
@@ -627,6 +650,9 @@ const initializeMapForArea = async (country: string, areaId: string | undefined)
       if (!visibleAreaIsochrones.value.has(areaId)) {
         await loadAreaIsochrones(country, areaId)
         console.log(`✅ Isochrones loaded for area: ${targetArea.name}`)
+      }
+      if (!getErrorForArea(areaId) && !areaIsochroneErrors.value.has(areaId)) {
+        finishMapLoad()
       }
     }, 200) // Slight delay to ensure map is ready
   } else {
@@ -649,12 +675,13 @@ const initializeMapForArea = async (country: string, areaId: string | undefined)
 
 // Watch for route parameter changes
 watch(
-  () => route.params,
+  () => [route.params.country, route.params.area, route.params.areaid],
   async (newParams, oldParams) => {
-    const newAreaId = (newParams.area || newParams.areaid) as string | undefined
-    const oldAreaId = (oldParams?.area || oldParams?.areaid) as string | undefined
+    const newAreaId = (newParams[1] || newParams[2]) as string | undefined
+    const oldAreaId = (oldParams?.[1] || oldParams?.[2]) as string | undefined
     
-    if (newAreaId !== oldAreaId) {
+    if (newAreaId !== oldAreaId || newParams[0] !== oldParams?.[0]) {
+      mapLoad = { path: route.path, startedAt: performance.now(), dataReady: false, reported: false }
       console.log(`🔄 Route changed from area "${oldAreaId}" to "${newAreaId}"`)
       await initializeMapForArea(props.country, newAreaId)
     }
@@ -1256,6 +1283,8 @@ const onSearchKeydown = (event: KeyboardEvent) => {
 
 // Map event handlers
 const onMapReady = () => {
+  leafletReady = true
+  reportMapReady()
   console.log('🗺️ Map is ready!', mapRef.value?.leafletObject)
   
   const map = mapRef.value?.leafletObject
@@ -1447,6 +1476,8 @@ const refreshStationIsochrones = async () => {
 
 // Cleanup debounce timer on unmount
 onUnmounted(() => {
+  disposed = true
+  leafletReady = false
   if (proximityLevelDebounceTimer) {
     clearTimeout(proximityLevelDebounceTimer)
     proximityLevelDebounceTimer = null
