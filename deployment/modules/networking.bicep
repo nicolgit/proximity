@@ -67,6 +67,15 @@ resource vnet 'Microsoft.Network/virtualNetworks@2023-09-01' = {
         name: vnetConfig.subnets.sre.name
         properties: {
           addressPrefix: vnetConfig.subnets.sre.addressPrefix
+          // Required delegation for Azure SRE Agent VNet integration
+          delegations: [
+            {
+              name: 'Microsoft.App.environments'
+              properties: {
+                serviceName: 'Microsoft.App/environments'
+              }
+            }
+          ]
         }
       }
     ]
