@@ -1,140 +1,159 @@
 # Metro Proximity SPA
 
-Una Single Page Application (SPA) basata su Vue.js e TypeScript che mostra una mappa interattiva a schermo intero con funzionalità di ricerca geografica.
+A Vue.js and TypeScript Single Page Application (SPA) featuring a full-screen interactive map with location search capabilities.
 
-## Funzionalità
+## Features
 
-- 🗺️ **Mappa a schermo intero** utilizzando Leaflet e OpenStreetMap
-- 🔍 **Campo di ricerca** in alto al centro per cercare località
-- 📍 **Geolocalizzazione** automatica della posizione dell'utente
-- 🎯 **Marcatori** per località selezionate e posizione corrente
-- 📱 **Design responsive** per dispositivi mobile e desktop
+- 🗺️ **Full-screen map** using Leaflet and OpenStreetMap
+- 🔍 **Search field** at the top center to find locations
+- 📍 **Automatic geolocation** of the user's position
+- 🎯 **Markers** for selected locations and the current position
+- 📱 **Responsive design** for mobile and desktop devices
 
-## Tecnologie utilizzate
+## Technologies
 
-- **Vue.js 3** - Framework JavaScript reattivo
-- **TypeScript** - Tipizzazione statica per JavaScript
-- **Leaflet** - Libreria per mappe interattive
-- **@vue-leaflet/vue-leaflet** - Integrazione Vue per Leaflet
-- **OpenStreetMap** - Servizio di mappe e geocoding
-- **Vite** - Build tool veloce per sviluppo e produzione
-- **Vue Router** - Routing per Single Page Application
+- **Vue.js 3** - Reactive JavaScript framework
+- **TypeScript** - Static typing for JavaScript
+- **Leaflet** - Interactive mapping library
+- **@vue-leaflet/vue-leaflet** - Vue integration for Leaflet
+- **OpenStreetMap** - Mapping and geocoding service
+- **Vite** - Fast build tool for development and production
+- **Vue Router** - Routing for Single Page Applications
 
-## Installazione
+## Installation
 
-1. Assicurati di avere Node.js installato (versione 18+ raccomandata)
+1. Make sure Node.js is installed (version 18+ recommended)
 
-2. Installa le dipendenze:
+2. Install the dependencies:
 ```bash
 npm install
 ```
 
-## Comandi disponibili
+## Available Commands
 
-### Sviluppo
+### Development
 ```bash
 npm run dev
 ```
-Avvia il server di sviluppo su `http://localhost:3000`
+Starts the development server at `http://localhost:3000`
 
 ### Build
 ```bash
 npm run build
 ```
-Crea il build di produzione nella cartella `dist`
+Creates the production build in the `dist` directory
 
 ### Preview
 ```bash
 npm run preview
 ```
-Anteprima del build di produzione
+Previews the production build
 
 ### Type checking
 ```bash
 npm run type-check
 ```
-Controllo dei tipi TypeScript
+Checks TypeScript types
 
 ### Linting
 ```bash
 npm run lint
 ```
-Controllo e correzione automatica del codice
+Checks and automatically fixes the code
 
-## Struttura del progetto
+## Project Structure
 
 ```
 spa/
-├── public/                 # File statici
+├── public/                 # Static files
 ├── src/
-│   ├── components/         # Componenti riutilizzabili
-│   ├── composables/        # Funzioni composable Vue
-│   ├── router/             # Configurazione routing
-│   ├── services/           # Servizi API
-│   ├── types/              # Definizioni TypeScript
-│   ├── views/              # Pagine dell'applicazione
-│   ├── App.vue             # Componente root
+│   ├── components/         # Reusable components
+│   ├── composables/        # Vue composable functions
+│   ├── router/             # Routing configuration
+│   ├── services/           # API services
+│   ├── types/              # TypeScript definitions
+│   ├── views/              # Application pages
+│   ├── App.vue             # Root component
 │   ├── main.ts             # Entry point
-│   └── style.css           # Stili globali
-├── index.html              # Template HTML
-├── package.json            # Dipendenze e script
-├── tsconfig.json           # Configurazione TypeScript
-├── vite.config.ts          # Configurazione Vite
-└── README.md               # Documentazione
+│   └── style.css           # Global styles
+├── index.html              # HTML template
+├── package.json            # Dependencies and scripts
+├── tsconfig.json           # TypeScript configuration
+├── vite.config.ts          # Vite configuration
+└── README.md               # Documentation
 ```
 
-## Utilizzo
+## Usage
 
-1. **Ricerca località**: Digita almeno 3 caratteri nel campo di ricerca in alto per cercare una località
-2. **Selezione risultato**: Clicca su un risultato della ricerca per centrare la mappa su quella località
-3. **Posizione corrente**: Clicca sul pulsante 📍 in alto a destra per centrare la mappa sulla tua posizione
-4. **Navigazione mappa**: Usa mouse/touch per trascinare, zoom e navigare la mappa
+1. **Location search**: Type at least 3 characters in the search field at the top to find a location
+2. **Select a result**: Click a search result to center the map on that location
+3. **Current position**: Click the 📍 button at the top right to center the map on your position
+4. **Map navigation**: Use mouse or touch controls to pan, zoom, and navigate the map
 
-## API utilizzate
+## APIs Used
 
 - **OpenStreetMap Tiles**: `https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png`
 - **Nominatim Search API**: `https://nominatim.openstreetmap.org/search`
 - **Nominatim Reverse Geocoding**: `https://nominatim.openstreetmap.org/reverse`
 
-## Configurazione
+## Configuration
 
-Le configurazioni principali si trovano in:
-- `vite.config.ts` - Configurazione build e sviluppo
-- `tsconfig.json` - Configurazione TypeScript
-- `src/types/index.ts` - Tipi personalizzati
+The main configuration files are:
+- `vite.config.ts` - Build and development configuration
+- `tsconfig.json` - TypeScript configuration
+- `src/types/index.ts` - Custom types
 
-## Application Insights: tracciamento minimo
+## Application Insights: Minimal Tracking
 
-All'avvio la SPA richiede `GET <VITE_API_ROOT>/application-insights/connection-string`
-e inizializza l'SDK JavaScript di Application Insights in background. Il backend deve
-essere aggiornato con questo endpoint e avere `APPLICATIONINSIGHTS_CONNECTION_STRING`
-configurata. La connessione e' pubblica per l'invio della telemetria, non permette
-di leggere i log.
+At startup, the SPA requests `GET <VITE_API_ROOT>/application-insights/connection-string`
+and initializes the Application Insights JavaScript SDK in the background. The backend
+must provide this endpoint and have `APPLICATIONINSIGHTS_CONNECTION_STRING`
+configured. The connection string is public for telemetry ingestion; it does not
+grant access to read logs.
 
-Il tracciamento comprende soltanto:
+Tracking includes only:
 
-- **Page view** iniziale e cambi di percorso Vue Router completati, senza duplicare
-  redirect o modifiche alla sola query string/fragment.
-- **MapReady**, una volta per caricamento del paese/area: Leaflet deve essere pronto,
-  le aree caricate e, per una specifica area, le richieste iniziali di stazioni e
-  isocrone completate senza errori segnalati. La misura `durationMs` parte dall'avvio
-  della vista o dal cambio di paese/area. Non misura il caricamento di tutte le tile.
+- **Page views** for the initial visit and completed Vue Router path changes, without
+  duplicates for redirects or changes limited to the query string or fragment.
+- **MapReady**, once per country/area load: Leaflet must be ready, areas must be
+  loaded, and, for a specific area, the initial station and isochrone requests must
+  have completed without reported errors. The `durationMs` measurement starts when
+  the view initializes or the country/area changes. It does not measure the loading
+  of all map tiles.
+- **Backend HTTP dependencies** for `fetch` and XMLHttpRequest calls targeting the
+  origin and path of `VITE_API_ROOT`: duration, HTTP status code, and success.
+  Requests include the W3C `traceparent` header to correlate the call with the
+  Function and its Storage dependencies. Azure Maps, external services, and the
+  telemetry configuration endpoint are excluded. Query strings, fragments,
+  headers, and bodies are not collected.
 
-Entrambi includono il percorso senza query string o fragment; il ruolo cloud e'
-`proximity-spa`. Non raccogliamo automaticamente eccezioni, chiamate HTTP, clic,
-ricerche, coordinate o movimenti della mappa. Cookie e storage dell'SDK sono
-disabilitati e gli identificativi utente/sessione e il referrer sono rimossi dalla
-telemetria. Le visite sono page view, non un conteggio affidabile di utenti unici.
-La telemetria non sostituisce una valutazione degli obblighi di privacy/consenso.
-Il tag Google Analytics gia' presente in `index.html` e' indipendente e non viene
-modificato da questa integrazione.
+Events include the path without query strings or fragments; the cloud role is
+`proximity-spa`. We do not automatically collect exceptions, external HTTP calls,
+clicks, searches, coordinates, or map movements. SDK cookies and storage are
+disabled, and user/session identifiers and the referrer are removed from
+telemetry. Visits represent page views, not a reliable count of unique users.
+Telemetry does not replace an assessment of privacy and consent requirements.
+The existing Google Analytics tag in `index.html` is independent and is not
+modified by this integration.
 
-La richiesta di configurazione ha un timeout di 5 secondi. Fino all'inizializzazione
-vengono conservati in memoria al massimo 50 eventi; in caso di errore la raccolta si
-disattiva con un avviso in console, senza impedire l'uso della SPA. Ad blocker e
-restrizioni di rete possono impedire l'invio.
+The configuration request has a 5-second timeout. Up to 50 events are buffered in
+memory until initialization completes. If initialization fails, collection is
+disabled with a console warning, without preventing use of the SPA. Ad blockers
+and network restrictions may prevent telemetry delivery.
 
-Per verificare, aprire la SPA e navigare tra paese e aree, poi controllare in
+Loading remains non-blocking: requests sent before SDK initialization are not
+tracked and do not receive correlation headers. This includes the initial
+connection string request and may include the first map load. Subsequent
+navigation and requests are tracked after initialization.
+
+If the API and SPA have different origins, the Function's CORS configuration must
+allow the SPA origin and the `traceparent` header in preflight requests. Do not
+enable correlation for external domains. The backend already uses the Application
+Insights integration for Functions; after deployment, verify the presence of
+Storage dependencies and the `operation_Id` / `operation_ParentId` chain in Azure.
+Sharing the connection string alone does not guarantee this chain.
+
+To verify, open the SPA and navigate between countries and areas, then check
 Application Insights:
 
 ```kusto
@@ -150,16 +169,31 @@ customEvents
     durationMs = customMeasurements.durationMs
 ```
 
-Attendere alcuni minuti per l'ingestione. Le richieste verso Azure Maps e i parametri
-di ricerca non devono comparire nella telemetria inviata.
+```kusto
+dependencies
+| where cloud_RoleName == "proximity-spa"
+| project timestamp, name, resultCode, success, duration, operation_Id, id
+```
 
-## Contribuire
-1. Fork del repository
-2. Crea un branch per la feature (`git checkout -b feature/nome-feature`)
-3. Commit delle modifiche (`git commit -am 'Aggiungi nuova feature'`)
-4. Push del branch (`git push origin feature/nome-feature`)
-5. Apri una Pull Request
+For a selected call, use its `operation_Id` in the
+**End-to-end transaction details** view or in the following query:
 
-## Licenza
+```kusto
+union requests, dependencies, traces
+| where operation_Id == "<operation-id>"
+| order by timestamp asc
+```
 
-Questo progetto è distribuito sotto licenza MIT.
+Allow a few minutes for ingestion. Azure Maps requests and search parameters
+must not appear in the submitted telemetry.
+
+## Contributing
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/feature-name`)
+3. Commit your changes (`git commit -am 'Add new feature'`)
+4. Push the branch (`git push origin feature/feature-name`)
+5. Open a Pull Request
+
+## License
+
+This project is distributed under the MIT license.
