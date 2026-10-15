@@ -44,3 +44,6 @@ Thumbs.db
 *.bak
 *.bkp
 *.dtmp
+
+# exclude hub-and-spoke-playground stuff used for local development
+hub-and-spoke-playground/
