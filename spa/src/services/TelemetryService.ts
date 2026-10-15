@@ -89,7 +89,11 @@ export async function initializeTelemetry(router: Router): Promise<void> {
             throw new Error('Invalid telemetry configuration.')
         }
 
-        const { ApplicationInsights } = await import('@microsoft/applicationinsights-web')
+        const { ApplicationInsights, DistributedTracingModes } = await import('@microsoft/applicationinsights-web')
+        const apiRoot = new URL(getApiUrl('/'), window.location.href)
+        const apiPrefix = apiRoot.href.replace(/\/$/, '')
+        const escapedApiPrefix = apiPrefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        const apiRequests = new RegExp(`^${escapedApiPrefix}/`, 'i')
         const insights = new ApplicationInsights({
             config: {
                 connectionString: data.connectionString,
@@ -97,8 +101,18 @@ export async function initializeTelemetry(router: Router): Promise<void> {
                 isStorageUseDisabled: true,
                 enableSessionStorageBuffer: false,
                 disableExceptionTracking: true,
-                disableAjaxTracking: true,
-                disableFetchTracking: true,
+                disableAjaxTracking: false,
+                disableFetchTracking: false,
+                excludeRequestFromAutoTrackingPatterns: [
+                    new RegExp(`^(?!${escapedApiPrefix}/)`, 'i'),
+                    /\/application-insights\/connection-string(?:[?#]|$)/i
+                ],
+                enableCorsCorrelation: true,
+                correlationHeaderDomains: [apiRoot.host],
+                distributedTracingMode: DistributedTracingModes.W3C,
+                enableRequestHeaderTracking: false,
+                enableResponseHeaderTracking: false,
+                enableAjaxErrorStatusText: false,
                 enableAutoRouteTracking: false,
                 autoTrackPageVisitTime: false,
                 enableUnhandledPromiseRejectionTracking: false,
@@ -112,9 +126,23 @@ export async function initializeTelemetry(router: Router): Promise<void> {
         })
         insights.loadAppInsights()
         insights.addTelemetryInitializer(item => {
+            const isDependency = item.baseType === 'RemoteDependencyData'
             if (item.baseType !== 'PageviewData' &&
+                !isDependency &&
                 !(item.baseType === 'EventData' && item.baseData?.name === 'MapReady')) {
                 return false
+            }
+            if (isDependency && item.baseData) {
+                const data = item.baseData
+                if (typeof data.target !== 'string' || !apiRequests.test(data.target)) {
+                    return false
+                }
+                const url = new URL(data.target)
+                url.search = ''
+                url.hash = ''
+                data.target = url.href
+                data.name = typeof data.name === 'string' ? cleanPath(data.name) : url.pathname
+                data.properties = { path: url.pathname }
             }
             const tags = item.tags ?? (item.tags = {})
             tags['ai.cloud.role'] = 'proximity-spa'
