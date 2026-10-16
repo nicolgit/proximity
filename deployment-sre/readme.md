@@ -30,32 +30,16 @@ Before deploying:
 
 ## Validate the deployment
 
-From this folder, run:
+From this folder, run the following command (compatible with PowerShell and Bash):
 
-```bash
-az deployment sub what-if \
-  --name proximity-sre-preview \
-  --location italynorth \
-  --template-file main.bicep
-```
-
-If the virtual network is stored in a different resource group:
-
-```bash
-az deployment sub what-if \
-  --name proximity-sre-preview \
-  --location italynorth \
-  --template-file main.bicep \
-  --parameters networkResourceGroupName=<network-resource-group>
+```powershell
+az deployment sub what-if --name proximity-sre-preview --location italynorth --template-file main-sre.bicep
 ```
 
 ## Deploy
 
 ```bash
-az deployment sub create \
-  --name proximity-sre \
-  --location italynorth \
-  --template-file main.bicep
+az deployment sub create --name proximity-sre --location italynorth --template-file main-sre.bicep
 ```
 
 The deployment outputs include direct links to the SRE Agent and its resource group.
@@ -80,9 +64,7 @@ The Bicep configuration enables GitHub traffic through the Azure SRE Agent infra
 Deleting `proximity-sre` removes the agent and all supporting resources created by this deployment:
 
 ```bash
-az group delete \
-  --name proximity-sre \
-  --yes
+az group delete --name proximity-sre --yes
 ```
 
 The existing `proximity-playground` resource group, virtual network, subnet, and GitHub repository are not deleted.

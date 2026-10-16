@@ -258,7 +258,7 @@ Disconnect the VPN before deleting the temporary hub:
 
 ```bash
 az group delete \
-  --name "$HUB_RG" \
+  --name hub-and-spoke-playground \
   --yes \
   --no-wait
 ```
