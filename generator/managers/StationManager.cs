@@ -87,6 +87,13 @@ out body;",
     {  
         try
         {
+            var overpassUriValue = configuration?.GetSection("AppSettings")[ConfigurationKeys.OverpassUri];
+            if (!Uri.TryCreate(overpassUriValue, UriKind.Absolute, out var overpassUri) ||
+                (overpassUri.Scheme != Uri.UriSchemeHttp && overpassUri.Scheme != Uri.UriSchemeHttps))
+            {
+                throw new InvalidOperationException("AppSettings:overpassUri must be configured with an absolute HTTP or HTTPS URL.");
+            }
+
             logger?.LogInformation("Retrieving railway stations from Overpass API for area: {AreaName}", areaName);
             Console.WriteLine($"🔍 Retrieving railway stations within {diameterMeters}m of {latitude}, {longitude}...");
 
@@ -160,7 +167,7 @@ out body;",
                             await Task.Delay(delayMs);
                         }
                         
-                        response = await httpClient.PostAsync("https://overpass-api.de/api/interpreter", requestBody);
+                        response = await httpClient.PostAsync(overpassUri, requestBody);
                         
                         if (response.IsSuccessStatusCode)
                         {

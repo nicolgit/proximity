@@ -12,6 +12,10 @@ A .NET 10 console application for managing areas and generating station proximit
 
 Copy `generator.config.template.json` to `generator.config.json` in the generator directory and set the MapBox key and storage account URLs. Run the generator from this directory: configuration is loaded from the current working directory.
 
+Set `AppSettings.overpassUri` to the Overpass API interpreter endpoint. Both configuration files use `https://overpass-api.de/api/interpreter`; replace it to use a different instance. An absolute HTTP or HTTPS URL is required and validated before existing stations are removed.
+
+At startup, the generator tests Azure Storage permissions, the MapBox key, and the configured Overpass endpoint. The Overpass check sends a minimal read-only query with a 10-second HTTP timeout and requires a successful JSON response containing an `elements` array and no query error (`remark`). If any service check fails, the generator exits before running the command.
+
 Azure Storage authentication supports two options:
 
 ### Azure CLI (local development, no application secret)

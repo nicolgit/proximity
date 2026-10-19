@@ -7,5 +7,6 @@ public static class ConfigurationKeys
     public const string ClientSecret = "clientSecret";
     public const string BlobUri = "blobUri";
     public const string TableUri = "tableUri";
+    public const string OverpassUri = "overpassUri";
     public const string MapBoxSubscriptionKey = "mapBoxSubscriptionKey";
 }

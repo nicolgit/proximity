@@ -3,6 +3,7 @@
     "ApplicationName": "Generator",
     "Version": "1.0.0",
     "Environment": "Development",
+    "overpassUri": "<your overpass-uri> i.e. https://overpass-api.de/api/interpreter",
     "mapBoxSubscriptionKey": "<mapbox-subscription-key>",
     "tenantId": "<your-tenant-id>",
     "clientId": "<your-client-id>",

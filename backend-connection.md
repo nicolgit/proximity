@@ -61,29 +61,13 @@ git pull
 ## 2. Select the Azure subscription
 
 ```bash
-# List the available tenants
-az rest \
-    --method get \
-    --url "https://management.azure.com/tenants?api-version=2022-12-01" \
-    --query "value[].{Name:displayName, TenantId:tenantId}" \
-    --output table
 
-# Set the target tenant ID
+# Set the target tenant ID (OPTIONAL)
 TENANT_ID="<tenant-id>"
 
 # Log in to the target tenant
 az login --tenant "$TENANT_ID"
 
-# List only the subscriptions for the target tenant
-az account list --query "[?tenantId=='$TENANT_ID']" --output table
-
-SUBSCRIPTION_ID="<subscription-id>"
-
-# Select the target subscription
-az account set --subscription "$SUBSCRIPTION_ID"
-
-# Verify the selected subscription
-az account show --output table
 ```
 
 Confirm that the displayed tenant and subscription are correct before continuing.

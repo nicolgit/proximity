@@ -218,12 +218,13 @@ public class Program
 
         _logger.LogInformation("Configuration loaded successfully");
 
-        // Test Azure Storage and map connection 
+        // Test required service connections
         var storageTestPassed = await TestManager.TestAzureStorageConnectionAsync(_logger, _configuration);
         var mapApiTestPassed = await TestManager.TestMapBoxApiKeyAsync(_logger, _configuration);
+        var overpassApiTestPassed = await TestManager.TestOverpassApiAsync(_logger, _configuration);
 
         // Exit if any critical tests failed
-        if (!storageTestPassed || !mapApiTestPassed)
+        if (!storageTestPassed || !mapApiTestPassed || !overpassApiTestPassed)
         {
             _logger?.LogError("One or more critical service tests failed. Exiting application.");
             Console.WriteLine("❌ Critical service validation failed. Please check your configuration.");

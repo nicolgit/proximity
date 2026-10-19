@@ -3,11 +3,75 @@ using Azure.Storage.Blobs;
 using Azure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using System.Text;
+using System.Text.Json;
 
 namespace Generator.Managers;
 
 public static class TestManager
 {
+    public static async Task<bool> TestOverpassApiAsync(ILogger? logger, IConfiguration? configuration)
+    {
+        Console.WriteLine("🔍 Testing Overpass API...");
+        var uriValue = configuration?.GetSection("AppSettings")[ConfigurationKeys.OverpassUri];
+        if (!Uri.TryCreate(uriValue, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        {
+            logger?.LogError("AppSettings:overpassUri must be configured with an absolute HTTP or HTTPS URL.");
+            Console.WriteLine("❌ Overpass API test failed: configure AppSettings:overpassUri with an absolute HTTP or HTTPS URL.");
+            return false;
+        }
+
+        try
+        {
+            logger?.LogInformation("Testing Overpass API at {Uri}", uri);
+            using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+            using var requestBody = new StringContent("[out:json][timeout:5];node(0);out;", Encoding.UTF8, "text/plain");
+            using var response = await httpClient.PostAsync(uri, requestBody);
+            if (!response.IsSuccessStatusCode)
+            {
+                logger?.LogError("Overpass API test failed with status: {StatusCode}", response.StatusCode);
+                Console.WriteLine($"❌ Overpass API test failed (Status: {response.StatusCode})");
+                return false;
+            }
+
+            using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            var root = document.RootElement;
+            if (root.ValueKind != JsonValueKind.Object ||
+                !root.TryGetProperty("elements", out var elements) || elements.ValueKind != JsonValueKind.Array ||
+                root.TryGetProperty("remark", out _))
+            {
+                logger?.LogError("Overpass API returned an invalid response or a query error.");
+                Console.WriteLine("❌ Overpass API test failed: invalid response or query error.");
+                return false;
+            }
+
+            logger?.LogInformation("Overpass API validation successful");
+            Console.WriteLine("✓ Overpass API validation successful!");
+            Console.WriteLine($"  Status: {response.StatusCode}");
+            Console.WriteLine();
+            return true;
+        }
+        catch (HttpRequestException ex)
+        {
+            logger?.LogError(ex, "Failed to connect to Overpass API.");
+            Console.WriteLine($"❌ Overpass API connection test failed: {ex.Message}");
+            return false;
+        }
+        catch (TaskCanceledException ex)
+        {
+            logger?.LogError(ex, "Overpass API request timed out.");
+            Console.WriteLine("❌ Overpass API request timed out.");
+            return false;
+        }
+        catch (JsonException ex)
+        {
+            logger?.LogError(ex, "Overpass API returned invalid JSON.");
+            Console.WriteLine("❌ Overpass API test failed: response is not valid JSON.");
+            return false;
+        }
+    }
+
     public static async Task<bool> TestAzureStorageConnectionAsync(ILogger? logger, IConfiguration? configuration)
     {
         try
