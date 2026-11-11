@@ -68,6 +68,7 @@ TENANT_ID="<tenant-id>"
 # Log in to the target tenant
 az login --tenant "$TENANT_ID"
 
+az account show
 ```
 
 Confirm that the displayed tenant and subscription are correct before continuing.
@@ -124,8 +125,6 @@ The expected result is `Succeeded`.
 ## 4. Connect the hub to the Proximity VNet
 
 Create bidirectional VNet peering and configure gateway transit. The application VNet uses the VPN gateway hosted by the hub VNet. The Proximity deployment links its storage Private DNS zones only to `proximity-net`, so add links to the hub as well to let VPN clients resolve storage account names to their private endpoint addresses.
-
-> `proximity-net` must not already be configured to use a remote gateway from another peering.
 
 ```bash
 APP_RG="proximity-playground"

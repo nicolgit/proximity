@@ -1,0 +1,24 @@
+name: proximity-project
+
+services:
+  overpass:
+    image: wiktorn/overpass-api:latest
+    container_name: overpass-for-proximity
+    restart: unless-stopped
+
+    ports:
+      - "8080:80"
+
+    volumes:
+      - ./overpass-db:/db
+
+    environment:
+      OVERPASS_MODE: init
+      OVERPASS_PLANET_URL: "https://download.geofabrik.de/europe-latest.osm.pbf"
+      OVERPASS_PLANET_PREPROCESS: "osmium cat -f osm.bz2"
+      OVERPASS_DIFF_URL: "https://download.geofabrik.de/europe-updates/"
+      OVERPASS_UPDATE_SLEEP: "3600"
+      OVERPASS_META: "no"
+      OVERPASS_COMPRESSION: "lz4"
+      OVERPASS_RULES_LOAD: "10"
+      OVERPASS_STOP_AFTER_INIT: "false"

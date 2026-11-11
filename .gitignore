@@ -45,5 +45,7 @@ Thumbs.db
 *.bkp
 *.dtmp
 
+deployment-overpass/overpass-db/*
+
 # exclude hub-and-spoke-playground stuff used for local development
 hub-and-spoke-playground/
