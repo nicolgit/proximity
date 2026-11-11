@@ -15,7 +15,7 @@ services:
     environment:
       OVERPASS_MODE: init
       OVERPASS_PLANET_URL: "https://download.geofabrik.de/europe-latest.osm.pbf"
-      OVERPASS_PLANET_PREPROCESS: "osmium cat -f osm.bz2"
+      OVERPASS_PLANET_PREPROCESS: "osmium cat /db/planet.osm.bz2 -F pbf -f osm.bz2 -o /db/planet.converted.osm.bz2 --overwrite && mv /db/planet.converted.osm.bz2 /db/planet.osm.bz2"
       OVERPASS_DIFF_URL: "https://download.geofabrik.de/europe-updates/"
       OVERPASS_UPDATE_SLEEP: "3600"
       OVERPASS_META: "no"

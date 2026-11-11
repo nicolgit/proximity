@@ -26,6 +26,8 @@ The configuration is provided in [docker-compose.yml](./docker-compose.yml). Run
 
 The initial import downloads `https://download.geofabrik.de/europe-latest.osm.pbf` and converts it before importing it into Overpass. Europe requires substantially more disk space, memory, and import time than a single-country extract; allow space for the download, conversion, and expanded database.
 
+The image saves the PBF download as `/db/planet.osm.bz2` despite its format. The preprocessing command must explicitly read that file as PBF (`-F pbf`), write the converted XML/BZip2 data to a separate file, and replace the download only after successful conversion. Both files occupy disk space during conversion.
+
 The local database is persisted in:
 
 ```text
@@ -59,6 +61,31 @@ Once initialization is complete, the local API is available at:
 ```text
 http://localhost:8080/api/interpreter
 ```
+
+### Troubleshooting initialization
+
+An `Empty reply from server` response during initialization means the HTTP service may not have started yet. Check `docker compose logs -f overpass` and wait for `Overpass container ready to receive requests` before testing the API.
+
+The large `/db/planet.osm.bz2` file is the initial download, not the finished database. Removing it after a successful import is normal; the database remains in `/db/db`, with `/db/init_done` marking completed initialization.
+
+Repeated `No database directory. Initializing` messages together with `Failed to process planet file` indicate a failed import and a restart loop, not normal cleanup. In particular:
+
+```text
+When reading from STDIN you need to use the --input-format/-F option
+to specify the file format. Or are you missing a file name argument?
+```
+
+means the preprocessing command did not supply the input file. Use the complete command in [docker-compose.yml](./docker-compose.yml).
+
+After correcting the Compose configuration, apply it with:
+
+```bash
+docker compose up -d --force-recreate overpass
+```
+
+**If initialization is incomplete, recreating the container starts the Europe download again from the beginning.** A plain `docker compose restart` does not apply changed environment variables. Do not delete `overpass-db` to fix a preprocessing command.
+
+Use `curl -sS` instead of `curl -s` when diagnosing requests so connection errors are visible.
 
 ---
 
@@ -254,9 +281,7 @@ docker compose logs -f overpass
 ### Check OSM data timestamp
 
 ```bash
-curl -s -X POST http://localhost:8080/api/interpreter \
-  --data-urlencode 'data=[out:json];out;' \
-  | jq -r '.osm3s.timestamp_osm_base'
+curl -s -X POST http://localhost:8080/api/interpreter  --data-urlencode 'data=[out:json];out;'
 ```
 
 ### Force an update
